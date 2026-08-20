@@ -8,10 +8,15 @@
   --vaadin-avatar-size: 1.75rem;
 }
 
-/* Who invited you can wrap; the way home cannot shrink. */
+/* Who invited you takes the middle and may wrap; the way home and the account hold
+   their ends. */
 .invitation > .meta {
   flex: 1;
   min-width: 0;
+}
+
+.invitation > .account-avatar {
+  flex: none;
 }
 
 /* The field wrapper contributes nothing: the rows are the whole control. */

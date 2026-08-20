@@ -11,7 +11,8 @@ import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Typography;
-import io.binarycodes.whichday.people.ui.PersonAvatar;
+import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.ui.AccountSwitcher;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
@@ -62,12 +63,24 @@ public class BallotView extends PollScreen {
         renderProgress(poll);
     }
 
+    /**
+     * Who invited you, between the way home and the account — which stays hard right
+     * here as it does on every other screen that shows it, rather than sitting inside
+     * the sentence.
+     */
     private Div invitation(Poll poll) {
         var text = Typography.meta(getTranslation("ballot.invitedBy",
                 poll.organizer().firstName(), poll.title()));
-        var row = new Div(homeButton(), new PersonAvatar(presenter.viewer()), text);
+        var switcher = new AccountSwitcher(presenter.viewer(), presenter.everyone(), this::switchViewer);
+        var row = new Div(homeButton(), text, switcher);
         row.addClassName("invitation");
         return row;
+    }
+
+    /** Answering as somebody else is a different ballot, so the screen is rebuilt. */
+    private void switchViewer(Person person) {
+        presenter.switchViewer(person);
+        render();
     }
 
     /**

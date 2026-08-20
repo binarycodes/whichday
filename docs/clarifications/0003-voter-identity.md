@@ -29,9 +29,14 @@ belong to the organizer and half to a voter, and without a login there is no oth
 way to reach both. Tapping the avatar and becoming Sara Näslund is what makes
 screens 4, 2a and 2b reachable at all.
 
+It is one component, `AccountSwitcher`, and it sits hard right wherever it appears —
+the header of the two screens that open the application, and the ballot's invitation
+row. The ballot briefly had a decorative copy of the viewer's avatar inside that
+sentence instead, which looked like the account control without being one.
+
 It should be deleted the moment there is a real subject to read. Everything it
-touches goes through `PollPresenter.switchViewer`, so deleting it is one method and
-one menu.
+touches goes through `PollPresenter.switchViewer`, so deleting it is one component
+and one method.
 
 ## What is not built
 

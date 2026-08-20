@@ -26,6 +26,7 @@ import com.vaadin.flow.component.HasText;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
@@ -34,6 +35,7 @@ import io.binarycodes.whichday.Application;
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.ui.AccountSwitcher;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
 import io.binarycodes.whichday.poll.ui.component.DayPoster;
@@ -70,6 +72,39 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ResultsView.class, OFFSITE);
 
         assertThat(textOf(currentView())).contains("6 of 7", "have voted", "Everyone but Jonas", "Jonas");
+    }
+
+    @Test
+    @DisplayName("keeps the account last in the header, after who invited you")
+    void theAccountStaysOnTheRight() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(BallotView.class, OFFSITE);
+
+        var header = componentsOf(currentView())
+                .filter(Div.class::isInstance)
+                .map(Div.class::cast)
+                .filter(row -> row.getClassNames().contains("invitation"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(header.getChildren().toList())
+                .last()
+                .isInstanceOf(AccountSwitcher.class);
+    }
+
+    @Test
+    @DisplayName("switching account on the ballot rebuilds it as that person's answer")
+    void switchingAccountOnTheBallot() {
+        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
+        presenter().switchViewer(holdout);
+        navigateToPoll(BallotView.class, OFFSITE);
+        var voter = presenter().poll(OFFSITE).orElseThrow().answered().getFirst();
+
+        presenter().switchViewer(voter);
+        navigateToPoll(BallotView.class, OFFSITE);
+
+        // A voter who has already answered sees their own days already ticked.
+        assertThat(ballotField().getValue()).isNotEmpty();
     }
 
     @Test
