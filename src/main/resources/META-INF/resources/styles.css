@@ -1,0 +1,12 @@
+/* Entry stylesheet: @import lines only, so that touching this file is what
+   busts the browser cache for a changed partial (see ./run.sh styles). */
+
+@import url("styles/colors.css");
+@import url("styles/shell.css");
+@import url("styles/screen.css");
+@import url("styles/calendar.css");
+@import url("styles/day-ballot.css");
+@import url("styles/tally.css");
+@import url("styles/poster.css");
+@import url("styles/poll-list.css");
+@import url("styles/people.css");

@@ -1,0 +1,84 @@
+/* Who is in the room: overlapping avatar stacks, the invite list, and the chips
+   for whoever has not answered. */
+
+.avatar-stack {
+  display: flex;
+  align-items: center;
+  --vaadin-avatar-size: 1.625rem;
+}
+
+/* Overlap, with a ring in the surface colour so the stack reads as a stack
+   rather than as one wide smudge. */
+.avatar-stack > * + * {
+  margin-inline-start: -0.5rem;
+}
+
+.avatar-stack > * {
+  flex: none;
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.avatar-stack-l {
+  --vaadin-avatar-size: 2.125rem;
+}
+
+.avatar-stack-overflow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vaadin-avatar-size);
+  height: var(--vaadin-avatar-size);
+  border-radius: var(--aura-radius-full, 9999px);
+  background: var(--color-surface-sunken);
+  font-size: 0.625rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  color: var(--color-ink-secondary);
+}
+
+/* Invited but not yet counted: the same footprint, drawn as an outline. */
+.avatar-stack-pending {
+  border: 1px dashed var(--color-outline-dashed);
+  background: var(--color-surface);
+  color: var(--color-ink-tertiary);
+}
+
+.locked-screen .avatar-stack > * {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  padding: 0.6875rem 0;
+  border-bottom: 1px solid var(--color-outline-faint);
+  --vaadin-avatar-size: 2rem;
+}
+
+.person-row:last-child {
+  border-bottom: none;
+}
+
+.person-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-status {
+  flex: none;
+  font-size: 0.6875rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  color: var(--color-ink-tertiary);
+}
+
+.waiting-chip {
+  padding-inline-start: var(--vaadin-padding-xs);
+  --vaadin-avatar-size: 1.375rem;
+}

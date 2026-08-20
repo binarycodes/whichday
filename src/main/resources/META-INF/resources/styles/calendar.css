@@ -1,0 +1,64 @@
+/* The month grid the organizer picks candidate days in. Seven equal columns of
+   square cells; the numeral is the whole control, so a cell is a button with
+   aria-pressed rather than a checkbox with a label. */
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--vaadin-gap-xs);
+}
+
+.calendar-weekdays {
+  font-size: 0.6875rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  text-align: center;
+  color: var(--color-ink-tertiary);
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--vaadin-radius-m);
+  background: transparent;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background var(--aura-duration-fast, 120ms) var(--aura-ease, ease-out);
+}
+
+.calendar-day[aria-pressed="false"] {
+  border-color: var(--color-outline-faint);
+}
+
+.calendar-day[aria-pressed="false"]:hover {
+  background: var(--color-surface-sunken);
+}
+
+.calendar-day[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: 1.0625rem;
+  font-weight: var(--aura-font-weight-semibold);
+  box-shadow: var(--aura-shadow-s);
+}
+
+/* A day nobody would pick — a weekend, or one already gone — stays legible as
+   part of the month but takes no border and no click. */
+.calendar-day:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-ink-faint);
+  cursor: default;
+}
+
+.calendar-day-outside:disabled {
+  color: var(--color-outline-faint);
+}

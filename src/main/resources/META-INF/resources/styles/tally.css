@@ -1,0 +1,70 @@
+/* Where the team stands. One bar per candidate day, filled to its share of the
+   invited count and fading by rank so the leader reads as paint. */
+
+.tally-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vaadin-gap-l);
+}
+
+.tally-day {
+  font-size: 0.9375rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+}
+
+.tally-count {
+  font-size: 0.9375rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+}
+
+.tally-trailing .tally-day,
+.tally-trailing .tally-count {
+  color: var(--color-ink-secondary);
+}
+
+.tally-bar {
+  position: relative;
+  height: 2.125rem;
+  margin-top: var(--vaadin-gap-s);
+  border-radius: var(--vaadin-radius-m);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.tally-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--tally-fill, 0%);
+  background: var(--tally-paint, var(--color-tally-5));
+  transition: inline-size var(--aura-duration-slow, 320ms) var(--aura-ease, ease-out);
+}
+
+.tally-rank-1 { --tally-paint: var(--color-tally-1); }
+.tally-rank-2 { --tally-paint: var(--color-tally-2); }
+.tally-rank-3 { --tally-paint: var(--color-tally-3); }
+.tally-rank-4 { --tally-paint: var(--color-tally-4); }
+.tally-rank-5 { --tally-paint: var(--color-tally-5); }
+
+/* Only the leader's bar is dark enough to carry text. */
+.tally-caption {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--vaadin-padding-s);
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  color: var(--color-accent-contrast);
+}
+
+.tally-compact .tally-bar {
+  height: 1.625rem;
+}
+
+.tally-compact .tally-day,
+.tally-compact .tally-count {
+  font-size: 0.875rem;
+}

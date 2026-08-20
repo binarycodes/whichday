@@ -1,0 +1,361 @@
+/* Shared screen furniture: the display type the design leans on, the top bars,
+   the full-width action buttons, chips, and the icon-plus-text hint rows. Aura's
+   own scale tops out at 18px, so the display sizes are declared here — the
+   oversized numeral is the design's whole idea and nothing in the theme carries
+   it. */
+
+.display-hero,
+.display-l,
+.display-m,
+.display-s,
+.stat {
+  margin: 0;
+  font-weight: var(--aura-font-weight-semibold);
+  text-wrap: pretty;
+}
+
+.display-hero {
+  font-size: 2.875rem;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+
+.display-l {
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.display-m {
+  font-size: 2.125rem;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+
+.display-s {
+  font-size: 2rem;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+
+.stat {
+  font-size: 2.75rem;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.stat-empty {
+  color: var(--color-ink-faint);
+}
+
+.lede {
+  margin: 0;
+  max-width: 20rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-ink-secondary);
+}
+
+.body-s {
+  margin: 0;
+  font-size: 0.84375rem;
+  line-height: 1.5;
+  color: var(--color-ink-secondary);
+}
+
+.meta {
+  font-size: 0.78125rem;
+  line-height: 1.4;
+  color: var(--color-ink-secondary);
+}
+
+.meta-faint {
+  color: var(--color-ink-tertiary);
+}
+
+.meta-centred {
+  text-align: center;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-tertiary);
+}
+
+.field-label {
+  font-size: 0.8125rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+}
+
+/* ---- Top bars ---- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wordmark {
+  font-size: 0.9375rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vaadin-gap-s);
+  color: var(--color-ink-secondary);
+}
+
+.top-bar-title {
+  flex: 1;
+  font-size: 0.8125rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-bar-title-leading {
+  text-align: start;
+}
+
+/* Keeps a title centred when only one side carries a control. */
+.top-bar-spacer {
+  width: var(--vaadin-icon-size);
+  flex: none;
+}
+
+/* ---- Actions ---- */
+
+.action {
+  --vaadin-button-height: 3.375rem;
+  --vaadin-button-border-radius: var(--vaadin-radius-m);
+  --vaadin-button-font-size: 1rem;
+  --vaadin-button-font-weight: var(--aura-font-weight-medium);
+  width: 100%;
+}
+
+.action-primary {
+  --vaadin-button-background: var(--color-accent);
+  --vaadin-button-text-color: var(--color-accent-contrast);
+  --vaadin-button-border-width: 0;
+  box-shadow: var(--aura-shadow-s);
+}
+
+/* The design paints the irreversible step — send, lock in — in solid ink rather
+   than accent, so that "this ends the voting" never looks like "next". */
+.action-commit {
+  --vaadin-button-background: var(--color-commit);
+  --vaadin-button-text-color: var(--color-commit-contrast);
+  --vaadin-button-border-width: 0;
+}
+
+.action-outline {
+  --vaadin-button-background: var(--color-surface);
+  --vaadin-button-border-color: var(--color-accent-hairline);
+  --vaadin-button-border-width: 1px;
+  --vaadin-button-text-color: var(--color-accent-text);
+}
+
+.action-quiet {
+  --vaadin-button-background: var(--color-surface);
+  --vaadin-button-border-color: var(--color-outline);
+  --vaadin-button-border-width: 1px;
+  --vaadin-button-height: 2.75rem;
+  --vaadin-button-font-size: 0.875rem;
+  --vaadin-button-text-color: var(--color-ink);
+}
+
+.action-inline {
+  --vaadin-button-height: 2rem;
+  --vaadin-button-font-size: 0.8125rem;
+  --vaadin-button-padding: 0 var(--vaadin-padding-s);
+  width: auto;
+}
+
+.action-link {
+  --vaadin-button-background: transparent;
+  --vaadin-button-border-width: 0;
+  --vaadin-button-text-color: var(--color-accent-text);
+  --vaadin-button-font-size: 0.8125rem;
+  --vaadin-button-height: auto;
+  --vaadin-button-padding: 0;
+  width: auto;
+}
+
+.action-row {
+  display: flex;
+  gap: var(--vaadin-gap-s);
+}
+
+.action-row > * {
+  flex: 1;
+}
+
+/* ---- Chips ---- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vaadin-gap-s);
+  height: 1.625rem;
+  padding: 0 var(--vaadin-padding-s);
+  border-radius: var(--aura-radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chip-accent {
+  background: var(--color-accent-veil);
+  color: var(--color-accent-text);
+}
+
+.chip-solid {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.chip-live {
+  background: color-mix(in oklab, var(--color-live) 12%, transparent);
+  color: var(--color-live-text);
+}
+
+.chip-outline {
+  height: 1.875rem;
+  padding: 0 var(--vaadin-padding-s);
+  border: 1px solid var(--color-outline);
+  color: var(--color-ink-secondary);
+  font-weight: var(--aura-font-weight-regular);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vaadin-gap-xs);
+}
+
+/* ---- Live indicator ---- */
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vaadin-gap-xs);
+  font-size: 0.71875rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  color: var(--color-live-text);
+}
+
+.live-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--aura-radius-full, 9999px);
+  background: var(--color-live);
+  animation: live-pulse 2s var(--aura-ease, ease-in-out) infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
+/* ---- Hint rows ---- */
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  padding: var(--vaadin-padding-m);
+  border-radius: var(--vaadin-radius-m);
+  background: var(--color-surface-sunken);
+  font-size: 0.78125rem;
+  line-height: 1.4;
+  color: var(--color-ink-secondary);
+}
+
+.hint-outlined {
+  border: 1px solid var(--color-outline);
+  border-radius: var(--vaadin-radius-l);
+  background: transparent;
+  font-size: 0.8125rem;
+}
+
+.hint-icon {
+  flex: none;
+  color: var(--color-ink-tertiary);
+}
+
+.hint-text {
+  flex: 1;
+}
+
+/* ---- Fields ---- */
+
+/* The design outlines the field the screen is about in ink and leaves the rest
+   on the default hairline, which is what makes "Event name" read as the one
+   thing to fill in. */
+.field-emphasis {
+  --vaadin-input-field-border-color: var(--color-outline-ink);
+  --vaadin-input-field-border-width: 1px;
+  --vaadin-input-field-background: var(--color-surface-veiled);
+}
+
+.field-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vaadin-gap-l);
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vaadin-gap-s);
+}
+
+.row-baseline {
+  align-items: baseline;
+}
+
+.row-end {
+  align-items: flex-end;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.divider-top {
+  padding-top: var(--vaadin-padding-m);
+  border-top: 1px solid var(--color-outline);
+}
+
+.divider-bottom {
+  padding-bottom: var(--vaadin-padding-m);
+  border-bottom: 1px solid var(--color-outline);
+}

@@ -1,0 +1,117 @@
+/* The voter's list of candidate days, and the same row shape with no votes in it
+   yet. Each row is one toggle carrying a numeral, a date, who else said yes and
+   a check — three pieces of content, so a native button rather than a Vaadin one. */
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-l);
+  width: 100%;
+  padding: var(--vaadin-padding-m) var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--vaadin-radius-l);
+  background: transparent;
+  font: inherit;
+  color: var(--color-ink);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--aura-duration-fast, 120ms) var(--aura-ease, ease-out);
+}
+
+.day-row[aria-pressed="true"] {
+  border-color: var(--color-outline-ink);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--aura-shadow-s);
+}
+
+.day-row:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.day-row-numeral {
+  flex: none;
+  width: 3.25rem;
+  text-align: center;
+}
+
+.day-row-number {
+  font-size: 1.875rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.day-row-weekday {
+  margin-top: 0.3125rem;
+  font-size: 0.65625rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-tertiary);
+}
+
+.day-row[aria-pressed="true"] .day-row-weekday,
+.day-row[aria-pressed="true"] .day-row-note {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.day-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-row-date {
+  font-size: 0.875rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1.2;
+}
+
+.day-row-note {
+  margin-top: var(--vaadin-gap-s);
+  font-size: 0.71875rem;
+  line-height: 1;
+  color: var(--color-ink-tertiary);
+}
+
+/* The check is empty until the day is chosen, so it reads as a target rather
+   than as a decoration. */
+.day-row-check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--color-outline-dashed);
+  border-radius: var(--aura-radius-full, 9999px);
+  color: transparent;
+}
+
+.day-row[aria-pressed="true"] .day-row-check {
+  border-color: transparent;
+  background: var(--color-accent-contrast);
+  color: var(--color-accent);
+}
+
+/* Sent, and nobody has answered: the grid stays, the paint has not arrived. */
+.day-row-awaiting {
+  border-style: dashed;
+  border-color: var(--color-outline-dashed);
+  padding: 0.625rem var(--vaadin-padding-l);
+  cursor: default;
+}
+
+.day-row-awaiting .day-row-number,
+.day-row-awaiting .day-row-weekday {
+  color: var(--color-ink-faint);
+}
+
+.day-row-track {
+  flex: 1;
+  height: 0.5rem;
+  border-radius: var(--aura-radius-full, 9999px);
+  background: var(--color-surface-sunken);
+}

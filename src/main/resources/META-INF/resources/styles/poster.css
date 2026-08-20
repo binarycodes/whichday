@@ -1,0 +1,130 @@
+/* The date as an object rather than a label. Two scales: the card a voter's
+   chosen days are shown on, and the whole screen a locked date takes over. */
+
+.poster-row {
+  display: flex;
+  gap: var(--vaadin-gap-s);
+}
+
+.poster-row > * {
+  flex: 1;
+}
+
+.poster {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--vaadin-gap-xl);
+  min-height: 6rem;
+  padding: var(--vaadin-padding-l) var(--vaadin-padding-m);
+  border: 1px solid transparent;
+  border-radius: var(--vaadin-radius-l);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--aura-shadow-s);
+}
+
+.poster-outlined {
+  border-color: var(--color-outline-ink);
+}
+
+.poster-weekday {
+  font-size: 0.65625rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+.poster-number {
+  font-size: 2.5rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.poster-s .poster-number {
+  font-size: 2rem;
+  letter-spacing: -0.03em;
+}
+
+/* The slot that adds another proposed day: same footprint, nothing in it yet. */
+.poster-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  padding: var(--vaadin-padding-l);
+  border: 1px dashed var(--color-outline-dashed);
+  border-radius: var(--vaadin-radius-l);
+  background: transparent;
+  color: var(--color-ink-tertiary);
+  cursor: pointer;
+}
+
+.poster-add:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* ---- The locked screen ---- */
+
+.locked-screen {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  padding-top: var(--vaadin-padding-xl);
+}
+
+.locked-badge {
+  align-self: flex-start;
+  background: color-mix(in oklab, var(--color-accent-contrast) 18%, transparent);
+  color: inherit;
+  letter-spacing: 0.04em;
+}
+
+.locked-date {
+  margin-top: auto;
+}
+
+.locked-weekday {
+  font-size: 0.9375rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  opacity: 0.85;
+}
+
+/* The design's 172px numeral, kept proportional so it still fits a 320px screen
+   rather than forcing the page to scroll sideways. */
+.locked-number {
+  margin: var(--vaadin-gap-xs) 0 0;
+  font-size: min(10.75rem, 44vw);
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 0.86;
+  letter-spacing: -0.06em;
+}
+
+.locked-month {
+  margin-top: var(--vaadin-gap-m);
+  font-size: 1.375rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.locked-summary {
+  margin-top: var(--vaadin-gap-s);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.locked-screen .action-primary {
+  --vaadin-button-background: var(--color-accent-contrast);
+  --vaadin-button-text-color: var(--color-accent);
+  box-shadow: none;
+}
+
+.locked-screen .action-outline {
+  --vaadin-button-background: transparent;
+  --vaadin-button-border-color: color-mix(in oklab, var(--color-accent-contrast) 45%, transparent);
+  --vaadin-button-text-color: var(--color-accent-contrast);
+}

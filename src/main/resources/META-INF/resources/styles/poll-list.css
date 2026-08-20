@@ -1,0 +1,108 @@
+/* Coming back: the polls you are part of, each carrying its own date numeral —
+   the locked one, or a dash where the team has not landed yet. */
+
+.poll-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-l);
+  width: 100%;
+  padding: var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--vaadin-radius-l);
+  background: transparent;
+  font: inherit;
+  color: var(--color-ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+/* The poll that has a leader gets the ink outline and lifts off the page. */
+.poll-row-leading {
+  border-color: var(--color-outline-ink);
+  box-shadow: var(--aura-shadow-xs);
+}
+
+.poll-row-numeral {
+  flex: none;
+  width: 3.5rem;
+  text-align: center;
+}
+
+.poll-row-number {
+  font-size: 2.125rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.poll-row-month {
+  margin-top: var(--vaadin-gap-xs);
+  font-size: 0.625rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-tertiary);
+}
+
+.poll-row-undecided .poll-row-number,
+.poll-row-undecided .poll-row-month {
+  color: var(--color-ink-faint);
+}
+
+.poll-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.poll-row-title {
+  font-size: 0.90625rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1.2;
+}
+
+.poll-row-note {
+  margin-top: var(--vaadin-gap-xs);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--color-ink-secondary);
+}
+
+.settled-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-l);
+  padding: var(--vaadin-padding-m) 0;
+  border-bottom: 1px solid var(--color-outline-faint);
+}
+
+.settled-row:last-child {
+  border-bottom: none;
+}
+
+.settled-numeral {
+  flex: none;
+  width: 2.25rem;
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: 1;
+  color: var(--color-ink-tertiary);
+}
+
+.settled-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.84375rem;
+  line-height: 1.2;
+  color: var(--color-ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settled-date {
+  flex: none;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--color-ink-tertiary);
+}

@@ -1,0 +1,49 @@
+/* The app shell: Aura's page background, and the single column every screen is
+   laid out in. The design draws 390x844 phone frames, so the column is capped
+   rather than sized — it fills a phone and centres on a desktop. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  --screen-max-width: 30rem;
+  --screen-inset: var(--vaadin-padding-l);
+  font-family: var(--aura-font-family);
+}
+
+.app-shell {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-shell > * {
+  width: 100%;
+  max-width: var(--screen-max-width);
+}
+
+/* A screen fills the viewport so that a footer pinned with margin-top:auto sits
+   at the bottom of the phone rather than under the last paragraph. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--vaadin-padding-m) var(--screen-inset) 0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.screen-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vaadin-gap-s);
+  margin-top: auto;
+  padding: var(--vaadin-padding-xl) 0;
+}

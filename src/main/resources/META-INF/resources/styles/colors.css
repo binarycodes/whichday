@@ -1,0 +1,53 @@
+/* Every colour the application uses, as a semantic token. Aura supplies the
+   palette and the light/dark switch through `color-scheme`, so a token only has
+   to name what it is for; where Aura has no equivalent the value adapts with
+   light-dark() rather than through a class on <html>. This is the one file
+   allowed to hold a literal colour. */
+
+html {
+  --color-ink: var(--vaadin-text-color);
+  --color-ink-secondary: var(--vaadin-text-color-secondary);
+  --color-ink-tertiary: light-dark(rgba(11, 11, 11, 0.45), rgba(255, 255, 255, 0.45));
+  --color-ink-faint: var(--vaadin-text-color-disabled);
+
+  --color-surface: var(--vaadin-background-color);
+  --color-surface-sunken: var(--vaadin-background-container);
+  --color-surface-veiled: light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.04));
+
+  --color-outline: var(--vaadin-border-color);
+  --color-outline-faint: light-dark(rgba(3, 3, 3, 0.08), rgba(255, 255, 255, 0.08));
+  /* The hairline that marks a field or a chosen day as the design's "ink"
+     outline — near-black in light, and the strongest border dark can carry. */
+  --color-outline-ink: light-dark(rgb(10, 11, 13), rgba(255, 255, 255, 0.55));
+  --color-outline-dashed: light-dark(rgba(11, 11, 11, 0.3), rgba(255, 255, 255, 0.3));
+
+  --color-accent: var(--aura-accent-color);
+  --color-accent-text: var(--aura-accent-text-color);
+  --color-accent-contrast: var(--aura-accent-contrast-color);
+  --color-accent-veil: color-mix(in oklab, var(--aura-accent-color) 10%, transparent);
+  --color-accent-hairline: color-mix(in oklab, var(--aura-accent-color) 35%, transparent);
+
+  /* The button the design paints black — "Send to the team", "Lock in Friday 18".
+     Solid ink in light; dark mode has no darker paint, so it borrows the ink
+     outline and reads as the inverse of the surface instead. */
+  --color-commit: light-dark(rgb(11, 11, 11), rgb(240, 241, 244));
+  --color-commit-contrast: light-dark(rgb(255, 255, 255), rgb(11, 11, 11));
+
+  --color-live: var(--aura-green);
+  --color-live-text: var(--aura-green-text);
+
+  /* Tally bars fade by rank, so the leader reads as paint and the tail as a
+     tint of the same accent. */
+  --color-tally-1: var(--aura-accent-color);
+  --color-tally-2: color-mix(in oklab, var(--aura-accent-color) 45%, transparent);
+  --color-tally-3: color-mix(in oklab, var(--aura-accent-color) 30%, transparent);
+  --color-tally-4: color-mix(in oklab, var(--aura-accent-color) 20%, transparent);
+  --color-tally-5: color-mix(in oklab, var(--aura-accent-color) 14%, transparent);
+
+  /* Avatar tones. Vaadin's Avatar picks these up from its color-index attribute,
+     and Aura defines only the unindexed default. */
+  --vaadin-user-color-0: var(--aura-blue);
+  --vaadin-user-color-1: var(--aura-green);
+  --vaadin-user-color-2: var(--aura-purple);
+  --vaadin-user-color-3: var(--aura-orange);
+}
