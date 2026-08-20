@@ -359,3 +359,20 @@
   padding-bottom: var(--vaadin-padding-m);
   border-bottom: 1px solid var(--color-outline);
 }
+
+/* ---- Rhythm ---- */
+
+/* The design's vertical spacing is specific per screen, so the views compose it
+   from these rather than every block carrying its own margin rule. */
+.stack-xs { display: flex; flex-direction: column; gap: var(--vaadin-gap-xs); }
+.stack-s { display: flex; flex-direction: column; gap: var(--vaadin-gap-s); }
+.stack-m { display: flex; flex-direction: column; gap: var(--vaadin-gap-m); }
+.stack-l { display: flex; flex-direction: column; gap: var(--vaadin-gap-l); }
+.stack-xl { display: flex; flex-direction: column; gap: var(--vaadin-gap-xl); }
+
+.push-s { margin-block-start: var(--vaadin-gap-s); }
+.push-m { margin-block-start: var(--vaadin-gap-m); }
+.push-l { margin-block-start: var(--vaadin-gap-l); }
+.push-xl { margin-block-start: var(--vaadin-gap-xl); }
+.push-2xl { margin-block-start: 2rem; }
+.push-3xl { margin-block-start: 2.75rem; }
