@@ -22,6 +22,16 @@ import org.springframework.security.web.header.HeaderWriterFilter;
 public class SecurityConfig {
 
     private static final String REGISTRATION_ID = "oidc";
+
+    /**
+     * The stylesheet's own partials. Vaadin permits the resources it knows about, which
+     * includes the {@code @StyleSheet} entry point but not the files that entry point
+     * {@code @import}s — those are plain requests it has never heard of. Left
+     * authenticated they redirect to the provider, and a 302 carries no content type,
+     * so the browser refuses every one of them as "not a supported stylesheet MIME
+     * type" and the application renders unstyled.
+     */
+    private static final String STYLE_PARTIALS = "/styles/**";
     private static final String AUTHORIZATION_ENDPOINT = "/oauth2/authorization/" + REGISTRATION_ID;
 
     private static final String MISCONFIGURED = """
@@ -42,7 +52,9 @@ public class SecurityConfig {
         requireCredentials(registrations);
         var logout = new OidcClientInitiatedLogoutSuccessHandler(registrations);
         logout.setPostLogoutRedirectUri("{baseUrl}");
-        return http.with(vaadin(), configurer -> configurer
+        return http
+                .authorizeHttpRequests(requests -> requests.requestMatchers(STYLE_PARTIALS).permitAll())
+                .with(vaadin(), configurer -> configurer
                         .oauth2LoginPage(AUTHORIZATION_ENDPOINT)
                         .logoutSuccessHandler(logout))
                 .build();
