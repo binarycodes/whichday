@@ -41,7 +41,8 @@ public class PollsView extends Screen implements HasDynamicTitle {
         clearBody();
         clearFooter();
 
-        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(), this::switchViewer));
+        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(),
+                this::switchViewer, this::render));
 
         var headline = Typography.displayMedium(headlineText());
         headline.addClassName("push-3xl");

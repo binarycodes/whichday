@@ -65,7 +65,7 @@ public class BallotView extends PollScreen {
     private Div invitation(Poll poll) {
         var text = Typography.meta(getTranslation("ballot.invitedBy",
                 poll.organizer().firstName(), poll.title()));
-        var row = new Div(new PersonAvatar(presenter.viewer()), text);
+        var row = new Div(homeButton(), new PersonAvatar(presenter.viewer()), text);
         row.addClassName("invitation");
         return row;
     }

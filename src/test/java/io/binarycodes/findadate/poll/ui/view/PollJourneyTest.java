@@ -8,6 +8,9 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
@@ -25,6 +28,7 @@ import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.findadate.Application;
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.poll.domain.PollState;
 import io.binarycodes.findadate.poll.ui.component.DayBallot;
 import io.binarycodes.findadate.poll.ui.component.MonthCalendar;
@@ -220,6 +224,62 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ResultsView.class, OFFSITE);
 
         assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("everyScreen")
+    @DisplayName("every screen has a way home, and it goes home")
+    void everyScreenCanLeave(String ignoredName, Class<? extends Component> view, String slug) {
+        if (slug == null) {
+            UI.getCurrent().navigate(view);
+        } else {
+            navigateToPoll(view, slug);
+        }
+        assertThat(currentView()).isInstanceOf(view);
+
+        clickHome();
+
+        assertThat(currentView()).isInstanceOf(PollsView.class);
+    }
+
+    private static Stream<Arguments> everyScreen() {
+        return Stream.of(
+                Arguments.of("create", NewPollView.class, null),
+                Arguments.of("candidate days", CandidateDaysView.class, OFFSITE),
+                Arguments.of("share", ShareView.class, OFFSITE),
+                Arguments.of("ballot", BallotView.class, OFFSITE),
+                Arguments.of("none of these work", NoDayWorksView.class, OFFSITE),
+                Arguments.of("receipt", ReceiptView.class, OFFSITE),
+                Arguments.of("results", ResultsView.class, OFFSITE),
+                Arguments.of("not found", NotFoundView.class, null));
+    }
+
+    @Test
+    @DisplayName("the locked screen can leave too, once a poll is settled")
+    void theLockedScreenCanLeave() {
+        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+        presenter().lock(OFFSITE, leader);
+        navigateToPoll(LockedView.class, OFFSITE);
+
+        clickHome();
+
+        assertThat(currentView()).isInstanceOf(PollsView.class);
+    }
+
+    /**
+     * The way home is an icon on most screens, the wordmark on the two that open with
+     * one, and a footer button on the not-found screen — so this keys on the marker
+     * they all carry rather than on a shape.
+     */
+    private void clickHome() {
+        var home = componentsOf(currentView())
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(candidate -> candidate.getClassNames().contains(Actions.HOME_CLASS))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No way home from "
+                        + currentView().getClass().getSimpleName()));
+        ComponentUtil.fireEvent(home, new ClickEvent<>(home));
     }
 
     private DayBallot ballotField() {

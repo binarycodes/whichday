@@ -49,7 +49,7 @@ public class NoDayWorksView extends PollScreen {
 
         body(new TopBar(poll.title())
                 .withBack(getTranslation("nav.back"), () -> goTo(BallotView.class))
-                .withTrailingSpace());
+                .withHome(getTranslation("nav.home"), this::goHome));
 
         var headline = Typography.displaySmall(getTranslation("none.headline",
                 Counts.days(this, poll.candidateDays().size())));

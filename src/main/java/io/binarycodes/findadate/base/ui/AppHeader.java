@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 
 import com.vaadin.flow.component.contextmenu.ContextMenu;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
 
 import io.binarycodes.findadate.people.domain.Person;
 import io.binarycodes.findadate.people.ui.PersonAvatar;
@@ -24,11 +23,16 @@ import io.binarycodes.findadate.people.ui.PersonAvatar;
  */
 public class AppHeader extends Div {
 
-    public AppHeader(String wordmark, Person viewer, List<Person> people, Consumer<Person> onSwitch) {
+    public AppHeader(String wordmark,
+                     Person viewer,
+                     List<Person> people,
+                     Consumer<Person> onSwitch,
+                     Runnable onHome) {
         addClassName("app-header");
 
-        var name = new Span(wordmark);
-        name.addClassName("wordmark");
+        // The wordmark is the way home on the screens that have no back chevron.
+        var name = Actions.link(wordmark, ignored -> onHome.run());
+        name.addClassNames("wordmark", Actions.HOME_CLASS);
 
         var avatar = new PersonAvatar(viewer);
         avatar.addClassName("account-avatar");

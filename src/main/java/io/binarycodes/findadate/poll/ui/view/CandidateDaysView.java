@@ -39,7 +39,9 @@ public class CandidateDaysView extends PollScreen {
         chosen.clear();
         chosen.addAll(poll.candidateDays());
 
-        body(new TopBar(poll.title()).withBack(getTranslation("nav.back"), this::goBack).withTrailingSpace());
+        body(new TopBar(poll.title())
+                .withLeading(homeButton())
+                .withTrailingSpace());
 
         var calendar = new MonthCalendar(presenter.today(),
                 getTranslation("days.previousMonth"),

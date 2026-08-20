@@ -1,3 +1,13 @@
+/* The receipt leads with the way home, then the badge, then Edit — so the badge
+   sits between them rather than against the edge. */
+.receipt-header {
+  gap: var(--vaadin-gap-s);
+}
+
+.receipt-header > .chip {
+  margin-inline-end: auto;
+}
+
 /* Where the team stands. One bar per candidate day, filled to its share of the
    invited count and fading by rank so the leader reads as paint. */
 

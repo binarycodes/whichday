@@ -15,8 +15,10 @@ public class NotFoundView extends Screen implements HasDynamicTitle {
         body(Typography.displayMedium(getTranslation("notFound.headline")),
                 Typography.lede(getTranslation("notFound.lede")));
 
-        footer(Actions.primary(getTranslation("notFound.action"),
-                ignored -> getUI().ifPresent(ui -> ui.navigate(PollsView.class))));
+        var home = Actions.primary(getTranslation("notFound.action"),
+                ignored -> getUI().ifPresent(ui -> ui.navigate(PollsView.class)));
+        home.addClassName(Actions.HOME_CLASS);
+        footer(home);
     }
 
     @Override

@@ -26,6 +26,12 @@ public class TopBar extends Div {
         return this;
     }
 
+    /** A control before the title that is not a step back — the way home. */
+    public TopBar withLeading(Component leading) {
+        addComponentAsFirst(leading);
+        return this;
+    }
+
     public TopBar withTrailing(Component trailing) {
         add(trailing);
         return this;
@@ -36,6 +42,18 @@ public class TopBar extends Div {
         var spacer = new Span();
         spacer.addClassName("top-bar-spacer");
         add(spacer);
+        return this;
+    }
+
+    /**
+     * The way out, in the slot the design keeps for it — screen 2 draws a menu glyph
+     * there. It sits opposite the back chevron so that stepping back through a wizard
+     * and leaving it altogether are never the same tap.
+     */
+    public TopBar withHome(String label, Runnable onHome) {
+        var home = Actions.icon(VaadinIcon.HOME, label, ignored -> onHome.run());
+        home.addClassName(Actions.HOME_CLASS);
+        add(home);
         return this;
     }
 

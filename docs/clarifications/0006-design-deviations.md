@@ -46,6 +46,15 @@ the counts", and the design never draws that screen. The results view grows a
 the only thing that makes the promise true — and the only thing that makes
 `PollService.acceptProposal` reachable.
 
+**A way home on every screen.** The design draws a back chevron on three screens
+and nothing at all on four others — a voter who lands on a receipt, or an organizer
+watching the counts, has no way out of it. Every screen now carries one home
+affordance marked `nav-home`: the wordmark where the design already puts one, a
+home glyph in the top bar otherwise, and the footer button on the not-found screen.
+The two wizard screens keep their back chevron as well, because stepping back to
+edit the days and leaving the poll altogether are different intentions and should
+not be the same tap. `PollJourneyTest.everyScreenCanLeave` asserts the whole set.
+
 **The results screen has one empty state, not a separate screen.** Screens 5 and 2c
 are the same route: `ResultsView` draws dashed rows and a "Waiting on" list while
 nobody has answered, and the standings once somebody has. Same layout either way,

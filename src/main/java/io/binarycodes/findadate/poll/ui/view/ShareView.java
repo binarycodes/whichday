@@ -40,7 +40,7 @@ public class ShareView extends PollScreen {
     protected void build(Poll poll) {
         body(new TopBar(getTranslation("share.title"))
                 .withBack(getTranslation("nav.back"), () -> goTo(CandidateDaysView.class))
-                .withTrailingSpace());
+                .withHome(getTranslation("nav.home"), this::goHome));
 
         var headline = Typography.displayMedium(getTranslation("share.headline",
                 Counts.days(this, poll.candidateDays().size()), poll.inviteCount()));

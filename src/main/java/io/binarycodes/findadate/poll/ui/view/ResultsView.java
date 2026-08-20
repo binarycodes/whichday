@@ -65,6 +65,7 @@ public class ResultsView extends PollScreen {
 
     private void buildUnanswered(Poll poll) {
         body(new TopBar(poll.title()).leadingTitle()
+                .withLeading(homeButton())
                 .withTrailing(Typography.meta(getTranslation("results.sentAgo", sentAgo(poll)))));
 
         var count = Typography.stat(Counts.progress(this, 0, poll.inviteCount()));
@@ -86,6 +87,7 @@ public class ResultsView extends PollScreen {
 
     private void buildStandings(Poll poll) {
         body(new TopBar(poll.title()).leadingTitle()
+                .withLeading(homeButton())
                 .withTrailing(new LiveBadge(getTranslation("results.live"))));
 
         var count = Typography.stat(Counts.progress(this, poll.answerCount(), poll.inviteCount()));

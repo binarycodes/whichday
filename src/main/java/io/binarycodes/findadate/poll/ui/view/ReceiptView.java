@@ -29,7 +29,6 @@ public class ReceiptView extends PollScreen {
 
     /** The standings are context here, not the subject: the top few are enough. */
     private static final int VISIBLE_TALLIES = 3;
-    private static final int VISIBLE_POSTERS = 3;
 
     public ReceiptView(PollPresenter presenter) {
         super(presenter);
@@ -41,8 +40,8 @@ public class ReceiptView extends PollScreen {
 
         var badge = new Chip(getTranslation("receipt.badge"), Chip.Tone.LIVE);
         var edit = Actions.link(getTranslation("receipt.edit"), ignored -> goTo(BallotView.class));
-        var header = new Div(badge, edit);
-        header.addClassName("row-between");
+        var header = new Div(homeButton(), badge, edit);
+        header.addClassNames("row-between", "receipt-header");
         body(header);
 
         var summary = Typography.fieldLabel(summaryTextFor(ballot));
@@ -78,8 +77,7 @@ public class ReceiptView extends PollScreen {
     private Div posters(Ballot ballot) {
         var row = new Div();
         row.addClassNames("poster-row", "push-m");
-        ballot.chosenDays().stream().sorted().limit(VISIBLE_POSTERS)
-                .forEach(day -> row.add(new DayPoster(day)));
+        ballot.chosenDays().stream().sorted().forEach(day -> row.add(new DayPoster(day)));
         return row;
     }
 

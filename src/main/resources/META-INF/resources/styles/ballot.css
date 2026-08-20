@@ -4,8 +4,14 @@
 .invitation {
   display: flex;
   align-items: center;
-  gap: var(--vaadin-gap-m);
+  gap: var(--vaadin-gap-s);
   --vaadin-avatar-size: 1.75rem;
+}
+
+/* Who invited you can wrap; the way home cannot shrink. */
+.invitation > .meta {
+  flex: 1;
+  min-width: 0;
 }
 
 /* The field wrapper contributes nothing: the rows are the whole control. */

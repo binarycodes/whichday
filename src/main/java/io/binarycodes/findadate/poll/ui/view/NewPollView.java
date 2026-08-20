@@ -41,7 +41,8 @@ public class NewPollView extends Screen implements HasDynamicTitle {
         clearBody();
         clearFooter();
 
-        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(), this::switchViewer));
+        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(),
+                this::switchViewer, this::goHome));
 
         var headline = Typography.hero(getTranslation("create.headline"));
         headline.addClassName("push-3xl");
@@ -105,6 +106,10 @@ public class NewPollView extends Screen implements HasDynamicTitle {
         }
         var slug = presenter.create(draft.getTitle());
         getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("slug", slug)));
+    }
+
+    private void goHome() {
+        getUI().ifPresent(ui -> ui.navigate(PollsView.class));
     }
 
     private void switchViewer(Person person) {

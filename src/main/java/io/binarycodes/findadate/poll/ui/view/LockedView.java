@@ -35,7 +35,9 @@ public class LockedView extends PollScreen {
 
         var badge = new Chip(getTranslation("locked.badge"), Chip.Tone.OUTLINE);
         badge.addClassName("locked-badge");
-        body(badge);
+        var header = new Div(badge, homeButton());
+        header.addClassName("row-between");
+        body(header);
 
         var weekday = new Div(new Span(DateText.weekdayFull(this, day)));
         weekday.addClassName("locked-weekday");

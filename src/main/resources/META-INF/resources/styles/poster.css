@@ -3,11 +3,14 @@
 
 .poster-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--vaadin-gap-s);
 }
 
+/* Grow to share a row, but never narrower than the numeral needs — a voter who
+   said yes to five days gets two rows rather than five slivers. */
 .poster-row > * {
-  flex: 1;
+  flex: 1 1 5rem;
 }
 
 .poster {
@@ -137,6 +140,10 @@
   --vaadin-button-background: var(--color-accent-contrast);
   --vaadin-button-text-color: var(--color-accent);
   box-shadow: none;
+}
+
+.locked-screen .action-icon {
+  --vaadin-button-text-color: var(--color-accent-contrast);
 }
 
 .locked-screen .action-outline {

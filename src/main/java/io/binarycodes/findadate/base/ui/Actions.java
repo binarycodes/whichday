@@ -15,6 +15,12 @@ import com.vaadin.flow.component.icon.VaadinIcon;
  */
 public final class Actions {
 
+    /**
+     * Marks whatever takes the reader back to their polls. Every screen carries one,
+     * and a test asserts as much — so it is a name rather than a shape.
+     */
+    public static final String HOME_CLASS = "nav-home";
+
     private Actions() {
     }
 

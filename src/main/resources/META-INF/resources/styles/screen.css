@@ -100,9 +100,14 @@
   justify-content: space-between;
 }
 
+/* A button, because it navigates — but it is the wordmark, so it keeps the ink of
+   the page rather than a link's accent. */
 .wordmark {
-  font-size: 0.9375rem;
-  font-weight: var(--aura-font-weight-semibold);
+  --vaadin-button-height: auto;
+  --vaadin-button-padding: 0;
+  --vaadin-button-font-size: 0.9375rem;
+  --vaadin-button-font-weight: var(--aura-font-weight-semibold);
+  --vaadin-button-text-color: var(--color-ink);
   line-height: 1;
   letter-spacing: -0.02em;
 }
