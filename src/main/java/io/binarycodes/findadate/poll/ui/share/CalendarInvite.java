@@ -40,7 +40,7 @@ public final class CalendarInvite {
                 new ByteArrayInputStream(bytes), fileName, "text/calendar", bytes.length));
     }
 
-    private static String calendar(Poll poll, List<LocalDate> days, boolean tentative) {
+    static String calendar(Poll poll, List<LocalDate> days, boolean tentative) {
         var body = new StringBuilder("BEGIN:VCALENDAR").append(LINE_END)
                 .append("VERSION:2.0").append(LINE_END)
                 .append("PRODID:-//findadate//EN").append(LINE_END);
