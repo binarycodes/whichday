@@ -62,9 +62,13 @@ public record Poll(String slug,
         return tallies.stream().filter(DayTally::isLeading).findFirst();
     }
 
-    public Optional<Person> soleHoldout() {
-        var awaiting = awaiting();
-        return awaiting.size() == 1 ? Optional.of(awaiting.getFirst()) : Optional.empty();
+    /**
+     * Who still owes an answer apart from the person asking. The organizer is invited
+     * like everybody else, so without this the results screen offers them a nudge to
+     * themselves.
+     */
+    public List<Person> awaitingOthers(Person viewer) {
+        return awaiting().stream().filter(person -> !person.equals(viewer)).toList();
     }
 
     public Optional<Ballot> ballotOf(Person voter) {

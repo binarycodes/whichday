@@ -100,7 +100,9 @@ public class BallotView extends PollScreen {
         }
         presenter.vote(slug(), Set.copyOf(chosen));
         Notification.show(getTranslation("ballot.submitted"));
-        goTo(ReceiptView.class);
+        // The organizer came from the standings and wants them back; everybody else
+        // wants the receipt for the answer they just gave.
+        goTo(presenter.isOrganizer(poll) ? ResultsView.class : ReceiptView.class);
     }
 
     @Override

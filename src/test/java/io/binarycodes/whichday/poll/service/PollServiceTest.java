@@ -53,8 +53,22 @@ class PollServiceTest {
     void soleHoldout() {
         var poll = service.poll(OFFSITE).orElseThrow();
 
-        assertThat(poll.soleHoldout()).map(Person::firstName).contains("Jonas");
-        assertThat(poll.awaiting()).hasSize(1);
+        assertThat(poll.awaiting()).extracting(Person::firstName).containsExactly("Jonas");
+        assertThat(poll.awaitingOthers(organizer())).extracting(Person::firstName)
+                .containsExactly("Jonas");
+    }
+
+    @Test
+    @DisplayName("never counts the person looking as somebody to chase")
+    void aHoldoutIsNeverYourself() {
+        var slug = service.create("Roadmap workshop", organizer(), List.of(organizer(), jonas()));
+        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+        service.castVote(slug, jonas(), Set.of(LocalDate.of(2026, 9, 7)));
+
+        var poll = service.poll(slug).orElseThrow();
+
+        assertThat(poll.awaiting()).containsExactly(organizer());
+        assertThat(poll.awaitingOthers(organizer())).isEmpty();
     }
 
     @Test

@@ -385,6 +385,49 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("lets the organizer answer their own poll, and comes back to the counts")
+    void theOrganizerCanVote() {
+        var slug = draftPoll("Roadmap workshop");
+        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
+        presenter().chooseDays(slug, Set.of(monday));
+        presenter().send(slug);
+        navigateToPoll(ResultsView.class, slug);
+
+        assertThat(textOf(currentView())).contains("You haven't picked your days yet.");
+
+        click("Pick mine");
+        assertThat(currentView()).isInstanceOf(BallotView.class);
+
+        ballotField().setValue(Set.of(monday));
+        click("Submit my days");
+
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+        assertThat(presenter().ballotOf(slug)).isPresent();
+        assertThat(textOf(currentView())).contains("You said yes to one day.");
+    }
+
+    @Test
+    @DisplayName("never offers the organizer a nudge to themselves")
+    void theOrganizerIsNeverNudged() {
+        var slug = draftPoll("Roadmap workshop");
+        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
+        presenter().chooseDays(slug, Set.of(monday));
+        presenter().send(slug);
+        var invitee = presenter().poll(slug).orElseThrow().invited().getLast();
+        presenter().switchViewer(invitee);
+        presenter().vote(slug, Set.of(monday));
+        presenter().switchViewer(presenter().poll(slug).orElseThrow().organizer());
+
+        navigateToPoll(ResultsView.class, slug);
+        var screen = textOf(currentView());
+
+        assertThat(presenter().poll(slug).orElseThrow().awaiting())
+                .containsExactly(presenter().viewer());
+        assertThat(screen).doesNotContain("Send a nudge?");
+        assertThat(screen).contains("You haven't picked your days yet.");
+    }
+
+    @Test
     @DisplayName("locking from the results screen hands over to the locked date")
     void lockingFromTheResults() {
         navigateToPoll(ResultsView.class, OFFSITE);

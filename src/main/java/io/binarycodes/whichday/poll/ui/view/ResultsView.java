@@ -80,6 +80,9 @@ public class ResultsView extends PollScreen {
         body(days);
 
         body(waitingSection(poll));
+        // A poll nobody has answered includes the organizer, and this is where they
+        // most need the way in.
+        body(ownAnswer(poll));
 
         var reminder = new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder"));
         footer(reminder, Actions.outline(getTranslation("results.copyLink"), ignored -> copyLink(poll)));
@@ -104,7 +107,11 @@ public class ResultsView extends PollScreen {
         body(tallies);
 
         proposalSection(poll).ifPresent(this::body);
-        poll.soleHoldout().ifPresent(holdout -> body(nudge(holdout)));
+        body(ownAnswer(poll));
+        var others = poll.awaitingOthers(presenter.viewer());
+        if (others.size() == 1) {
+            body(nudge(others.getFirst()));
+        }
 
         poll.leader().ifPresent(leader -> {
             footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
@@ -163,12 +170,38 @@ public class ResultsView extends PollScreen {
                 ballot.voter().firstName(), String.join(", ", days))).outlined().withAction(accept);
     }
 
+    /**
+     * The organizer is invited like everybody else and counted in every denominator,
+     * so they need a way in to the ballot — and a way back to it once they have used
+     * it. Without this they are the one person on the poll who cannot answer it.
+     */
+    private HintBar ownAnswer(Poll poll) {
+        var answered = poll.ballotOf(presenter.viewer());
+        var bar = new HintBar(VaadinIcon.USER, answered.map(this::describeOwnAnswer)
+                .orElseGet(() -> getTranslation("results.yourTurn")))
+                .outlined()
+                .withAction(Actions.inline(getTranslation(answered.isPresent()
+                        ? "results.yourAnswer.action"
+                        : "results.yourTurn.action"), ignored -> goTo(BallotView.class)));
+        bar.addClassName("push-xl");
+        return bar;
+    }
+
+    private String describeOwnAnswer(Ballot ballot) {
+        if (ballot.isDeclined()) {
+            return getTranslation("results.yourAnswer.declined");
+        }
+        return ballot.chosenDays().size() == 1
+                ? getTranslation("results.yourAnswer.one")
+                : getTranslation("results.yourAnswer.many", ballot.chosenDays().size());
+    }
+
     private HintBar nudge(Person holdout) {
         var send = Actions.inline(getTranslation("results.nudge.action"),
                 ignored -> Notification.show(getTranslation("results.nudged", holdout.firstName())));
         var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
                 .outlined().withAction(send);
-        bar.addClassName("push-xl");
+        bar.addClassName("push-m");
         return bar;
     }
 

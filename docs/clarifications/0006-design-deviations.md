@@ -60,6 +60,24 @@ shown, under a heading that promises where the *team* stands. Every candidate da
 gets a bar. Which ones are yours is already answered by the posters above it, at
 poster scale, so the bars carry no extra marking.
 
+**The organizer can answer their own poll.** The design gives the organizer the
+results screen and gives voting to everybody else, which leaves the one person who
+called the meeting unable to say which days work for them — while still being
+invited and still counted in every denominator. The symptom was the results screen
+offering the organizer a nudge to themselves.
+
+Both halves are fixed: `Poll.awaitingOthers` excludes the person looking, so a
+nudge only ever names somebody else, and the results screen carries a card for the
+viewer's own answer — "You haven't picked your days yet" with a way to the ballot,
+or "You said yes to N days" with a way to change them. Submitting returns the
+organizer to the standings they came from rather than to a voter's receipt.
+
+The organizer's vote is explicit, not implicit. Counting every candidate day as a
+yes on their behalf would be the other way to close the gap, and it would be wrong:
+an organizer puts days on the table to find out what the team can do, and often
+cannot do all of them themselves. Their availability is a real answer, so it is one
+they give.
+
 **A way home on every screen.** The design draws a back chevron on three screens
 and nothing at all on four others — a voter who lands on a receipt, or an organizer
 watching the counts, has no way out of it. Every screen now carries one home
