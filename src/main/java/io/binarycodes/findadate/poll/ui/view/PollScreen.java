@@ -28,11 +28,30 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         slug = event.getRouteParameters().get("slug").orElse("");
-        if (presenter.poll(slug).isEmpty()) {
+        var poll = presenter.poll(slug);
+        if (poll.isEmpty()) {
             event.forwardTo(NotFoundView.class);
             return;
         }
+        if (redirect(event, poll.get())) {
+            return;
+        }
         render();
+    }
+
+    /**
+     * A chance to send the navigation somewhere else before anything is built —
+     * forwarded, rather than navigated to from inside the event, so the browser sees
+     * one navigation and the abandoned screen is never rendered.
+     *
+     * @return true when the event was forwarded and this screen should not build
+     */
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        return false;
+    }
+
+    protected void forwardToPoll(BeforeEnterEvent event, Class<? extends Component> view) {
+        event.forwardTo(view, new RouteParameters("slug", slug));
     }
 
     protected String slug() {

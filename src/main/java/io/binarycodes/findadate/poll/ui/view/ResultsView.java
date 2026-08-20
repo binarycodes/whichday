@@ -8,6 +8,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.findadate.base.ui.Actions;
@@ -43,12 +44,18 @@ public class ResultsView extends PollScreen {
         super(presenter);
     }
 
+    /** Once a date is locked there are no standings to watch, only the date. */
+    @Override
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        if (poll.lockedDay() == null) {
+            return false;
+        }
+        forwardToPoll(event, LockedView.class);
+        return true;
+    }
+
     @Override
     protected void build(Poll poll) {
-        if (poll.lockedDay() != null) {
-            goTo(LockedView.class);
-            return;
-        }
         if (poll.isUnanswered()) {
             buildUnanswered(poll);
         } else {
