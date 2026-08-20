@@ -29,8 +29,10 @@ import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.findadate.Application;
 import io.binarycodes.findadate.base.ui.Actions;
+import io.binarycodes.findadate.base.ui.DateText;
 import io.binarycodes.findadate.poll.domain.PollState;
 import io.binarycodes.findadate.poll.ui.component.DayBallot;
+import io.binarycodes.findadate.poll.ui.component.DayPoster;
 import io.binarycodes.findadate.poll.ui.component.MonthCalendar;
 import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
 
@@ -83,6 +85,22 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ReceiptView.class, OFFSITE);
 
         assertThat(textOf(currentView())).contains("Your answer is in", "Where the team stands");
+    }
+
+    @Test
+    @DisplayName("shows a poster per day you chose, and a bar per day on the table")
+    void theReceiptHidesNoDays() {
+        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
+        presenter().switchViewer(holdout);
+        var days = presenter().poll(OFFSITE).orElseThrow().candidateDays();
+        presenter().vote(OFFSITE, Set.copyOf(days));
+
+        navigateToPoll(ReceiptView.class, OFFSITE);
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains("You said yes to " + days.size() + " days");
+        assertThat(componentsOf(currentView()).filter(DayPoster.class::isInstance)).hasSize(days.size());
+        days.forEach(day -> assertThat(screen).contains(DateText.compact(currentView(), day)));
     }
 
     @Test

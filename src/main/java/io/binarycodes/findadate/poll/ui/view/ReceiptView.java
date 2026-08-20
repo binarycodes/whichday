@@ -27,9 +27,6 @@ import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
 @Route("vote/:slug/done")
 public class ReceiptView extends PollScreen {
 
-    /** The standings are context here, not the subject: the top few are enough. */
-    private static final int VISIBLE_TALLIES = 3;
-
     public ReceiptView(PollPresenter presenter) {
         super(presenter);
     }
@@ -98,12 +95,14 @@ public class ReceiptView extends PollScreen {
     }
 
     /**
-     * No caption on the bars here: the receipt is about your own answer, and the
-     * standings are context underneath it.
+     * Every day on the table, not the leading few. A voter who said yes to five days
+     * and is shown three bars cannot tell whether the other two are losing or simply
+     * not drawn — and "where the team stands" promises the whole poll.
+     *
+     * <p>No caption on the bars: the posters above already say which days are yours.
      */
     private TallyList standings(Poll poll) {
-        var visible = poll.tallies().stream().limit(VISIBLE_TALLIES).toList();
-        var list = new TallyList(visible, ignored -> Optional.<String>empty()).compact();
+        var list = new TallyList(poll.tallies(), ignored -> Optional.<String>empty()).compact();
         list.addClassName("push-l");
         return list;
     }

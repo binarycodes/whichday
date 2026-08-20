@@ -46,6 +46,15 @@ the counts", and the design never draws that screen. The results view grows a
 the only thing that makes the promise true — and the only thing that makes
 `PollService.acceptProposal` reachable.
 
+**The receipt's standings show every day on the table.** The design's receipt draws
+three bars, and the voter it draws had said yes to three of five days — so the three
+bars are as easily "the days you chose" as "the leading three". Neither truncation
+survives contact with a voter who says yes to all five: three bars leave two of
+their own days undrawn, with no way to tell whether those are losing or simply not
+shown, under a heading that promises where the *team* stands. Every candidate day
+gets a bar. Which ones are yours is already answered by the posters above it, at
+poster scale, so the bars carry no extra marking.
+
 **A way home on every screen.** The design draws a back chevron on three screens
 and nothing at all on four others — a voter who lands on a receipt, or an organizer
 watching the counts, has no way out of it. Every screen now carries one home
