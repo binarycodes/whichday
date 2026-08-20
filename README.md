@@ -1,4 +1,4 @@
-# Find a Date
+# Whichday
 
 Put a few days on the table and let a team pick every one that works. Whole days
 only, multi-select voting, and the day with the most votes wins.

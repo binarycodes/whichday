@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "findadate",
+      "name": "whichday",
       "runtimeExecutable": "./run.sh",
       "runtimeArgs": ["preview"],
       "port": 8080

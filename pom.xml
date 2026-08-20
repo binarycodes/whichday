@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.binarycodes</groupId>
-    <artifactId>findadate</artifactId>
+    <artifactId>whichday</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -237,8 +237,8 @@
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
-                                        <include>io.binarycodes.findadate.*.service</include>
-                                        <include>io.binarycodes.findadate.*.ui.presenter</include>
+                                        <include>io.binarycodes.whichday.*.service</include>
+                                        <include>io.binarycodes.whichday.*.ui.presenter</include>
                                     </includes>
                                     <limits>
                                         <limit>

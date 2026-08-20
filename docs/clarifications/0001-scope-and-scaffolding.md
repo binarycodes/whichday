@@ -2,10 +2,13 @@
 
 ## Decided
 
-The application is **Find a Date** — artifact `findadate`, package
-`io.binarycodes.findadate`. The design's "When2" wordmark is a placeholder and
-lives in `translations.properties` as `app.name`, so renaming the product is one
-key.
+The application is **Whichday** — artifact `whichday`, package
+`io.binarycodes.whichday`. The design's "When2" wordmark is a placeholder and lives
+in `translations.properties` as `app.name`, so the visible name is one key even
+though the package and the image name are not.
+
+It was called Find a Date first, which reads as a dating app. The repository
+directory is still `findadate`; nothing in the build depends on it.
 
 This first implementation is the **view layer plus an in-memory service**: every
 screen in the design, backed by a session-scoped store rather than a database.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Task runner for the Find a Date app.
+# Task runner for the Whichday app.
 #
 # Every task pins JAVA_HOME to a JDK 21 because a bare `mvn` on this machine
 # picks JDK 25, under which Lombok silently fails to generate getters/setters

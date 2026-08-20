@@ -16,8 +16,8 @@ and inventing a clash would be worse than not having one. The dimmed-and-disable
 row treatment survives and is used for a candidate day that has already passed,
 which is a real reason a day cannot be voted for.
 
-**The wordmark.** The design says "When2"; this is Find a Date. It is
-`app.name` in `translations.properties`, so it is one key either way.
+**The wordmark.** The design says "When2"; this is Whichday. It is `app.name` in
+`translations.properties`, so it is one key either way.
 
 ## Substituted
 
