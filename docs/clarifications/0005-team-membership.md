@@ -82,7 +82,8 @@ persistence-tier concern.
   design's C2 hint promises it ("You can keep adding people after the poll is
   live"), but no screen calls it yet. The hint is not shown, rather than shown and
   broken.
-- **A bounced invite.** C3 names it as a state; there is no mail transport to bounce.
+- **A bounced invite**, and indeed any invite at all — see
+  [`../issues/0003-nothing-is-ever-actually-sent.md`](../issues/0003-nothing-is-ever-actually-sent.md).
 - **Warning chips for a malformed pasted address.** C3 draws the bad entry as an
   orange chip. Here it stays in the field with the rest of the paste accepted, on
   the grounds that an address with a typo in it is worth fixing where it can still

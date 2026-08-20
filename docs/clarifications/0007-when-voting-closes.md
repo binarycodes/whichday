@@ -68,9 +68,7 @@ date, asserts the poll is still open, advances one more day, and asserts it is n
 
 ## Not built
 
-- **Extending a closed poll.** The note says "You can extend it later", and while a
-  poll is open that is true. Once it has closed there is no way to reopen it; the
-  organizer's only move is to lock a day in.
-- **Anything happening at the moment it closes.** Nothing runs on a schedule, so a
-  poll becomes closed because a screen asked what state it was in, not because a
-  timer fired. Nobody is notified.
+- **Extending a closed poll** —
+  [`../issues/0004-a-closed-poll-is-a-dead-end.md`](../issues/0004-a-closed-poll-is-a-dead-end.md).
+- **Anything happening at the moment it closes** —
+  [`../issues/0005-closing-happens-on-read.md`](../issues/0005-closing-happens-on-read.md).

@@ -11,18 +11,16 @@ A prebuilt, multi-architecture image (`linux/amd64` + `linux/arm64`) is publishe
 Docker Hub at **[`binarycodes/whichday`](https://hub.docker.com/r/binarycodes/whichday)**.
 It is one container with no database and nothing else to bring up.
 
-**Every poll is lost when the container restarts.** State lives in memory, so an
-update, a reboot or a crash empties it — see *Where the polls live*. Nothing warns
-you and there is nothing to back up. Deploy it on that understanding.
+State is held in memory and does not survive a restart
+([issue 0001](docs/issues/0001-polls-are-lost-on-restart.md)).
 
 - Use `binarycodes/whichday:latest` for the newest build, or pin a version tag —
   images are also tagged with the project's Maven version.
 - The app listens on port **8080**. Override it with `PORT`: `-e PORT=9090 -p 9090:9090`.
 - Signing in is configured with `WHICHDAY_OIDC_CLIENT_ID` and
-  `WHICHDAY_OIDC_CLIENT_SECRET`, and it **refuses to start without them**. Set
+  `WHICHDAY_OIDC_CLIENT_SECRET`, and it refuses to start without them. Set
   `WHICHDAY_OIDC_ISSUER_URI` for a provider other than Google.
-- Behind a reverse proxy, read *Behind a proxy* first. It is the one thing here that
-  is easy to get subtly wrong.
+- Behind a reverse proxy, see *Behind a proxy*.
 
 ### docker compose
 
@@ -93,22 +91,19 @@ systemctl start whichday.service
 ```
 
 `AutoUpdate=registry` plus `podman-auto-update.timer` keeps it on the latest
-published image — **which restarts the container, and every poll in it is gone.**
-That is a fair trade for a scratch deployment and a bad one otherwise.
+published image, restarting the container to do it.
 
 ### Behind a proxy
 
-Anything that terminates TLS in front of this — nginx, Caddy, Traefik, a cloud load
-balancer — leaves the application seeing plain HTTP on an internal address. It builds
-its OIDC redirect URI from the request, so without help it asks the provider to
-redirect to `http://172.17.0.3:8080/login/oauth2/code/oidc`, and the provider rejects
-a redirect URI that is not the one registered. The symptom is a failed sign-in that
-names nothing useful.
+Anything that terminates TLS in front of this leaves the application seeing plain
+HTTP on an internal address, and it builds its OIDC redirect URI from the request —
+so it would send the provider `http://172.17.0.3:8080/login/oauth2/code/oidc`, which
+is not the registered URI and is refused.
 
-`FORWARD_HEADERS_STRATEGY=native` opts into trusting the proxy's `X-Forwarded-*`
-headers, and the redirect URI then comes out as the address readers actually typed.
-It is off by default because those headers are client-supplied and spoofable when
-there is nothing in front — so set it when there is a proxy, and only then.
+Set `FORWARD_HEADERS_STRATEGY=native` to trust the proxy's `X-Forwarded-*` headers,
+and the redirect URI comes out as the address readers typed. It is off by default
+because those headers are spoofable with nothing in front, so set it when there is a
+proxy and only then.
 
 Register `https://whichday.example.com/login/oauth2/code/oidc` with your OAuth
 client. Google requires HTTPS for every redirect URI except `localhost`.
@@ -143,10 +138,10 @@ least once.
 
 ## Where the polls live
 
-In memory, in a `PollService` singleton. Nothing seeds it and a restart loses
-everything. Reads return immutable records and the mutable types never leave the
-service package, so a persistence tier goes behind that boundary without a view
-changing.
+In memory, in a `PollService` singleton, and nothing seeds it. Reads return immutable
+records and the mutable types never leave the service package, so a persistence tier
+goes behind that boundary without a view changing —
+[issue 0001](docs/issues/0001-polls-are-lost-on-restart.md).
 
 ## Develop locally
 
@@ -190,7 +185,8 @@ busts the browser cache.
 One column, capped at 30rem and centred: it fills a phone and does not stretch across
 a desktop.
 
-## Decisions
+## Decisions and known problems
 
-Where the implementation had to settle something, or departs from the design,
-[`docs/clarifications/`](docs/clarifications/) says what was chosen and why.
+[`docs/clarifications/`](docs/clarifications/) records what was settled deliberately,
+and why. [`docs/issues/`](docs/issues/) records what is wrong and what fixing it would
+take — read that before deploying this anywhere that matters.
