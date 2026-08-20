@@ -85,6 +85,12 @@ public class PollsView extends Screen implements HasDynamicTitle {
                 () -> open(summary));
     }
 
+    /**
+     * The note qualifies the numeral beside it. A row with a day on it is showing the
+     * day currently ahead on votes, not a decided one — "ahead so far" is what keeps a
+     * reader from booking it. A settled poll shows its locked day in the list below
+     * instead, where no qualifier is needed.
+     */
     private String noteFor(PollSummary summary) {
         if (summary.isClosed()) {
             return getTranslation("polls.closed",
