@@ -17,7 +17,8 @@ export WHICHDAY_OIDC_CLIENT_SECRET=...
 
 Open <http://localhost:8080> and it redirects you to the provider. The client's
 authorised redirect URI must be `http://localhost:8080/login/oauth2/code/oidc`. Set
-`WHICHDAY_OIDC_ISSUER_URI` to use a provider other than Google.
+`WHICHDAY_OIDC_ISSUER_URI` to use a provider other than Google, and `PORT` to listen
+somewhere other than 8080 — the redirect URI follows it, so register that one too.
 
 There is no database and no container to bring up.
 
