@@ -30,14 +30,13 @@ that does not exist yet. They are not violated; they are simply unreached. The
 one place that shows is authorship: `PollService` attributes a new poll to a
 fixed sample organizer where §10b would have `LibraryOwner.current()`.
 
+The imported `environment/` directory is gone. It held byte-identical copies of the
+repository root's files and a compose stack — PostgreSQL, Keycloak, a headless
+Chromium — for an application that is not this one, and nothing referenced it. It is
+recoverable from this repository's history if a persistence tier ever wants it back.
+
 ## Open
 
-- **`environment/` is still the imported template.** Its seven top-level files
-  are byte-identical copies of the repository root's, and `environment/dev/`
-  holds a compose stack — PostgreSQL, Keycloak, a headless Chromium — for an
-  application that is not this one. Nothing references it any more. It should
-  probably be deleted; that is a call for whoever owns the repository, and it is
-  recoverable from the first commit either way.
 - **Voter identity.** The design promises "No sign-up for voters. One link, one
   tap", which conventions §10b's mandatory login would forbid. This tier has no
   login at all, so the conflict is deferred rather than resolved — see
