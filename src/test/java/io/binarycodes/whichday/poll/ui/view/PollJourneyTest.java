@@ -61,6 +61,9 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  */
 @SpringBootTest(classes = Application.class)
 @ActiveProfiles("test")
+// A fresh context per method, because PollService is a singleton and nothing reseeds
+// it: without this, polls built by one test are still in the store for the next. It
+// is what makes this class slow, and the reason is worth more than the seconds.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @DisplayName("Walking the poll")
 class PollJourneyTest extends SpringBrowserlessTest {

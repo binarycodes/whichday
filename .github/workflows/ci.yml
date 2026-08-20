@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+
+# A newer push to the same branch cancels an in-progress run for that branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    name: maven verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: set up JDK 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Harbor archives with a real browser and will not save a page it cannot
+      # archive, so the suite needs one. Built from the repository rather than pulled,
+      # for the same reason the image is ours: the flags are visible here.
+      # No browser to start: the tests bring up their own Chromium the same way they
+      # bring up PostgreSQL, so there is one mechanism rather than two and nothing here
+      # to keep in step with the compose file.
+      - name: maven verify
+        run: mvn --batch-mode --no-transfer-progress -Dbuild.commit=${{ github.sha }} clean verify
+
+  docker:
+    name: build and publish docker image
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+    with:
+      sha: ${{ github.sha }}

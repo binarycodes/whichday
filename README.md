@@ -51,19 +51,14 @@ colleague becomes findable once they have signed in at least once.
 
 ## Signing in
 
-Every route requires a signed-in user and OIDC is the only way to sign in. There is
-no login view: an unauthenticated request redirects straight to the provider, and the
-application collects no credentials and never sees one.
+Login is required. Every route needs a signed-in user, OIDC is the only way to sign
+in, and there is no login view — an unauthenticated request redirects straight to the
+provider. The application collects no credentials and never sees one.
 
 The registration is called `oidc` rather than after the provider behind it, so the
-vendor stays out of the application's URLs and out of `src/main` — which provider it
-is belongs to `WHICHDAY_OIDC_ISSUER_URI` and to nothing else. It refuses to start
-without a client id and secret, because an unresolved placeholder would otherwise
-bind as a literal and fail in front of the first person who tried to sign in. See
-[`docs/clarifications/0009-signing-in.md`](docs/clarifications/0009-signing-in.md).
-
-The design's "No sign-up for voters. One link, one tap" is the one promise this
-breaks outright: voters sign in like everybody else.
+vendor stays out of the application's URLs and out of `src/main`; which provider it is
+belongs to `WHICHDAY_OIDC_ISSUER_URI` and to nothing else. It refuses to start without
+a client id and secret.
 
 ## Where the polls live
 
