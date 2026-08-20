@@ -33,6 +33,12 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @Route("vote/:slug/none")
 public class NoDayWorksView extends PollScreen {
 
+    /**
+     * Three is what the poster row holds across a phone, and a counter-proposal with
+     * more alternatives than the poll it is answering stops being one.
+     */
+    private static final int PROPOSAL_LIMIT = 3;
+
     private final Set<LocalDate> proposed = new LinkedHashSet<>();
     private final Div posters = new Div();
     private final Div picker = new Div();
@@ -59,11 +65,19 @@ public class NoDayWorksView extends PollScreen {
         lede.addClassName("push-s");
         body(headline, lede);
 
-        body(confirmation(), proposalSection(poll), noteField());
+        body(confirmation());
+        if (poll.alternativesAllowed()) {
+            body(proposalSection(poll));
+        }
+        body(noteField());
 
-        var warning = new HintBar(VaadinIcon.WARNING,
-                getTranslation("none.warning", poll.organizer().firstName()));
-        footer(warning, Actions.commit(getTranslation("none.send"), ignored -> send()));
+        // With alternatives off there is no proposal to caveat, so the note says what
+        // is actually true of this poll instead.
+        var footnote = poll.alternativesAllowed()
+                ? new HintBar(VaadinIcon.WARNING, getTranslation("none.warning", poll.organizer().firstName()))
+                : new HintBar(VaadinIcon.INFO_CIRCLE,
+                        getTranslation("none.alternativesOff", poll.organizer().firstName()));
+        footer(footnote, Actions.commit(getTranslation("none.send"), ignored -> send()));
     }
 
     /** Not a control: it states the answer that arriving on this screen already gave. */
@@ -91,12 +105,16 @@ public class NoDayWorksView extends PollScreen {
         calendar.addClassName("calendar-field");
         // A day already on the table is not an alternative to it.
         calendar.setUnavailable(poll.candidateDays());
-        calendar.addValueChangeListener(event -> {
-            proposed.clear();
-            proposed.addAll(event.getValue());
-            renderPosters();
-        });
-        picker.add(calendar);
+        calendar.setMaximumSelection(PROPOSAL_LIMIT);
+        calendar.addValueChangeListener(event -> onProposalChanged(calendar, event.getValue()));
+
+        var limit = Typography.meta(getTranslation("none.propose.limit", PROPOSAL_LIMIT));
+        limit.addClassName("meta-faint");
+        var done = Actions.link(getTranslation("none.propose.done"), ignored -> showPicker(false));
+        var actions = new Div(limit, done);
+        actions.addClassNames("row-between", "push-m");
+
+        picker.add(calendar, actions);
         showPicker(false);
 
         renderPosters();
@@ -105,10 +123,29 @@ public class NoDayWorksView extends PollScreen {
         return section;
     }
 
+    /**
+     * Picking the last day it will take is the end of the decision, so the calendar
+     * folds itself away — the reader does not have to work out how to dismiss it.
+     * Below the limit, "Done" is there for whoever is finished early.
+     */
+    private void onProposalChanged(MonthCalendar calendar, Set<LocalDate> days) {
+        proposed.clear();
+        proposed.addAll(days);
+        renderPosters();
+        if (calendar.isAtMaximumSelection()) {
+            showPicker(false);
+        }
+    }
+
     private void renderPosters() {
         posters.removeAll();
         proposed.stream().sorted().forEach(day -> posters.add(new DayPoster(day).outlined().small()));
 
+        // At the limit there is nothing left to add, so the row stops inviting it.
+        if (proposed.size() >= PROPOSAL_LIMIT) {
+            toggle = null;
+            return;
+        }
         toggle = new NativeButton();
         toggle.add(new Icon(proposed.isEmpty() ? VaadinIcon.PLUS : VaadinIcon.CALENDAR));
         toggle.addClassName("poster-add");
@@ -140,7 +177,13 @@ public class NoDayWorksView extends PollScreen {
     }
 
     private void send() {
-        presenter.declineAll(slug(), List.copyOf(proposed), note.getValue());
+        // Nothing can have been proposed when the poll does not take alternatives,
+        // but reading the flag here keeps that true of the write as well as the view.
+        presenter.declineAll(slug(),
+                presenter.poll(slug()).map(Poll::alternativesAllowed).orElse(false)
+                        ? List.copyOf(proposed)
+                        : List.of(),
+                note.getValue());
         Notification.show(getTranslation("none.sent"));
         goTo(ReceiptView.class);
     }

@@ -29,6 +29,7 @@ class StoredPoll {
     private LocalDateTime closesAt;
     private LocalDate lockedDay;
     private Instant openedAt;
+    private boolean alternativesAllowed = true;
 
     StoredPoll(String slug, String title, Person organizer, List<Person> invited) {
         this.slug = slug;
@@ -100,6 +101,14 @@ class StoredPoll {
 
     void lock(LocalDate day) {
         this.lockedDay = day;
+    }
+
+    boolean alternativesAllowed() {
+        return alternativesAllowed;
+    }
+
+    void allowAlternatives(boolean allowed) {
+        this.alternativesAllowed = allowed;
     }
 
     Map<String, StoredBallot> ballots() {

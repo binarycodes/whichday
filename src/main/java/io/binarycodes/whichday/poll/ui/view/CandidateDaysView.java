@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
@@ -12,6 +14,7 @@ import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Chip;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
+import io.binarycodes.whichday.base.ui.HintBar;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -57,8 +60,23 @@ public class CandidateDaysView extends PollScreen {
 
         summary.addClassNames("row-between", "divider-top");
         chips.addClassNames("chip-row", "push-m");
-        footer(summary, chips, Actions.commit(getTranslation("days.send"), ignored -> send()));
+        footer(summary, chips, alternativesToggle(poll),
+                Actions.commit(getTranslation("days.send"), ignored -> send()));
         renderChosen();
+    }
+
+    /**
+     * Whether a voter who can make none of these may put others forward. It belongs
+     * on this screen because it is a rule about these days, and the organizer is
+     * looking at them.
+     */
+    private HintBar alternativesToggle(Poll poll) {
+        var allowed = new Checkbox(poll.alternativesAllowed());
+        allowed.addValueChangeListener(event -> presenter.allowAlternatives(slug(), event.getValue()));
+        allowed.setAriaLabel(getTranslation("days.allowAlternatives"));
+        return new HintBar(VaadinIcon.CALENDAR, getTranslation("days.allowAlternatives"))
+                .outlined()
+                .withAction(allowed);
     }
 
     private void renderChosen() {

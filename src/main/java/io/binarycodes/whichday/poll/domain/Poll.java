@@ -12,6 +12,10 @@ import io.binarycodes.whichday.people.domain.Person;
  * A poll as a screen needs to read it: the candidate days, the standings, and the
  * answers that produced them. Everything derived is derived here, so that no view
  * counts votes.
+ *
+ * @param alternativesAllowed whether a voter who can make none of the days may put
+ *                            others forward. Saying no to the days is always an
+ *                            answer; this is only about adding to the table.
  */
 public record Poll(String slug,
                    String title,
@@ -21,6 +25,7 @@ public record Poll(String slug,
                    LocalDateTime closesAt,
                    LocalDate lockedDay,
                    Instant openedAt,
+                   boolean alternativesAllowed,
                    List<DayTally> tallies,
                    List<Ballot> ballots) {
 

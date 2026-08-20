@@ -125,6 +125,10 @@ public class PollPresenter {
         return slug;
     }
 
+    public void allowAlternatives(String slug, boolean allowed) {
+        polls.allowAlternatives(slug, allowed);
+    }
+
     public void addInvitee(String slug, Person person) {
         polls.addInvitee(slug, person);
     }

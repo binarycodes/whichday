@@ -139,6 +139,32 @@ class PollServiceTest {
     }
 
     @Test
+    @DisplayName("takes other days forward by default, and stops when the organizer says so")
+    void alternativesAreTheOrganizersChoice() {
+        assertThat(service.poll(OFFSITE).orElseThrow().alternativesAllowed()).isTrue();
+
+        service.allowAlternatives(OFFSITE, false);
+
+        assertThat(service.poll(OFFSITE).orElseThrow().alternativesAllowed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("still lets somebody say none of the days work when alternatives are off")
+    void decliningSurvivesAlternativesBeingOff() {
+        service.allowAlternatives(OFFSITE, false);
+
+        service.decline(OFFSITE, jonas(), List.of(), "Away that week");
+        var poll = service.poll(OFFSITE).orElseThrow();
+
+        assertThat(poll.answerCount()).isEqualTo(7);
+        assertThat(poll.declined()).singleElement().satisfies(ballot -> {
+            assertThat(ballot.isDeclined()).isTrue();
+            assertThat(ballot.proposedDays()).isEmpty();
+            assertThat(ballot.note()).isEqualTo("Away that week");
+        });
+    }
+
+    @Test
     @DisplayName("a proposal becomes a column only once it is accepted")
     void acceptingAProposal() {
         var proposed = LocalDate.of(2026, 9, 28);

@@ -2,6 +2,7 @@ package io.binarycodes.whichday.poll.ui.view;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -24,6 +25,7 @@ import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.HasText;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
@@ -405,6 +407,87 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("draws whole weeks, and only as many as the month needs")
+    void theCalendarGridIsAlwaysWholeWeeks() {
+        navigateToPoll(CandidateDaysView.class, OFFSITE);
+        var calendar = calendarField();
+
+        // A month starting on a Sunday, a four-week February, and the month either
+        // side of each — the shapes a fixed six-row grid gets wrong.
+        for (var month : List.of(YearMonth.of(2026, 8), YearMonth.of(2026, 11),
+                YearMonth.of(2026, 12), YearMonth.of(2027, 2), YearMonth.of(2027, 3))) {
+            calendar.setValue(Set.of(month.atDay(dayThatIsSelectable(month))));
+            var cells = componentsOf(calendar)
+                    .filter(NativeButton.class::isInstance)
+                    .filter(cell -> ((NativeButton) cell).getClassNames().contains("calendar-day"))
+                    .count();
+
+            assertThat(cells)
+                    .as("%s renders %d cells, which is not whole weeks", month, cells)
+                    .isIn(28L, 35L, 42L);
+        }
+    }
+
+    /** Any weekday in the month; the grid's shape does not depend on which. */
+    private int dayThatIsSelectable(YearMonth month) {
+        return month.atDay(1).getDayOfWeek().getValue() <= 5 ? 1 : 3;
+    }
+
+    @Test
+    @DisplayName("stops offering days once three are proposed, and folds itself away")
+    void proposalsAreCappedAtThree() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        var calendar = proposalCalendar();
+        var monday = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.MONDAY);
+
+        calendar.setValue(Set.of(monday, monday.plusDays(1), monday.plusDays(2)));
+
+        assertThat(calendar.isAtMaximumSelection()).isTrue();
+        assertThat(componentsOf(currentView()).filter(DayPoster.class::isInstance)).hasSize(3);
+
+        // Nothing unchosen is still on offer, and the row stops inviting a fourth.
+        assertThat(componentsOf(calendar)
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(cell -> cell.getClassNames().contains("calendar-day"))
+                .filter(NativeButton::isEnabled)
+                .count()).isEqualTo(3);
+        assertThat(componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(button -> button.getClassNames().contains("poster-add"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("lets a proposed day be swapped for another without an error")
+    void aProposalCanBeSwapped() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        var calendar = proposalCalendar();
+        var monday = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.MONDAY);
+        calendar.setValue(Set.of(monday, monday.plusDays(1), monday.plusDays(2)));
+
+        calendar.setValue(Set.of(monday, monday.plusDays(1)));
+
+        assertThat(calendar.isAtMaximumSelection()).isFalse();
+        assertThat(componentsOf(calendar)
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(cell -> cell.getClassNames().contains("calendar-day"))
+                .filter(NativeButton::isEnabled)
+                .count()).isGreaterThan(3);
+    }
+
+    private MonthCalendar proposalCalendar() {
+        return componentsOf(currentView())
+                .filter(MonthCalendar.class::isInstance)
+                .map(MonthCalendar.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
     @DisplayName("will not let a candidate day be proposed as an alternative to itself")
     void cannotProposeADayAlreadyOnTheTable() {
         presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
@@ -422,6 +505,46 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(offered).isNotEmpty();
         onTheTable.forEach(day ->
                 assertThat(offered).doesNotContain(String.valueOf(day.getDayOfMonth())));
+    }
+
+    @Test
+    @DisplayName("offers no calendar when the organizer is not taking other days")
+    void alternativesCanBeTurnedOff() {
+        presenter().allowAlternatives(OFFSITE, false);
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+
+        navigateToPoll(NoDayWorksView.class, OFFSITE);
+
+        assertThat(componentsOf(currentView()).filter(MonthCalendar.class::isInstance)).isEmpty();
+        assertThat(textOf(currentView()))
+                .contains("I can't make any of these")
+                .contains("isn't taking other days")
+                .doesNotContain("Days I could do instead");
+
+        // Saying no is still an answer, and it still lands.
+        click("Send my answer");
+
+        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot -> {
+            assertThat(ballot.isDeclined()).isTrue();
+            assertThat(ballot.proposedDays()).isEmpty();
+        });
+    }
+
+    @Test
+    @DisplayName("lets the organizer turn other days off from the days screen")
+    void theOrganizerTurnsAlternativesOff() {
+        navigateToPoll(CandidateDaysView.class, OFFSITE);
+
+        var allowed = componentsOf(currentView())
+                .filter(Checkbox.class::isInstance)
+                .map(Checkbox.class::cast)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(allowed.getValue()).isTrue();
+        allowed.setValue(false);
+
+        assertThat(presenter().poll(OFFSITE).orElseThrow().alternativesAllowed()).isFalse();
     }
 
     @Test

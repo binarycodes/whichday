@@ -60,6 +60,20 @@ shown, under a heading that promises where the *team* stands. Every candidate da
 gets a bar. Which ones are yours is already answered by the posters above it, at
 poster scale, so the bars carry no extra marking.
 
+**The organizer decides whether other days may be put forward.** Not in the design,
+which shows the counter-proposal screen as always available. It is a real question
+for a poll whose days are already fixed by something outside it — a booked room, a
+visitor's only free week — where inviting alternatives just collects answers nobody
+can act on.
+
+The switch sits on the candidate-days screen, because it is a rule about those days
+and the organizer is looking at them. What it turns off is putting *other* days
+forward. Saying "I can't make any of these" stays available either way: it is an
+answer the organizer needs — it moves the counts and empties the waiting list — and
+the poll would otherwise have no way for somebody to answer it truthfully. With the
+switch off, that screen keeps its confirmation and its note field and loses only the
+calendar, and the footer stops caveating a proposal that cannot be made.
+
 **No dialogs anywhere.** Two screens needed a picker the design does not draw —
 choosing who decides, and proposing a day instead — and an overlay was the wrong
 answer to both. On a phone a dialog gets the same few hundred pixels as the screen

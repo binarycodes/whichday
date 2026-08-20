@@ -35,8 +35,8 @@ import io.binarycodes.whichday.base.ui.Typography;
 public class MonthCalendar extends CustomField<Set<LocalDate>> {
 
     private static final int WEEK_LENGTH = 7;
-    private static final int GRID_WEEKS = 6;
     private static final DayOfWeek FIRST_WEEKDAY = DayOfWeek.MONDAY;
+    private static final int NO_LIMIT = Integer.MAX_VALUE;
 
     private final Div monthName = new Div();
     private final Span year = new Span();
@@ -48,6 +48,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     private final LocalDate earliestSelectable;
 
     private YearMonth visibleMonth;
+    private int maximumSelection = NO_LIMIT;
 
     public MonthCalendar(LocalDate today, String previousLabel, String nextLabel) {
         this.earliestSelectable = today;
@@ -110,14 +111,17 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
 
         grid.removeAll();
         cells.clear();
-        var firstCell = firstCellOf(visibleMonth);
-        for (var index = 0; index < WEEK_LENGTH * GRID_WEEKS; index++) {
-            var day = firstCell.plusDays(index);
-            if (index >= WEEK_LENGTH * (GRID_WEEKS - 1) && YearMonth.from(day).isAfter(visibleMonth)) {
-                break;
+        // Whole weeks, and only as many as the month needs. Counting to a fixed six
+        // rows leaves a month that starts on a Sunday with one orphan cell on its last
+        // row, and a four-week February with a whole spare week of March.
+        var week = firstCellOf(visibleMonth);
+        do {
+            for (var offset = 0; offset < WEEK_LENGTH; offset++) {
+                grid.add(cellFor(week.plusDays(offset)));
             }
-            grid.add(cellFor(day));
-        }
+            week = week.plusWeeks(1);
+        } while (!YearMonth.from(week).isAfter(visibleMonth));
+        applySelectionLimit();
     }
 
     private NativeButton cellFor(LocalDate day) {
@@ -136,6 +140,21 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
             cell.setEnabled(false);
         }
         return cell;
+    }
+
+    /**
+     * How many days may be chosen at once. At the limit the days not already chosen
+     * stop offering themselves, so the ceiling is visible in the grid rather than
+     * announced by a rejection — and a chosen day stays live, so swapping one for
+     * another takes two taps and no error.
+     */
+    public void setMaximumSelection(int maximum) {
+        this.maximumSelection = maximum;
+        applySelectionLimit();
+    }
+
+    public boolean isAtMaximumSelection() {
+        return selection.size() >= maximumSelection;
     }
 
     /**
@@ -171,6 +190,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
             selection.add(day);
         }
         markPressed(day);
+        applySelectionLimit();
         updateValue();
     }
 
@@ -179,6 +199,15 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
         if (cell != null) {
             cell.getElement().setAttribute("aria-pressed", String.valueOf(selection.contains(day)));
         }
+    }
+
+    /**
+     * Enables and disables in place rather than re-rendering, for the same reason
+     * {@link #toggle} does: the grid holds the button the reader just pressed.
+     */
+    private void applySelectionLimit() {
+        var full = isAtMaximumSelection();
+        cells.forEach((day, cell) -> cell.setEnabled(!full || selection.contains(day)));
     }
 
     /**

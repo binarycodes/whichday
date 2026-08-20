@@ -130,6 +130,7 @@ public class PollService {
                 stored.closesAt(),
                 stored.lockedDay(),
                 stored.openedAt(),
+                stored.alternativesAllowed(),
                 tallies(stored),
                 ballots(stored));
     }
@@ -202,6 +203,15 @@ public class PollService {
                 .filter(stored -> stored.ballots().containsKey(viewer.email()))
                 .filter(stored -> stored.ballots().containsKey(other.email()))
                 .count();
+    }
+
+    /**
+     * Whether voters may put other days forward. Turning it off does not take away
+     * their ability to say none of the days work — that is an answer the organizer
+     * needs either way — only the ask to add to the table.
+     */
+    public synchronized void allowAlternatives(String slug, boolean allowed) {
+        require(slug).allowAlternatives(allowed);
     }
 
     /** Somebody the organizer thought of after sending it out. */

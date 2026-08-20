@@ -25,6 +25,28 @@ design greys them as a pair, which only reads as "the weekend" when they are
 adjacent — so the grid is ISO-8601 Monday-first regardless of locale. Weekday
 labels and month names still come from the locale.
 
+## Whole weeks, always
+
+The grid renders complete weeks and only as many as the month needs — four, five or
+six rows. Counting to a fixed six rows and stopping when the days run out was wrong
+twice over: November 2026 starts on a Sunday, so its 36th cell landed alone on a
+sixth row, and February 2027 is exactly four weeks, so a fixed grid trailed a whole
+spare week of March. `theCalendarGridIsAlwaysWholeWeeks` checks both shapes and the
+months either side of them.
+
+## At most three
+
+`setMaximumSelection` caps a selection. At the cap the unchosen days stop offering
+themselves and the chosen ones stay live, so the ceiling shows in the grid instead
+of arriving as a rejection, and swapping one day for another is two taps and no
+error. Enabling and disabling happens in place, for the same reason toggling does:
+the grid is still holding the button the reader just pressed.
+
+The counter-proposal screen sets it to three — what the poster row holds across a
+phone, and the point past which a counter-proposal stops being one. Reaching it
+folds the calendar away, because the decision is finished; below it, a "Done" line
+closes the calendar for whoever is finished early.
+
 ## Unavailable days
 
 `setUnavailable` takes days the calendar must not offer whatever the rules above
