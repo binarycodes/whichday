@@ -2,6 +2,36 @@
    square cells; the numeral is the whole control, so a cell is a button with
    aria-pressed rather than a checkbox with a label. */
 
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vaadin-gap-l);
+}
+
+.calendar-header {
+  gap: var(--vaadin-gap-m);
+}
+
+/* The month name is the largest thing on the screen, so the year and the two
+   month arrows share the baseline beside it rather than a row of their own. */
+.calendar-trailing {
+  flex: none;
+  gap: var(--vaadin-gap-s);
+  padding-bottom: 0.25rem;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: var(--vaadin-gap-xs);
+  color: var(--color-ink-secondary);
+}
+
+/* The field wrapper adds nothing here: the grid is the whole control. */
+.calendar-field::part(label),
+.calendar-field::part(helper-text) {
+  display: none;
+}
+
 .calendar-weekdays,
 .calendar-grid {
   display: grid;

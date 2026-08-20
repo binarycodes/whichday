@@ -77,7 +77,8 @@ public final class DateText {
         return weekdayFull(owner, moment.toLocalDate()) + " " + time;
     }
 
-    private static Locale localeOf(Component owner) {
+    /** The locale the component will render in, for callers that format their own text. */
+    public static Locale localeOf(Component owner) {
         return owner.getUI()
                 .or(() -> Optional.ofNullable(UI.getCurrent()))
                 .map(UI::getLocale)
