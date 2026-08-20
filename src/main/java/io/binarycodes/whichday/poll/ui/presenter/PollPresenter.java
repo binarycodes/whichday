@@ -95,6 +95,11 @@ public class PollPresenter {
         return invitees.matching(query, viewer(), draft.invitees());
     }
 
+    /** Whether the query was reaching for the viewer's own account. */
+    public boolean searchMatchesViewer(String query) {
+        return invitees.matchesSearcher(query, viewer());
+    }
+
     /** The address itself, whether or not an account answers to it. */
     public Person inviteeFor(String email) {
         return invitees.inviteFor(email);

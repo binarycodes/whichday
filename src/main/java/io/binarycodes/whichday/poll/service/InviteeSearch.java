@@ -31,6 +31,11 @@ public class InviteeSearch {
                 .toList();
     }
 
+    /** Whether the query was reaching for the organizer's own account. */
+    public boolean matchesSearcher(String query, Person searcher) {
+        return accounts.matchesSearcher(query, searcher);
+    }
+
     /** The address itself, once it is one — whether or not an account answers to it. */
     public Person inviteFor(String email) {
         return accounts.forInvite(email);

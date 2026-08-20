@@ -57,6 +57,18 @@ public class AccountDirectory {
                 .toList();
     }
 
+    /**
+     * Whether the searcher's own account is what the query was reaching for. Matches
+     * are silently short of the searcher, so a query that only they answer to comes
+     * back empty and reads as "nobody by that name" — this is what lets a screen say
+     * "that's you" instead. Telling somebody their own address is not a leak.
+     */
+    public boolean matchesSearcher(String query, Person searcher) {
+        return query != null
+                && query.strip().length() >= MINIMUM_QUERY_LENGTH
+                && matches(searcher, EmailAddress.normalise(query));
+    }
+
     public Optional<Person> byEmail(String email) {
         var wanted = EmailAddress.normalise(email);
         return accounts.stream().filter(account -> account.email().equals(wanted)).findFirst();

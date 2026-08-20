@@ -65,6 +65,19 @@ class AccountDirectoryTest {
     }
 
     @Test
+    @DisplayName("says when the query was reaching for the searcher's own account")
+    void recognisesTheSearcher() {
+        var tom = directory.byEmail("tom.beck@acme.com").orElseThrow();
+
+        assertThat(directory.matching("tom", tom, List.of())).isEmpty();
+        assertThat(directory.matchesSearcher("tom", tom)).isTrue();
+        assertThat(directory.matchesSearcher("tom.beck@acme.com", tom)).isTrue();
+        assertThat(directory.matchesSearcher("sar", tom)).isFalse();
+        assertThat(directory.matchesSearcher("to", tom)).isFalse();
+        assertThat(directory.matchesSearcher(null, tom)).isFalse();
+    }
+
+    @Test
     @DisplayName("turns an address with no account behind it into somebody invitable")
     void invitesAnOutsider() {
         var outsider = directory.forInvite("Lena.Ohlsson@studiofern.se");

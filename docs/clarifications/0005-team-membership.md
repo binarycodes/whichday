@@ -43,6 +43,18 @@ The design's own implementation notes, followed as written:
 - **The organizer never appears as a match** and is added implicitly.
 - **Anything else resolves to an email invite** rather than to an error.
 
+## Searching for yourself
+
+The organizer is never a match, which is the design's rule and the right one — but
+a query only they answer to then comes back empty and reads as "nobody by that
+name", as if their own account did not exist. Typing `tom` as Tom Beck was exactly
+that.
+
+`AccountDirectory.matchesSearcher` answers whether the query was reaching for the
+searcher's own account, and the field says "That's you — you decide either way"
+instead. It is not a leak: the only address it confirms is the one the searcher
+already typed and already owns.
+
 ## Where this tightened the spec
 
 The design says matches come from "email prefix or any dot/at-delimited part". Read

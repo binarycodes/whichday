@@ -233,6 +233,19 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("says \"that's you\" rather than pretending nobody answers to your address")
+    void searchingForYourself() {
+        presenter().switchViewer(presenter().inviteeFor("tom.beck@acme.com"));
+        openSearchFor("Roadmap workshop");
+
+        searchFor("tom");
+
+        assertThat(queryField().isInvalid()).isTrue();
+        assertThat(queryField().getErrorMessage()).contains("That's you");
+        assertThat(joinedTextOf(currentView())).doesNotContain("keep typing a full address");
+    }
+
+    @Test
     @DisplayName("says so rather than adding somebody twice")
     void refusingADuplicate() {
         openSearchFor("Roadmap workshop");

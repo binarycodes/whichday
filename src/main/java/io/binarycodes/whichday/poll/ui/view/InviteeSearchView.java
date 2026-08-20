@@ -135,6 +135,12 @@ public class InviteeSearchView extends Screen implements HasDynamicTitle {
                     presenter.inviteeFor(EmailAddress.normalise(typed)).firstName()));
             return;
         }
+        // The organizer is never a match, so a query only they answer to would come
+        // back as "keep typing" — as if they did not exist.
+        if (presenter.searchMatchesViewer(typed)) {
+            showProblem(getTranslation("invitees.itsYou"));
+            return;
+        }
         if (typed.length() < AccountDirectory.MINIMUM_QUERY_LENGTH) {
             hint.setText(getTranslation("invitees.tooShort", AccountDirectory.MINIMUM_QUERY_LENGTH));
             return;
