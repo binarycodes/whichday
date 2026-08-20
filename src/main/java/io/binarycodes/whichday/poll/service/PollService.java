@@ -1,7 +1,6 @@
 package io.binarycodes.whichday.poll.service;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -92,9 +91,9 @@ public class PollService {
                 : Optional.of(defaultClosingDayFor(stored));
     }
 
-    /** The last day the organizer may choose: the day before the first day on the table. */
+    /** The last day the organizer may close on: the last day on the table. */
     public synchronized Optional<LocalDate> latestClosingDay(String slug) {
-        return require(slug).candidateDays().stream().min(LocalDate::compareTo).map(day -> day.minusDays(1));
+        return lastDayOnTheTable(require(slug));
     }
 
     public synchronized void castVote(String slug, Person voter, Set<LocalDate> chosenDays) {
@@ -292,37 +291,33 @@ public class PollService {
     }
 
     /**
-     * The default the organizer is offered: the last working day before the first day
-     * on the table. Voting past the earliest option is pointless — the team would be
-     * deciding on a day that has already gone — and it is the rule the design's own
-     * copy states, "Voting closes Friday" for a poll whose earliest candidate is the
-     * Monday after.
+     * Voting runs to the last day on the table, that day included.
+     *
+     * <p>It used to end before the *first* day, on the reasoning that answering about a
+     * day already gone is pointless. That killed polls it had no business killing: with
+     * five days offered, the first passing says nothing about the other four, and a team
+     * that has not decided yet is exactly the team that still needs to. Days that have
+     * passed drop out on their own — the ballot will not offer one — so the poll narrows
+     * as it goes instead of dying at the first deadline.
      */
     private LocalDate defaultClosingDayFor(StoredPoll stored) {
-        var earliest = stored.candidateDays().stream().min(LocalDate::compareTo).orElseThrow();
-        return clampClosingDay(stored, lastWorkingDayBefore(earliest));
+        return clampClosingDay(stored, lastDayOnTheTable(stored).orElseThrow());
     }
 
     /**
-     * A closing date has to leave at least a day to answer in and has to fall before
-     * the first day being voted on. When those two cannot both hold — the first option
-     * is tomorrow — the first day on the table wins, and voting closes on it.
+     * A closing date leaves at least a day to answer in and never runs past the last day
+     * on the table. When those two cannot both hold — the last option is today or
+     * tomorrow — the last day on the table wins.
      */
     private LocalDate clampClosingDay(StoredPoll stored, LocalDate wanted) {
-        var earliest = stored.candidateDays().stream().min(LocalDate::compareTo);
-        var latest = earliest.map(day -> day.minusDays(1)).orElse(wanted);
+        var latest = lastDayOnTheTable(stored).orElse(wanted);
         var floor = LocalDate.now(clock).plusDays(MINIMUM_VOTING_DAYS);
         var chosen = wanted.isBefore(floor) ? floor : wanted;
         return chosen.isAfter(latest) ? latest : chosen;
     }
 
-    private LocalDate lastWorkingDayBefore(LocalDate day) {
-        var candidate = day.minusDays(1);
-        while (candidate.getDayOfWeek() == DayOfWeek.SATURDAY
-                || candidate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-            candidate = candidate.minusDays(1);
-        }
-        return candidate;
+    private Optional<LocalDate> lastDayOnTheTable(StoredPoll stored) {
+        return stored.candidateDays().stream().max(LocalDate::compareTo);
     }
 
     /**

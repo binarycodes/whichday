@@ -12,17 +12,22 @@ calendar inline, the same disclosure the counter-proposal screen uses.
 
 ## The default, and the range
 
-Offered: **the last working day before the first day on the table.** Voting past the
-earliest option is pointless, because the team would be deciding on a day that has
-already gone. It is also the rule the design states in its own words — "Voting
-closes Friday 6pm" for a poll whose earliest candidate is the Monday after, and
-Friday is the last working day before that Monday.
+Offered: **the last day on the table, that day included.**
+
+It used to be the last working day before the *first* day, on the reasoning that
+answering about a day already gone is pointless — which the design's own copy
+supported ("Voting closes Friday" for a poll whose earliest candidate is the Monday
+after). That reasoning was wrong about the poll as a whole. With five days offered,
+the first one passing says nothing about the other four, and a team that has not
+decided yet is exactly the team that still needs to. Days that have passed drop out
+on their own — the ballot will not offer one — so the poll narrows as it goes instead
+of dying at its first deadline.
 
 `closeOn` clamps whatever it is given into the range a closing date can usefully sit
-in: never in the past, and never on or after the first day being voted on. The
-calendar is bounded to match, so the clamp is a backstop rather than the thing the
-organizer meets. Where the two bounds cannot both hold — the first option is
-tomorrow — the first day on the table wins.
+in: never in the past, and never past the last day on the table. The calendar is
+bounded to match, so the clamp is a backstop rather than the thing the organizer
+meets. Where the two bounds cannot both hold — the last option is today or tomorrow —
+the last day on the table wins.
 
 ## What this replaced, and why it was wrong
 

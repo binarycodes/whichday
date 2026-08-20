@@ -215,59 +215,69 @@ class PollServiceTest {
     }
 
     @Test
-    @DisplayName("closes at the last working day before the first day on the table")
-    void closesBeforeTheFirstCandidateDay() {
-        // Monday 7 September, so voting ends on Friday the 4th.
-        var slug = openPoll(Sample.TEAM, LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 8));
+    @DisplayName("runs to the last day on the table, that day included")
+    void closesOnTheLastCandidateDay() {
+        var first = LocalDate.of(2026, 9, 7);
+        var last = LocalDate.of(2026, 9, 18);
 
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(LocalDate.of(2026, 9, 4));
+        var slug = openPoll(Sample.TEAM, first, LocalDate.of(2026, 9, 9), last);
+
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last);
     }
 
     @Test
-    @DisplayName("steps back over a weekend rather than closing on one")
-    void closesOnAWorkingDay() {
-        assertThat(service.poll(openPoll(Sample.TEAM, LocalDate.of(2026, 9, 8))).orElseThrow().closesOn())
-                .isEqualTo(LocalDate.of(2026, 9, 7));
-        assertThat(service.poll(openPoll(Sample.TEAM, LocalDate.of(2026, 9, 14))).orElseThrow().closesOn())
-                .isEqualTo(LocalDate.of(2026, 9, 11));
+    @DisplayName("keeps taking answers after an earlier option has passed")
+    void anEarlyOptionPassingDoesNotEndIt() {
+        var first = LocalDate.now(clock).plusDays(2);
+        var last = LocalDate.now(clock).plusWeeks(3);
+        var slug = openPoll(Sample.TEAM, first, last);
+
+        clock.advanceDays(3);
+
+        assertThat(LocalDate.now(clock)).isAfter(first);
+        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        service.castVote(slug, Sample.JONAS, Set.of(last));
+        assertThat(service.poll(slug).orElseThrow().answerCount()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("never closes after the day being voted on")
-    void neverClosesAfterTheFirstCandidateDay() {
-        var earliest = LocalDate.of(2026, 8, 24);
+    @DisplayName("never closes after the last day on the table")
+    void neverClosesAfterTheLastCandidateDay() {
+        var last = LocalDate.of(2026, 8, 24);
 
-        assertThat(service.poll(openPoll(Sample.TEAM, earliest)).orElseThrow().closesOn())
-                .isBefore(earliest);
+        assertThat(service.poll(openPoll(Sample.TEAM, LocalDate.of(2026, 8, 21), last))
+                .orElseThrow().closesOn()).isEqualTo(last);
     }
 
     @Test
-    @DisplayName("closes on today when the first day on the table is tomorrow")
-    void aPollWhoseFirstDayIsImminent() {
-        var today = LocalDate.now(clock);
+    @DisplayName("closes on the last day itself when that day is tomorrow")
+    void aPollWhoseLastDayIsImminent() {
+        var tomorrow = LocalDate.now(clock).plusDays(1);
 
-        var poll = service.poll(openPoll(Sample.TEAM, today.plusDays(1))).orElseThrow();
+        var poll = service.poll(openPoll(Sample.TEAM, tomorrow)).orElseThrow();
 
-        assertThat(poll.closesOn()).isEqualTo(today);
+        assertThat(poll.closesOn()).isEqualTo(tomorrow);
         assertThat(poll.state()).isEqualTo(PollState.OPEN);
     }
 
     @Test
     @DisplayName("takes the organizer's own closing date, inside the range one can be in")
     void theOrganizerChoosesTheClosingDate() {
-        var earliest = LocalDate.now(clock).plusWeeks(2);
-        var slug = openPoll(Sample.TEAM, earliest);
+        var last = LocalDate.now(clock).plusWeeks(2);
+        var slug = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(1), last);
 
-        service.closeOn(slug, earliest.minusDays(4));
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(earliest.minusDays(4));
+        service.closeOn(slug, last.minusDays(4));
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
 
-        service.closeOn(slug, earliest.plusDays(3));
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(earliest.minusDays(1));
+        // Never past the last day on the table.
+        service.closeOn(slug, last.plusDays(3));
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last);
 
+        // Never in the past.
         service.closeOn(slug, LocalDate.now(clock).minusWeeks(1));
         assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
 
-        assertThat(service.latestClosingDay(slug)).contains(earliest.minusDays(1));
+        assertThat(service.latestClosingDay(slug)).contains(last);
     }
 
     @Test
@@ -277,9 +287,9 @@ class PollServiceTest {
 
         assertThat(service.plannedClosing(slug)).isEmpty();
 
-        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 9)));
 
-        assertThat(service.plannedClosing(slug)).contains(LocalDate.of(2026, 9, 4));
+        assertThat(service.plannedClosing(slug)).contains(LocalDate.of(2026, 9, 9));
 
         service.send(slug);
 
