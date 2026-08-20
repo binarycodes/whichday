@@ -1,0 +1,67 @@
+/* The share screen's link card and the two ways out of it, plus the read-only
+   field that shows who a poll goes to. */
+
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  padding: var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline-ink);
+  border-radius: var(--vaadin-radius-l);
+  background: var(--color-surface-veiled);
+}
+
+.link-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vaadin-gap-xs);
+}
+
+/* The link is the one thing on this card that must not wrap: a wrapped URL reads
+   as two links. */
+.link-url {
+  font-size: 0.9375rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-copy {
+  --vaadin-button-height: 2.375rem;
+  --vaadin-button-font-size: 0.875rem;
+  width: auto;
+  flex: none;
+}
+
+/* Message and Add-to-calendar leave the application — a mailto and a file — so they
+   are anchors wearing the button's clothes. */
+.action-anchor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vaadin-gap-s);
+  height: var(--vaadin-button-height, 3.375rem);
+  border: var(--vaadin-button-border-width, 0) solid var(--vaadin-button-border-color, transparent);
+  border-radius: var(--vaadin-radius-m);
+  background: var(--vaadin-button-background, transparent);
+  color: var(--vaadin-button-text-color, var(--color-ink));
+  font-size: var(--vaadin-button-font-size, 1rem);
+  font-weight: var(--aura-font-weight-medium);
+  text-decoration: none;
+}
+
+.team-field {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-s);
+  min-height: 3.25rem;
+  padding: 0 var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--vaadin-radius-m);
+  background: var(--color-surface-veiled);
+  --vaadin-avatar-size: 1.625rem;
+}

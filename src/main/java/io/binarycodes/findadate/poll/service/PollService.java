@@ -67,12 +67,12 @@ public class PollService {
     public synchronized void send(String slug) {
         var stored = require(slug);
         if (stored.closesAt() == null) {
-            stored.closeAt(defaultClosingMoment());
+            stored.closeAt(defaultClosingMoment(), clock.instant());
         }
     }
 
     public synchronized void closeAt(String slug, LocalDateTime moment) {
-        require(slug).closeAt(moment);
+        require(slug).closeAt(moment, clock.instant());
     }
 
     public synchronized void castVote(String slug, Person voter, Set<LocalDate> chosenDays) {
@@ -129,6 +129,7 @@ public class PollService {
                 List.copyOf(stored.candidateDays()),
                 stored.closesAt(),
                 stored.lockedDay(),
+                stored.openedAt(),
                 tallies(stored),
                 ballots(stored));
     }

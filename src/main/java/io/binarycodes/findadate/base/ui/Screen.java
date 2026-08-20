@@ -31,4 +31,8 @@ public class Screen extends Div {
     protected void clearBody() {
         body.removeAll();
     }
+
+    protected void clearFooter() {
+        footer.removeAll();
+    }
 }

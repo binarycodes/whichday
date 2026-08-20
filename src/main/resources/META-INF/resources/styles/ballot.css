@@ -1,0 +1,41 @@
+/* The voting screen's own furniture: who invited you, and the row that states the
+   answer you already gave by arriving on the counter-proposal screen. */
+
+.invitation {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  --vaadin-avatar-size: 1.75rem;
+}
+
+/* The field wrapper contributes nothing: the rows are the whole control. */
+.ballot-field::part(label),
+.ballot-field::part(helper-text),
+.ballot-field::part(error-message) {
+  display: none;
+}
+
+.confirmation {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  padding: var(--vaadin-padding-m) var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline-ink);
+  border-radius: var(--vaadin-radius-l);
+  background: var(--color-surface-sunken);
+  font-size: 0.875rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1.35;
+}
+
+.confirmation-mark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--aura-radius-full, 9999px);
+  background: var(--color-commit);
+  color: var(--color-commit-contrast);
+}

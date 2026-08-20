@@ -1,5 +1,6 @@
 package io.binarycodes.findadate.poll.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -26,6 +27,7 @@ class StoredPoll {
     private String title;
     private LocalDateTime closesAt;
     private LocalDate lockedDay;
+    private Instant openedAt;
 
     StoredPoll(String slug, String title, Person organizer, List<Person> invited) {
         this.slug = slug;
@@ -72,8 +74,16 @@ class StoredPoll {
         return closesAt;
     }
 
-    void closeAt(LocalDateTime moment) {
+    /** Setting a closing date is what sends the poll out, so it is also what stamps it. */
+    void closeAt(LocalDateTime moment, Instant sentAt) {
         this.closesAt = moment;
+        if (this.openedAt == null) {
+            this.openedAt = sentAt;
+        }
+    }
+
+    Instant openedAt() {
+        return openedAt;
     }
 
     LocalDate lockedDay() {

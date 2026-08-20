@@ -1,5 +1,6 @@
 package io.binarycodes.findadate.poll.domain;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,6 +20,7 @@ public record Poll(String slug,
                    List<LocalDate> candidateDays,
                    LocalDateTime closesAt,
                    LocalDate lockedDay,
+                   Instant openedAt,
                    List<DayTally> tallies,
                    List<Ballot> ballots) {
 

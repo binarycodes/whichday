@@ -1,6 +1,7 @@
 package io.binarycodes.findadate.poll.ui.presenter;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,6 +60,10 @@ public class PollPresenter {
 
     public LocalDateTime now() {
         return LocalDateTime.now(clock);
+    }
+
+    public Instant instant() {
+        return clock.instant();
     }
 
     public List<PollSummary> openPolls() {

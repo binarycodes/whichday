@@ -1,0 +1,212 @@
+package io.binarycodes.findadate.poll.ui.view;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.Route;
+
+import io.binarycodes.findadate.base.ui.Counts;
+import io.binarycodes.findadate.base.ui.DateText;
+import io.binarycodes.findadate.base.ui.HintBar;
+import io.binarycodes.findadate.base.ui.LiveBadge;
+import io.binarycodes.findadate.base.ui.TopBar;
+import io.binarycodes.findadate.base.ui.Typography;
+import io.binarycodes.findadate.people.domain.Person;
+import io.binarycodes.findadate.people.ui.AvatarStack;
+import io.binarycodes.findadate.people.ui.WaitingChip;
+import io.binarycodes.findadate.poll.domain.Ballot;
+import io.binarycodes.findadate.poll.domain.DayTally;
+import io.binarycodes.findadate.poll.domain.Poll;
+import io.binarycodes.findadate.poll.ui.component.AwaitingDayList;
+import io.binarycodes.findadate.poll.ui.component.TallyList;
+import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
+import io.binarycodes.findadate.poll.ui.share.VotingLink;
+
+/**
+ * The organizer watches the counts. Two moments, one screen: before anybody has
+ * answered the rows are still there with nothing in them, and after, they carry the
+ * paint. Same layout either way, so the poll does not appear to change shape when
+ * the first answer lands.
+ */
+@Route("poll/:slug")
+public class ResultsView extends PollScreen {
+
+    private static final int VISIBLE_WAITING = 4;
+
+    public ResultsView(PollPresenter presenter) {
+        super(presenter);
+    }
+
+    @Override
+    protected void build(Poll poll) {
+        if (poll.lockedDay() != null) {
+            goTo(LockedView.class);
+            return;
+        }
+        if (poll.isUnanswered()) {
+            buildUnanswered(poll);
+        } else {
+            buildStandings(poll);
+        }
+    }
+
+    private void buildUnanswered(Poll poll) {
+        body(new TopBar(poll.title()).leadingTitle()
+                .withTrailing(Typography.meta(getTranslation("results.sentAgo", sentAgo(poll)))));
+
+        var count = Typography.stat(Counts.progress(this, 0, poll.inviteCount()));
+        count.addClassName("stat-empty");
+        var caption = Typography.meta(getTranslation("results.haveVoted"));
+        var block = new Div(count, new Div(caption));
+        block.addClassNames("stack-s", "push-2xl");
+        body(block);
+
+        var days = new AwaitingDayList(poll.candidateDays());
+        days.addClassName("push-xl");
+        body(days);
+
+        body(waitingSection(poll));
+
+        var reminder = new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder"));
+        var copy = new Button(getTranslation("results.copyLink"), ignored -> copyLink(poll));
+        copy.addClassNames("action", "action-outline");
+        footer(reminder, copy);
+    }
+
+    private void buildStandings(Poll poll) {
+        body(new TopBar(poll.title()).leadingTitle()
+                .withTrailing(new LiveBadge(getTranslation("results.live"))));
+
+        var count = Typography.stat(Counts.progress(this, poll.answerCount(), poll.inviteCount()));
+        var caption = Typography.meta(getTranslation("results.haveVoted"));
+        var text = new Div(count, new Div(caption));
+        text.addClassName("stack-s");
+        var faces = new AvatarStack().show(poll.answered(), poll.awaiting());
+        var header = new Div(text, faces);
+        header.addClassNames("row-between", "row-end", "push-2xl");
+        body(header);
+
+        var tallies = new TallyList(poll.tallies(), tally -> captionFor(poll, tally));
+        tallies.addClassName("push-2xl");
+        body(tallies);
+
+        proposalSection(poll).ifPresent(this::body);
+        poll.soleHoldout().ifPresent(holdout -> body(nudge(holdout)));
+
+        poll.leader().ifPresent(leader -> {
+            var lock = new Button(getTranslation("results.lock", DateText.compact(this, leader.day())),
+                    ignored -> lock(leader));
+            lock.addClassNames("action", "action-commit");
+            footer(lock);
+        });
+    }
+
+    /**
+     * The leading bar is the only one dark enough to carry text, so it says who is
+     * in rather than repeating the number above it.
+     */
+    private Optional<String> captionFor(Poll poll, DayTally tally) {
+        if (tally.voteCount() == poll.inviteCount()) {
+            return Optional.of(getTranslation("results.everyone"));
+        }
+        var missing = poll.invited().stream().filter(person -> !tally.voters().contains(person)).toList();
+        return missing.size() == 1
+                ? Optional.of(getTranslation("results.everyoneBut", missing.getFirst().firstName()))
+                : Optional.empty();
+    }
+
+    private Div waitingSection(Poll poll) {
+        var chips = new Div();
+        chips.addClassNames("chip-row", "push-m");
+        poll.awaiting().stream().limit(VISIBLE_WAITING).forEach(person -> chips.add(new WaitingChip(person)));
+        var remaining = poll.awaiting().size() - Math.min(VISIBLE_WAITING, poll.awaiting().size());
+        if (remaining > 0) {
+            var more = new Span(getTranslation("count.more", remaining));
+            more.addClassNames("chip", "chip-outline");
+            chips.add(more);
+        }
+        var section = new Div(Typography.sectionLabel(getTranslation("results.waitingOn")), chips);
+        section.addClassName("push-2xl");
+        return section;
+    }
+
+    /**
+     * A day somebody put forward instead. It is not a column until it is accepted
+     * here, which is the promise the voting screen makes.
+     */
+    private Optional<Div> proposalSection(Poll poll) {
+        var proposals = poll.declined().stream().filter(ballot -> !ballot.proposedDays().isEmpty()).toList();
+        if (proposals.isEmpty()) {
+            return Optional.empty();
+        }
+        var section = new Div(Typography.sectionLabel(getTranslation("results.proposals")));
+        section.addClassNames("stack-m", "push-2xl");
+        proposals.forEach(ballot -> section.add(proposalRow(ballot)));
+        return Optional.of(section);
+    }
+
+    private HintBar proposalRow(Ballot ballot) {
+        var days = ballot.proposedDays().stream().map(day -> DateText.compact(this, day)).toList();
+        var accept = new Button(getTranslation("results.acceptProposal"), ignored -> accept(ballot));
+        accept.addClassNames("action", "action-outline", "action-inline");
+        return new HintBar(VaadinIcon.CALENDAR, getTranslation("results.proposal",
+                ballot.voter().firstName(), String.join(", ", days))).outlined().withAction(accept);
+    }
+
+    private HintBar nudge(Person holdout) {
+        var send = new Button(getTranslation("results.nudge.action"),
+                ignored -> Notification.show(getTranslation("results.nudged", holdout.firstName())));
+        send.addClassNames("action", "action-outline", "action-inline");
+        var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
+                .outlined().withAction(send);
+        bar.addClassName("push-xl");
+        return bar;
+    }
+
+    /** "Sent 4 min ago" — coarse on purpose; a live seconds counter would be noise. */
+    private String sentAgo(Poll poll) {
+        if (poll.openedAt() == null) {
+            return getTranslation("time.justNow");
+        }
+        var elapsed = Duration.between(poll.openedAt(), presenter.instant());
+        var minutes = elapsed.toMinutes();
+        if (minutes < 1) {
+            return getTranslation("time.justNow");
+        }
+        if (minutes < Duration.ofHours(1).toMinutes()) {
+            return minutes == 1 ? getTranslation("time.minutes.one") : getTranslation("time.minutes.many", minutes);
+        }
+        var hours = elapsed.toHours();
+        if (hours < Duration.ofDays(1).toHours()) {
+            return hours == 1 ? getTranslation("time.hours.one") : getTranslation("time.hours.many", hours);
+        }
+        var days = elapsed.toDays();
+        return days == 1 ? getTranslation("time.days.one") : getTranslation("time.days.many", days);
+    }
+
+    private void copyLink(Poll poll) {
+        VotingLink.copyToClipboard(this, poll.slug());
+        Notification.show(getTranslation("share.copied"));
+    }
+
+    private void accept(Ballot ballot) {
+        ballot.proposedDays().forEach(day -> presenter.acceptProposal(slug(), day));
+        render();
+    }
+
+    private void lock(DayTally leader) {
+        presenter.lock(slug(), leader.day());
+        goTo(LockedView.class);
+    }
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("results.title");
+    }
+}
