@@ -17,8 +17,9 @@ identity provider, no containers.
 
 Ten screens, in two groups.
 
-**The happy path.** An organizer names the poll (`/new`), puts days on the table
-from a month grid (`/poll/:slug/days`), shares one link and sends the invites
+**The happy path.** An organizer names the poll and says who decides it (`/new`,
+and `/new/invitees` to search), puts days on the table from a month grid
+(`/poll/:slug/days`), shares one link and sends the invites
 (`/poll/:slug/share`). Everybody invited taps every day that works
 (`/vote/:slug`) and gets a receipt with the standings underneath
 (`/vote/:slug/done`). The organizer watches the counts come in (`/poll/:slug`) and
@@ -31,20 +32,30 @@ results screen and becomes a candidate day only if they accept it. A poll nobody
 has answered yet keeps its rows and shows who is still owed an answer — the same
 route as the standings, not a screen of its own.
 
+## Inviting people
+
+There is no team and no directory. The only way onto a poll is the organizer typing
+an email address: results appear from three characters, matches show why they
+matched — the polls you have both answered, or nothing more than a shared workspace
+— and anything that is an address but not an account becomes an invitation by link
+rather than an error. `AccountDirectory` has no method that hands a screen
+everybody, which is the point.
+
 ## Signing in, and who you are
 
 There is no login. `ViewerSession` holds who the browser is, and the avatar in the
-top-right switches between the seven people on the team — which is what makes both
-the organizer's screens and a voter's screens reachable without an account system.
-That switcher is a development affordance and is meant to be deleted when there is
-a real authenticated subject; see
+top-right switches between the accounts — which is what makes both the organizer's
+screens and a voter's screens reachable without an account system. That switcher is
+a development affordance and is meant to be deleted when there is a real
+authenticated subject; see
 [`docs/clarifications/0003-voter-identity.md`](docs/clarifications/0003-voter-identity.md).
 
 ## Where the polls live
 
 In memory, in a `PollService` singleton, seeded with the data the design was drawn
 with: the Q3 offsite, seven people, five candidate days, standings of 6 / 4 / 3 / 2
-/ 1, and Jonas Wirtanen holding out so the nudge prompt has a name. The dates are
+/ 1, and Jonas Wirtanen holding out so the nudge prompt has a name. The account list
+holds two people outside that team, so searching has something to narrow. The dates are
 anchored to the clock rather than written out, so the sample stays in the future.
 
 Restarting loses everything typed and brings the sample back. The service boundary
