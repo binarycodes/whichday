@@ -49,6 +49,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
 
     private YearMonth visibleMonth;
     private int maximumSelection = NO_LIMIT;
+    private LocalDate latestSelectable;
 
     public MonthCalendar(LocalDate today, String previousLabel, String nextLabel) {
         this.earliestSelectable = today;
@@ -167,6 +168,12 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
         renderGrid();
     }
 
+    /** The last day this calendar will offer, when something bounds it from above. */
+    public void setLatestSelectable(LocalDate day) {
+        this.latestSelectable = day;
+        showMonth(YearMonth.from(day));
+    }
+
     /**
      * Whole days in the future, on a working week — the design offers neither a day
      * already gone nor a weekend. See
@@ -174,6 +181,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
      */
     private boolean isSelectable(LocalDate day) {
         return !day.isBefore(earliestSelectable)
+                && (latestSelectable == null || !day.isAfter(latestSelectable))
                 && !unavailable.contains(day)
                 && day.getDayOfWeek() != DayOfWeek.SATURDAY
                 && day.getDayOfWeek() != DayOfWeek.SUNDAY;
@@ -186,7 +194,14 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
      * keyboard.
      */
     private void toggle(LocalDate day) {
-        if (!selection.remove(day)) {
+        // A calendar that holds one day is a date field, and a date field replaces
+        // rather than making the reader clear the old value first.
+        if (maximumSelection == 1 && !selection.contains(day)) {
+            var previous = Set.copyOf(selection);
+            selection.clear();
+            selection.add(day);
+            previous.forEach(this::markPressed);
+        } else if (!selection.remove(day)) {
             selection.add(day);
         }
         markPressed(day);
@@ -206,6 +221,9 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
      * {@link #toggle} does: the grid holds the button the reader just pressed.
      */
     private void applySelectionLimit() {
+        if (maximumSelection <= 1) {
+            return;
+        }
         var full = isAtMaximumSelection();
         cells.forEach((day, cell) -> cell.setEnabled(!full || selection.contains(day)));
     }

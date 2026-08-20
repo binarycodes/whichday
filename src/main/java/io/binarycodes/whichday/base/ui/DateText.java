@@ -1,9 +1,7 @@
 package io.binarycodes.whichday.base.ui;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.time.format.TextStyle;
 import java.util.Locale;
 import java.util.Optional;
@@ -68,13 +66,11 @@ public final class DateText {
     }
 
     /**
-     * "Friday 6:00 PM" — when voting closes. The time comes from the locale's own
-     * short format rather than a pattern, so a 24-hour locale gets 18:00.
+     * "Friday 11 September" — the last day an answer counts. A date rather than a
+     * moment, because the whole product deals in whole days.
      */
-    public static String closing(Component owner, LocalDateTime moment) {
-        var locale = localeOf(owner);
-        var time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment);
-        return weekdayFull(owner, moment.toLocalDate()) + " " + time;
+    public static String closing(Component owner, LocalDate day) {
+        return DateTimeFormatter.ofPattern("EEEE d MMMM", localeOf(owner)).format(day);
     }
 
     /** The locale the component will render in, for callers that format their own text. */

@@ -79,7 +79,7 @@ public class PollPresenter {
 
     /** Polls the viewer has not answered yet — what the list screen's headline counts. */
     public long awaitingViewer() {
-        return openPolls().stream().filter(summary -> !summary.answeredByViewer()).count();
+        return openPolls().stream().filter(PollSummary::needsViewer).count();
     }
 
     public Optional<Poll> poll(String slug) {
@@ -123,6 +123,20 @@ public class PollPresenter {
         var slug = polls.create(draft.title(), viewer(), everybody);
         draft.reset();
         return slug;
+    }
+
+    /** The closing date a poll has, or the one it would get if sent now. */
+    public Optional<LocalDate> plannedClosing(String slug) {
+        return polls.plannedClosing(slug);
+    }
+
+    /** The last date the organizer may close on: the day before the first day on the table. */
+    public Optional<LocalDate> latestClosingDay(String slug) {
+        return polls.latestClosingDay(slug);
+    }
+
+    public void closeOn(String slug, LocalDate day) {
+        polls.closeOn(slug, day);
     }
 
     public void allowAlternatives(String slug, boolean allowed) {

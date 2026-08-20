@@ -4,8 +4,6 @@ import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.temporal.TemporalAdjusters;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -26,6 +24,7 @@ import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.Ballot;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
+import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 
 /**
@@ -39,9 +38,8 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
 @Service
 public class PollService {
 
-    /** Whole days only, and voting closes at the end of a working afternoon. */
-    private static final LocalTime CLOSING_TIME = LocalTime.of(18, 0);
-    private static final int DEFAULT_VOTING_DAYS = 5;
+    /** Whole days only, so a closing date rather than a closing moment. */
+    private static final int MINIMUM_VOTING_DAYS = 1;
 
     private final Map<String, StoredPoll> polls = new LinkedHashMap<>();
     private final AtomicInteger slugSuffix = new AtomicInteger();
@@ -66,16 +64,51 @@ public class PollService {
     /** Sending the poll out is what opens it; until then it has no closing date. */
     public synchronized void send(String slug) {
         var stored = require(slug);
-        if (stored.closesAt() == null) {
-            stored.closeAt(defaultClosingMoment(), clock.instant());
+        if (stored.closesOn() == null) {
+            stored.closeOn(defaultClosingDayFor(stored), clock.instant());
         }
     }
 
-    public synchronized void closeAt(String slug, LocalDateTime moment) {
-        require(slug).closeAt(moment, clock.instant());
+    /**
+     * The organizer's own closing date. Clamped to the range a closing date can
+     * usefully be in — never in the past, and never on or after the first day being
+     * voted on, because an answer that arrives then is about a day already gone.
+     */
+    public synchronized void closeOn(String slug, LocalDate day) {
+        var stored = require(slug);
+        stored.closeOn(clampClosingDay(stored, day), clock.instant());
+    }
+
+    /**
+     * When this poll would close if it went out now — what the share screen promises
+     * before there is anything to promise it from.
+     */
+    public synchronized Optional<LocalDate> plannedClosing(String slug) {
+        var stored = require(slug);
+        if (stored.closesOn() != null) {
+            return Optional.of(stored.closesOn());
+        }
+        return stored.candidateDays().isEmpty()
+                ? Optional.empty()
+                : Optional.of(defaultClosingDayFor(stored));
+    }
+
+    /** The last day the organizer may choose: the day before the first day on the table. */
+    public synchronized Optional<LocalDate> latestClosingDay(String slug) {
+        return require(slug).candidateDays().stream().min(LocalDate::compareTo).map(day -> day.minusDays(1));
     }
 
     public synchronized void castVote(String slug, Person voter, Set<LocalDate> chosenDays) {
+        requireOpen(slug);
+        record(slug, voter, chosenDays);
+    }
+
+    /**
+     * An answer without the open-for-answers check. Only the sample seeder uses it,
+     * to build polls that were decided before the application started — history the
+     * public path is right to refuse.
+     */
+    synchronized void record(String slug, Person voter, Set<LocalDate> chosenDays) {
         var stored = require(slug);
         var onTheTable = chosenDays.stream().filter(stored.candidateDays()::contains).sorted().toList();
         stored.record(new StoredBallot(voter, new LinkedHashSet<>(onTheTable), List.of(), null));
@@ -87,7 +120,7 @@ public class PollService {
      * if the organizer accepts it.
      */
     public synchronized void decline(String slug, Person voter, List<LocalDate> proposedDays, String note) {
-        require(slug).record(new StoredBallot(voter, Set.of(), proposedDays, note));
+        requireOpen(slug).record(new StoredBallot(voter, Set.of(), proposedDays, note));
     }
 
     public synchronized void acceptProposal(String slug, LocalDate day) {
@@ -127,10 +160,11 @@ public class PollService {
                 stored.organizer(),
                 stored.invited(),
                 List.copyOf(stored.candidateDays()),
-                stored.closesAt(),
+                stored.closesOn(),
                 stored.lockedDay(),
                 stored.openedAt(),
                 stored.alternativesAllowed(),
+                stateOf(stored),
                 tallies(stored),
                 ballots(stored));
     }
@@ -185,7 +219,7 @@ public class PollService {
                 poll.organizer(),
                 headlineDay,
                 poll.candidateDays().stream().findFirst().orElse(headlineDay),
-                poll.closesAt(),
+                poll.closesOn(),
                 poll.candidateDays().size(),
                 poll.answerCount(),
                 poll.inviteCount(),
@@ -219,11 +253,65 @@ public class PollService {
         require(slug).invite(invitee);
     }
 
-    private LocalDateTime defaultClosingMoment() {
-        return LocalDate.now(clock)
-                .plusDays(DEFAULT_VOTING_DAYS)
-                .with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY))
-                .atTime(CLOSING_TIME);
+    /**
+     * Which state the poll is in, settled here because this is what holds the clock.
+     * A poll past its closing date has stopped collecting answers whether or not the
+     * organizer has been back to lock a day in.
+     */
+    private PollState stateOf(StoredPoll stored) {
+        if (stored.lockedDay() != null) {
+            return PollState.LOCKED;
+        }
+        if (stored.candidateDays().isEmpty() || stored.closesOn() == null) {
+            return PollState.DRAFT;
+        }
+        return LocalDate.now(clock).isAfter(stored.closesOn()) ? PollState.CLOSED : PollState.OPEN;
+    }
+
+    /**
+     * The default the organizer is offered: the last working day before the first day
+     * on the table. Voting past the earliest option is pointless — the team would be
+     * deciding on a day that has already gone — and it is the rule the design's own
+     * copy states, "Voting closes Friday" for a poll whose earliest candidate is the
+     * Monday after.
+     */
+    private LocalDate defaultClosingDayFor(StoredPoll stored) {
+        var earliest = stored.candidateDays().stream().min(LocalDate::compareTo).orElseThrow();
+        return clampClosingDay(stored, lastWorkingDayBefore(earliest));
+    }
+
+    /**
+     * A closing date has to leave at least a day to answer in and has to fall before
+     * the first day being voted on. When those two cannot both hold — the first option
+     * is tomorrow — the first day on the table wins, and voting closes on it.
+     */
+    private LocalDate clampClosingDay(StoredPoll stored, LocalDate wanted) {
+        var earliest = stored.candidateDays().stream().min(LocalDate::compareTo);
+        var latest = earliest.map(day -> day.minusDays(1)).orElse(wanted);
+        var floor = LocalDate.now(clock).plusDays(MINIMUM_VOTING_DAYS);
+        var chosen = wanted.isBefore(floor) ? floor : wanted;
+        return chosen.isAfter(latest) ? latest : chosen;
+    }
+
+    private LocalDate lastWorkingDayBefore(LocalDate day) {
+        var candidate = day.minusDays(1);
+        while (candidate.getDayOfWeek() == DayOfWeek.SATURDAY
+                || candidate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            candidate = candidate.minusDays(1);
+        }
+        return candidate;
+    }
+
+    /**
+     * A poll that has closed takes no more answers. Enforced here rather than only on
+     * the screens, so that a stale tab cannot post one after the date has passed.
+     */
+    private StoredPoll requireOpen(String slug) {
+        var stored = require(slug);
+        if (stateOf(stored) != PollState.OPEN) {
+            throw new PollClosedException(slug);
+        }
+        return stored;
     }
 
     private StoredPoll require(String slug) {

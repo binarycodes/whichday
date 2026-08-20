@@ -8,6 +8,8 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
+import java.util.Set;
+
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
@@ -17,6 +19,7 @@ import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.ui.PersonRow;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
+import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 import io.binarycodes.whichday.poll.ui.share.CalendarInvite;
 import io.binarycodes.whichday.poll.ui.share.MailLink;
@@ -49,11 +52,51 @@ public class ShareView extends PollScreen {
 
         body(linkCard(poll), shareActions(poll), inviteList(poll));
 
-        var closes = new HintBar(VaadinIcon.CLOCK, getTranslation("share.closes",
-                DateText.closing(this, poll.closesAt() == null ? presenter.now() : poll.closesAt())));
-        footer(closes, Actions.primary(poll.inviteCount() == 1
+        footer(closingSection(poll), Actions.primary(poll.inviteCount() == 1
                 ? getTranslation("share.send.one")
                 : getTranslation("share.send.many", poll.inviteCount()), ignored -> send()));
+    }
+
+    /**
+     * When voting ends, and the way to change it. The design's own copy promises this
+     * — "You can extend it later" — so the note is the affordance: tapping it reveals
+     * a calendar inline, bounded by the first day on the table, since an answer that
+     * arrives after that is about a day already gone.
+     */
+    private Div closingSection(Poll poll) {
+        var chosen = presenter.plannedClosing(poll.slug()).orElse(null);
+        var note = new HintBar(VaadinIcon.CLOCK, chosen == null
+                ? getTranslation("share.closes.unknown")
+                : getTranslation("share.closes", DateText.closing(this, chosen)));
+
+        var section = new Div(note);
+        section.addClassName("stack-s");
+        if (chosen == null) {
+            return section;
+        }
+
+        var picker = new Div();
+        picker.addClassNames("proposal-picker", "closing-picker");
+        picker.setVisible(false);
+
+        var calendar = new MonthCalendar(presenter.today(),
+                getTranslation("days.previousMonth"),
+                getTranslation("days.nextMonth"));
+        calendar.addClassName("calendar-field");
+        calendar.setMaximumSelection(1);
+        presenter.latestClosingDay(poll.slug()).ifPresent(calendar::setLatestSelectable);
+        calendar.setValue(Set.of(chosen));
+        calendar.addValueChangeListener(event -> event.getValue().stream().findFirst()
+                .ifPresent(day -> {
+                    presenter.closeOn(poll.slug(), day);
+                    render();
+                }));
+        picker.add(calendar);
+
+        note.withAction(Actions.inline(getTranslation("share.closes.change"),
+                ignored -> picker.setVisible(!picker.isVisible())));
+        section.add(picker);
+        return section;
     }
 
     private Div linkCard(Poll poll) {

@@ -7,6 +7,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import io.binarycodes.whichday.TestClock;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.DayTally;
@@ -26,13 +30,13 @@ class PollServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-20T09:00:00Z");
     private static final String OFFSITE = "q3-team-offsite";
 
-    private Clock clock;
+    private TestClock clock;
     private AccountDirectory directory;
     private PollService service;
 
     @BeforeEach
     void setUp() {
-        clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        clock = new TestClock(NOW, ZoneOffset.UTC);
         directory = new AccountDirectory();
         service = new PollService(clock, directory);
     }
@@ -63,6 +67,7 @@ class PollServiceTest {
     void aHoldoutIsNeverYourself() {
         var slug = service.create("Roadmap workshop", organizer(), List.of(organizer(), jonas()));
         service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+        service.send(slug);
         service.castVote(slug, jonas(), Set.of(LocalDate.of(2026, 9, 7)));
 
         var poll = service.poll(slug).orElseThrow();
@@ -78,6 +83,7 @@ class PollServiceTest {
         var monday = LocalDate.of(2026, 9, 7);
         var friday = LocalDate.of(2026, 9, 11);
         service.replaceCandidateDays(slug, List.of(friday, monday));
+        service.send(slug);
         service.castVote(slug, organizer(), Set.of(monday, friday));
 
         var tallies = service.poll(slug).orElseThrow().tallies();
@@ -202,7 +208,132 @@ class PollServiceTest {
 
         assertThat(sent.state()).isEqualTo(PollState.OPEN);
         assertThat(sent.openedAt()).isEqualTo(NOW);
-        assertThat(sent.closesAt().getDayOfWeek()).isEqualTo(java.time.DayOfWeek.FRIDAY);
+    }
+
+    @Test
+    @DisplayName("closes at six on the last working day before the first day on the table")
+    void closesBeforeTheFirstCandidateDay() {
+        // Monday 7 September, so voting ends on Friday the 4th.
+        var slug = openPollOn(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 8));
+
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(LocalDate.of(2026, 9, 4));
+    }
+
+    @Test
+    @DisplayName("steps back over a weekend rather than closing on one")
+    void closesOnAWorkingDay() {
+        // Tuesday 8 September; the day before is a Monday, so no stepping needed.
+        assertThat(service.poll(openPollOn(LocalDate.of(2026, 9, 8))).orElseThrow().closesOn())
+                .isEqualTo(LocalDate.of(2026, 9, 7));
+
+        // Monday 14 September; back over Sunday and Saturday to Friday the 11th.
+        assertThat(service.poll(openPollOn(LocalDate.of(2026, 9, 14))).orElseThrow().closesOn())
+                .isEqualTo(LocalDate.of(2026, 9, 11));
+    }
+
+    @Test
+    @DisplayName("never closes after the day being voted on")
+    void neverClosesAfterTheFirstCandidateDay() {
+        var earliest = LocalDate.of(2026, 8, 24);
+
+        var closes = service.poll(openPollOn(earliest)).orElseThrow().closesOn();
+
+        assertThat(closes).isBefore(earliest);
+    }
+
+    @Test
+    @DisplayName("closes on today when the first day on the table is tomorrow")
+    void aPollWhoseFirstDayIsImminent() {
+        var today = LocalDate.now(clock);
+
+        var poll = service.poll(openPollOn(today.plusDays(1))).orElseThrow();
+
+        assertThat(poll.closesOn()).isEqualTo(today);
+        assertThat(poll.state()).isEqualTo(PollState.OPEN);
+    }
+
+    @Test
+    @DisplayName("stays open through its closing date and is closed the day after")
+    void closesTheDayAfter() {
+        var slug = openPollOn(LocalDate.now(clock).plusWeeks(2));
+        var closesOn = service.poll(slug).orElseThrow().closesOn();
+
+        clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn));
+        assertThat(LocalDate.now(clock)).isEqualTo(closesOn);
+        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
+
+        clock.advanceDays(1);
+
+        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.CLOSED);
+    }
+
+    @Test
+    @DisplayName("refuses an answer once voting is over")
+    void refusesAnswersWhenClosed() {
+        var slug = openPollOn(LocalDate.now(clock).plusWeeks(2));
+        var day = service.poll(slug).orElseThrow().candidateDays().getFirst();
+        var closesOn = service.poll(slug).orElseThrow().closesOn();
+
+        clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn) + 1);
+
+        assertThatThrownBy(() -> service.castVote(slug, jonas(), Set.of(day)))
+                .isInstanceOf(PollClosedException.class)
+                .hasMessageContaining(slug);
+        assertThatThrownBy(() -> service.decline(slug, jonas(), List.of(), null))
+                .isInstanceOf(PollClosedException.class);
+    }
+
+    @Test
+    @DisplayName("refuses an answer to a poll that was never sent")
+    void refusesAnswersBeforeSending() {
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
+        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+
+        assertThatThrownBy(() -> service.castVote(slug, jonas(), Set.of(LocalDate.of(2026, 9, 7))))
+                .isInstanceOf(PollClosedException.class);
+    }
+
+    @Test
+    @DisplayName("takes the organizer's own closing date, inside the range one can be in")
+    void theOrganizerChoosesTheClosingDate() {
+        var earliest = LocalDate.now(clock).plusWeeks(2);
+        var slug = openPollOn(earliest);
+
+        service.closeOn(slug, earliest.minusDays(4));
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(earliest.minusDays(4));
+
+        // Never on or after the first day being voted on.
+        service.closeOn(slug, earliest.plusDays(3));
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(earliest.minusDays(1));
+
+        // Never in the past.
+        service.closeOn(slug, LocalDate.now(clock).minusWeeks(1));
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
+
+        assertThat(service.latestClosingDay(slug)).contains(earliest.minusDays(1));
+    }
+
+    @Test
+    @DisplayName("promises the closing time a draft would get, before it has one")
+    void plannedClosingBeforeSending() {
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
+
+        assertThat(service.plannedClosing(slug)).isEmpty();
+
+        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+
+        assertThat(service.plannedClosing(slug)).contains(LocalDate.of(2026, 9, 4));
+
+        service.send(slug);
+
+        assertThat(service.plannedClosing(slug)).contains(service.poll(slug).orElseThrow().closesOn());
+    }
+
+    private String openPollOn(LocalDate... days) {
+        var slug = service.create("Poll " + days[0], organizer(), directory.allForSwitcher());
+        service.replaceCandidateDays(slug, List.of(days));
+        service.send(slug);
+        return slug;
     }
 
     @Test
@@ -211,11 +342,11 @@ class PollServiceTest {
         var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
         service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
         service.send(slug);
-        var first = service.poll(slug).orElseThrow().closesAt();
+        var first = service.poll(slug).orElseThrow().closesOn();
 
         service.send(slug);
 
-        assertThat(service.poll(slug).orElseThrow().closesAt()).isEqualTo(first);
+        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(first);
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
@@ -48,6 +49,15 @@ public class NoDayWorksView extends PollScreen {
 
     public NoDayWorksView(PollPresenter presenter) {
         super(presenter);
+    }
+
+    @Override
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        if (poll.isOpen()) {
+            return false;
+        }
+        forwardToPoll(event, ResultsView.class);
+        return true;
     }
 
     @Override

@@ -91,7 +91,10 @@ public class ResultsView extends PollScreen {
     private void buildStandings(Poll poll) {
         body(new TopBar(poll.title()).leadingTitle()
                 .withLeading(homeButton())
-                .withTrailing(new LiveBadge(getTranslation("results.live"))));
+                .withTrailing(poll.isClosed()
+                        ? Typography.meta(getTranslation("results.closed",
+                                DateText.closing(this, poll.closesOn())))
+                        : new LiveBadge(getTranslation("results.live"))));
 
         var count = Typography.stat(Counts.progress(this, poll.answerCount(), poll.inviteCount()));
         var caption = Typography.meta(getTranslation("results.haveVoted"));
@@ -107,10 +110,14 @@ public class ResultsView extends PollScreen {
         body(tallies);
 
         proposalSection(poll).ifPresent(this::body);
-        body(ownAnswer(poll));
-        var others = poll.awaitingOthers(presenter.viewer());
-        if (others.size() == 1) {
-            body(nudge(others.getFirst()));
+        // Once voting is over there is nothing to answer and nobody to chase; the only
+        // move left is the organizer's.
+        if (poll.isOpen()) {
+            body(ownAnswer(poll));
+            var others = poll.awaitingOthers(presenter.viewer());
+            if (others.size() == 1) {
+                body(nudge(others.getFirst()));
+            }
         }
 
         poll.leader().ifPresent(leader -> {

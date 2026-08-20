@@ -7,6 +7,7 @@ import java.util.Set;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
@@ -31,6 +32,18 @@ public class BallotView extends PollScreen {
 
     public BallotView(PollPresenter presenter) {
         super(presenter);
+    }
+
+    /** Voting is over, so there is nothing to answer — the standings are the story now. */
+    @Override
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        if (poll.isOpen()) {
+            return false;
+        }
+        forwardToPoll(event, poll.ballotOf(presenter.viewer()).isPresent()
+                ? ReceiptView.class
+                : ResultsView.class);
+        return true;
     }
 
     @Override

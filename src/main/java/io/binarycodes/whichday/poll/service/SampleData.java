@@ -3,7 +3,6 @@ package io.binarycodes.whichday.poll.service;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Set;
@@ -21,7 +20,6 @@ import io.binarycodes.whichday.people.service.AccountDirectory;
  */
 final class SampleData {
 
-    private static final LocalTime CLOSING_TIME = LocalTime.of(18, 0);
     private static final int OFFSET_MON = 0;
     private static final int OFFSET_TUE = 1;
     private static final int OFFSET_FRI = 4;
@@ -53,7 +51,7 @@ final class SampleData {
 
         var offsite = service.create("Q3 team offsite", organizer, everyone);
         service.replaceCandidateDays(offsite, List.of(day14, day15, day18, day22, day23));
-        service.closeAt(offsite, day18.minusDays(1).atTime(CLOSING_TIME));
+        service.send(offsite);
         service.castVote(offsite, organizer, Set.of(day18, day22));
         service.castVote(offsite, miro, Set.of(day14, day18));
         service.castVote(offsite, sara, Set.of(day14, day18, day22));
@@ -87,7 +85,7 @@ final class SampleData {
                                     LocalDate settledOn) {
         var slug = service.create(title, organizer, invited);
         service.replaceCandidateDays(slug, List.of(settledOn));
-        invited.forEach(person -> service.castVote(slug, person, Set.of(settledOn)));
+        invited.forEach(person -> service.record(slug, person, Set.of(settledOn)));
         service.lock(slug, settledOn);
     }
 

@@ -52,9 +52,10 @@ public class ReceiptView extends PollScreen {
         var notify = new HintBar(VaadinIcon.BELL, getTranslation("receipt.notify")).outlined()
                 .withAction(new Checkbox(true));
         footer(notify);
-        if (poll.closesAt() != null) {
-            var closes = Typography.meta(getTranslation("receipt.closes",
-                    DateText.closing(this, poll.closesAt())));
+        if (poll.closesOn() != null) {
+            var closes = Typography.meta(getTranslation(
+                    poll.isClosed() ? "receipt.closed" : "receipt.closes",
+                    DateText.closing(this, poll.closesOn())));
             closes.addClassNames("meta-faint", "meta-centred");
             footer(closes);
         }

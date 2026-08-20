@@ -2,7 +2,6 @@ package io.binarycodes.whichday.poll.domain;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,27 +12,33 @@ import io.binarycodes.whichday.people.domain.Person;
  * answers that produced them. Everything derived is derived here, so that no view
  * counts votes.
  *
+ * @param closesOn            the last day an answer counts. Voting is over from the
+ *                            day after it — whole days, like everything else here.
  * @param alternativesAllowed whether a voter who can make none of the days may put
  *                            others forward. Saying no to the days is always an
  *                            answer; this is only about adding to the table.
+ * @param state               settled by the service, which is what holds the clock
  */
 public record Poll(String slug,
                    String title,
                    Person organizer,
                    List<Person> invited,
                    List<LocalDate> candidateDays,
-                   LocalDateTime closesAt,
+                   LocalDate closesOn,
                    LocalDate lockedDay,
                    Instant openedAt,
                    boolean alternativesAllowed,
+                   PollState state,
                    List<DayTally> tallies,
                    List<Ballot> ballots) {
 
-    public PollState state() {
-        if (lockedDay != null) {
-            return PollState.LOCKED;
-        }
-        return candidateDays.isEmpty() || closesAt == null ? PollState.DRAFT : PollState.OPEN;
+    public boolean isOpen() {
+        return state == PollState.OPEN;
+    }
+
+    /** Voting is over and nobody has locked a day in — the organizer's move. */
+    public boolean isClosed() {
+        return state == PollState.CLOSED;
     }
 
     public int inviteCount() {

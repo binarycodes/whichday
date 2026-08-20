@@ -2,7 +2,6 @@ package io.binarycodes.whichday.poll.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,7 +25,7 @@ class StoredPoll {
     private final Set<LocalDate> candidateDays = new LinkedHashSet<>();
 
     private String title;
-    private LocalDateTime closesAt;
+    private LocalDate closesOn;
     private LocalDate lockedDay;
     private Instant openedAt;
     private boolean alternativesAllowed = true;
@@ -79,13 +78,13 @@ class StoredPoll {
         ballots.values().forEach(ballot -> ballot.chosenDays().retainAll(candidateDays));
     }
 
-    LocalDateTime closesAt() {
-        return closesAt;
+    LocalDate closesOn() {
+        return closesOn;
     }
 
     /** Setting a closing date is what sends the poll out, so it is also what stamps it. */
-    void closeAt(LocalDateTime moment, Instant sentAt) {
-        this.closesAt = moment;
+    void closeOn(LocalDate day, Instant sentAt) {
+        this.closesOn = day;
         if (this.openedAt == null) {
             this.openedAt = sentAt;
         }

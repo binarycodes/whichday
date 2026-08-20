@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.poll.domain.Poll;
+import io.binarycodes.whichday.poll.domain.PollState;
 
 @DisplayName("The calendar file")
 class CalendarInviteTest {
@@ -67,6 +68,7 @@ class CalendarInviteTest {
     private Poll poll(String title) {
         var organizer = new Person("ada", "Ada Lindqvist", 0);
         return new Poll("q3-team-offsite", title, organizer, List.of(organizer),
-                List.of(MONDAY, FRIDAY), null, null, null, true, List.of(), List.of());
+                List.of(MONDAY, FRIDAY), null, null, null, true, PollState.OPEN,
+                List.of(), List.of());
     }
 }

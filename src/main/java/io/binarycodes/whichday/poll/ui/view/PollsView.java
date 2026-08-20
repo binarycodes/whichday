@@ -86,10 +86,14 @@ public class PollsView extends Screen implements HasDynamicTitle {
     }
 
     private String noteFor(PollSummary summary) {
+        if (summary.isClosed()) {
+            return getTranslation("polls.closed",
+                    Counts.progress(this, summary.voteCount(), summary.inviteCount()));
+        }
         if (summary.hasHeadlineDay()) {
             return getTranslation("polls.leading",
                     Counts.progress(this, summary.voteCount(), summary.inviteCount()),
-                    DateText.weekdayShort(this, summary.closesAt().toLocalDate()));
+                    DateText.weekdayShort(this, summary.closesOn()));
         }
         return getTranslation("polls.onTheTable",
                 Counts.days(this, summary.candidateDayCount()),
@@ -97,6 +101,9 @@ public class PollsView extends Screen implements HasDynamicTitle {
     }
 
     private Component stateChipFor(PollSummary summary) {
+        if (summary.isClosed()) {
+            return new Chip(getTranslation("polls.closedChip"), Chip.Tone.OUTLINE);
+        }
         return summary.answeredByViewer()
                 ? new Chip(getTranslation("polls.voted"), Chip.Tone.ACCENT)
                 : new Chip(getTranslation("polls.vote"), Chip.Tone.SOLID);
