@@ -37,8 +37,8 @@ the clipboard API and says so when it works.
 ## Added
 
 Each of these exists because the design's flow is unreachable or unusable without
-it. They are argued where they live: `0003-voter-identity.md` for the account
-switcher, `0004-calendar-rules.md` for month navigation.
+it. They are argued where they live: `0004-calendar-rules.md` for month navigation,
+`0005-team-membership.md` for the invitee screen.
 
 **Counter-proposals reach the organizer.** Screen 2a promises "Ada sees it next to
 the counts", and the design never draws that screen. The results view grows a
