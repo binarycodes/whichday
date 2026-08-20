@@ -3,11 +3,11 @@ variable "NAMESPACE" { default = "binarycodes" }
 # APP_NAME must match the Maven artifactId: the Dockerfile copies the jar as
 # target/${APP_NAME}-${APP_VERSION}.jar. CI overrides it from project.artifactId,
 # so this default only applies to a local `docker buildx bake`.
-variable "APP_NAME" { default = "harbor" }
+variable "APP_NAME" { default = "findadate" }
 variable "APP_VERSION" { default = "0.0.0-SNAPSHOT" }
 
 # The published image name. Nothing overrides this, in CI or otherwise.
-variable "TAG_NAME" { default = "harbor" }
+variable "TAG_NAME" { default = "findadate" }
 variable "GIT_SHA" { default = "" }
 
 group "default" {

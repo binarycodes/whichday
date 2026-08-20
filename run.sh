@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Task runner for the Harbor app.
+# Task runner for the Find a Date app.
 #
 # Every task pins JAVA_HOME to a JDK 21 because a bare `mvn` on this machine
 # picks JDK 25, under which Lombok silently fails to generate getters/setters
@@ -13,7 +13,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 readonly BUNDLE_DIR="src/main/bundles"
-readonly DEV_COMPOSE_FILE="environment/dev/compose.yaml"
 readonly STYLES_CSS="src/main/resources/META-INF/resources/styles.css"
 
 # Resolve a JDK 21 from SDKMAN; fall back to whatever JAVA_HOME is already set.
@@ -27,31 +26,6 @@ resolve_java_home() {
         exit 1
     fi
     echo "Using JAVA_HOME=${JAVA_HOME}"
-}
-
-# Testcontainers finds the daemon through DOCKER_HOST or /var/run/docker.sock. The
-# docker CLI instead reads its own "context", so on Colima and Rancher Desktop the CLI
-# works while Testcontainers reports "Could not find a valid Docker environment" — the
-# socket is under the user's home, which docker-java never looks at. Take the endpoint
-# from the context the CLI is actually using.
-#
-# The socket override is for Ryuk, the cleanup sidecar: it mounts the socket from
-# inside the VM, where the path is /var/run/docker.sock regardless of where the host
-# sees it.
-resolve_docker_host() {
-    if [[ -n "${DOCKER_HOST:-}" ]]; then
-        return
-    fi
-    if [[ -S /var/run/docker.sock ]]; then
-        return
-    fi
-    local endpoint
-    endpoint=$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)
-    if [[ -n "${endpoint}" && "${endpoint}" != "unix:///var/run/docker.sock" ]]; then
-        export DOCKER_HOST="${endpoint}"
-        export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="${TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE:-/var/run/docker.sock}"
-        echo "Using DOCKER_HOST=${DOCKER_HOST}"
-    fi
 }
 
 # Every mvn build must carry the deployed commit SHA — the enforcer plugin fails
@@ -106,42 +80,6 @@ task_styles() {
     touch_styles
 }
 
-# Docker renamed compose from a script to a subcommand and both are still in the
-# wild, so find whichever this machine has rather than guessing.
-compose() {
-    if docker compose version >/dev/null 2>&1; then
-        docker compose -f "${DEV_COMPOSE_FILE}" "$@"
-    elif command -v docker-compose >/dev/null 2>&1; then
-        docker-compose -f "${DEV_COMPOSE_FILE}" "$@"
-    else
-        echo "No Compose found. Install the Docker Compose plugin (docker compose)" >&2
-        echo "or the standalone docker-compose, then retry." >&2
-        exit 1
-    fi
-}
-
-# The whole development stack, because Harbor needs all of it: the library lives in
-# Postgres, a page that cannot be archived is not saved, and login is mandatory on
-# every route. Which containers that means is compose's to decide from
-# environment/dev/compose.yaml, so adding a service there needs no change here.
-#
-# --wait rather than plain -d: every service declares a healthcheck, and the app
-# starting before them is what turns a slow container into a confusing connection or
-# discovery error at startup.
-task_env() {
-    local action="${1:-up}"
-    case "${action}" in
-        up)    compose up -d --wait && echo "Development stack is up. Harbor needs no configuration to reach it." ;;
-        down)  compose stop && echo "Development stack stopped; its data is kept." ;;
-        logs)  compose logs -f ;;
-        reset) compose down -v && echo "Development stack stopped and its data thrown away." ;;
-        *)
-            echo "Unknown env action: ${action} (expected up, down, logs or reset)" >&2
-            exit 1
-            ;;
-    esac
-}
-
 # Fetch dependencies. Every other task builds offline, which is what makes a
 # newly added dependency fail with a resolution error rather than downloading it.
 task_deps() {
@@ -151,8 +89,8 @@ task_deps() {
 
 task_test() {
     resolve_java_home
-    resolve_docker_host
-    # JaCoCo enforces an 80% line-coverage gate on the */service packages.
+    # JaCoCo enforces an 80% instruction-coverage gate on the */service and
+    # */ui/presenter packages.
     run_mvn -o test "$@"
 }
 
@@ -179,7 +117,6 @@ task_preview() {
 # does not clear it since the bundles live under src/.
 task_verify() {
     resolve_java_home
-    resolve_docker_host
     clear_bundles
     run_mvn clean verify -Pit "$@"
 }
@@ -201,8 +138,6 @@ usage() {
 Usage: ./run.sh <task>
 
 Tasks:
-  env [act]  Everything in environment/dev/compose.yaml: up (default), down, logs,
-             reset (throws the data away)
   deps       Download newly added dependencies (every other task builds offline)
   compile    Compile sources (triggers a devtools hot-restart of a running app)
   bundle     Clear cached frontend bundles + touch styles.css + recompile
@@ -224,7 +159,6 @@ main() {
         compile) task_compile ;;
         bundle)  task_bundle ;;
         styles)  task_styles ;;
-        env)     task_env "${2:-up}" ;;
         deps)    task_deps ;;
         test)    task_test "${@:2}" ;;
         verify)  task_verify "${@:2}" ;;

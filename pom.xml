@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.binarycodes</groupId>
-    <artifactId>harbor</artifactId>
+    <artifactId>findadate</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -18,9 +18,6 @@
     <properties>
         <java.version>21</java.version>
         <vaadin.version>25.2.5</vaadin.version>
-        <icu4j.version>78.3</icu4j.version>
-        <jsoup.version>1.23.1</jsoup.version>
-        <ipaddress.version>5.6.2</ipaddress.version>
         <dramafinder.version>1.1.1</dramafinder.version>
         <playwright.version>1.59.0</playwright.version>
         <jacoco.version>0.8.13</jacoco.version>
@@ -52,29 +49,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>com.ibm.icu</groupId>
-                <artifactId>icu4j</artifactId>
-                <version>${icu4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jsoup</groupId>
-                <artifactId>jsoup</artifactId>
-                <version>${jsoup.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.seancfoley</groupId>
-                <artifactId>ipaddress</artifactId>
-                <version>${ipaddress.version}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
         <!--
-            vaadin-core, not vaadin: Harbor's UI is built entirely from the free
+            vaadin-core, not vaadin: the UI is built entirely from the free
             components, so pulling the commercial ones in only to leave them unused
             would put a license check on every build and a secret in every pipeline.
+            It also carries the Aura theme, which is what every screen is styled on.
         -->
         <dependency>
             <groupId>com.vaadin</groupId>
@@ -93,90 +76,6 @@
         <dependency>
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <!--
-            Login is OIDC against Keycloak, so Harbor is an OAuth2 *client* rather
-            than a resource server: it needs the redirect, the token exchange and
-            the OIDC user, not bearer-token validation. The module-aligned Boot 4
-            name, for the reason spelled out beside spring-boot-flyway above — the
-            starter is what pulls the autoconfiguration module along with the library.
-        -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-oauth2-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <!--
-            PostgreSQL is where the library lives. The driver is BSD-2-Clause and
-            the server is under the PostgreSQL License, both of which combine into
-            this GPL-3.0 project. Runtime scope: nothing here names a driver class,
-            the JDBC URL selects it.
-        -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <!--
-            Flyway owns the schema, and Hibernate is told to validate against it
-            rather than generate it: a schema that drifts from the entity should
-            fail startup, not be silently rewritten under a running deployment.
-            flyway-database-postgresql is a separate artifact since Flyway 10 —
-            without it the migration fails with "no database support". Apache-2.0.
-        -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
-        </dependency>
-        <!--
-            Spring Boot 4 splits auto-configuration into a module per technology,
-            so flyway-core alone is the library with nothing wiring it up: the
-            migrations never run and Hibernate then fails validation against a
-            schema nothing created.
-        -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-flyway</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.ibm.icu</groupId>
-            <artifactId>icu4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-        </dependency>
-        <!--
-            jsoup parses, but it resolves and connects with no hook to intervene.
-            Apache's client connects to whatever its DnsResolver returned, which is
-            what lets OutboundAddressPolicy vet an address without leaving a window
-            for a second, unchecked lookup. Version comes from the Spring Boot BOM.
-        -->
-        <dependency>
-            <groupId>org.apache.httpcomponents.client5</groupId>
-            <artifactId>httpclient5</artifactId>
-        </dependency>
-        <!--
-            CIDR arithmetic, not hand-rolled: Spring Security's IpAddressMatcher
-            compares raw address bytes with no family check at the version this build
-            resolves, so an IPv4 range reports a match for an IPv6 address and a
-            16-byte range throws when compared against a 4-byte one. Apache-2.0,
-            which combines into this GPL-3.0 project.
-        -->
-        <dependency>
-            <groupId>com.github.seancfoley</groupId>
-            <artifactId>ipaddress</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -213,34 +112,6 @@
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
             <version>${playwright.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!--
-            A real PostgreSQL for the tests that touch it: the queries carry the
-            search and the collation, so an in-memory stand-in would only be
-            testing the stand-in. Versions come from the Spring Boot BOM, which
-            imports the Testcontainers BOM. MIT.
-        -->
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-postgresql</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!--
-            Reads the text back out of an archived PDF. Asserting on %PDF- and %%EOF is
-            not enough: a blank page carries both, so a browser that rendered nothing
-            passes. Apache-2.0, and test scope only — nothing in the application reads
-            a PDF.
-        -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>3.0.7</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -366,8 +237,8 @@
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
-                                        <include>io.binarycodes.harbor.*.service</include>
-                                        <include>io.binarycodes.harbor.*.ui.presenter</include>
+                                        <include>io.binarycodes.findadate.*.service</include>
+                                        <include>io.binarycodes.findadate.*.ui.presenter</include>
                                     </includes>
                                     <limits>
                                         <limit>
