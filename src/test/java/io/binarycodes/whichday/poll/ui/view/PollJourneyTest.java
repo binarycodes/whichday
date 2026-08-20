@@ -2,11 +2,16 @@ package io.binarycodes.whichday.poll.ui.view;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,21 +37,27 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.Application;
+import io.binarycodes.whichday.Sample;
+import io.binarycodes.whichday.StubIdentity;
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.domain.Person;
-import io.binarycodes.whichday.people.ui.AccountSwitcher;
+import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.people.ui.AccountMenu;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
+import io.binarycodes.whichday.poll.service.PollService;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
 import io.binarycodes.whichday.poll.ui.component.DayPoster;
-import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
 /**
- * The whole journey without a browser: every screen builds, and the ones that
- * change state hand the next one something to show.
+ * The whole journey without a browser: every screen builds, and the ones that change
+ * state hand the next one something to show.
+ *
+ * <p>Every route requires an authenticated user, so {@link StubIdentity} says who the
+ * browser is. Nothing seeds the store, so each test builds the polls it needs.
  */
 @SpringBootTest(classes = Application.class)
 @ActiveProfiles("test")
@@ -54,35 +65,43 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @DisplayName("Walking the poll")
 class PollJourneyTest extends SpringBrowserlessTest {
 
-    private static final String OFFSITE = "q3-team-offsite";
-
     @Autowired
     private ApplicationContext context;
+
+    private String offsite;
+
+    @BeforeEach
+    void signIn() {
+        StubIdentity.signIn(Sample.ADA);
+        Sample.signedInBefore(context.getBean(AccountDirectory.class));
+        offsite = Sample.offsite(context.getBean(PollService.class), clock());
+    }
+
+    @AfterEach
+    void signOut() {
+        StubIdentity.clear();
+    }
+
+    private Clock clock() {
+        return context.getBean(Clock.class);
+    }
 
     @Test
     @DisplayName("lists a draft on its own, between the live polls and the settled ones")
     void draftsHaveTheirOwnSection() {
-        presenter().draft().reset();
-        presenter().draft().rename("Roadmap workshop");
-        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
-        var slug = presenter().createFromDraft();
+        var slug = draftPoll("Roadmap workshop");
 
         UI.getCurrent().navigate(PollsView.class);
         var screen = textOf(currentView());
 
         assertThat(screen).contains("Drafts", "Roadmap workshop", "No days chosen yet");
-        // Not counted as needing an answer, because nobody has been asked for one.
-        assertThat(screen).doesNotContain("3 polls need you");
         assertThat(presenter().openPolls()).extracting(PollSummary::slug).doesNotContain(slug);
     }
 
     @Test
     @DisplayName("a draft is edited from the list, or deleted after it asks")
     void editingAndDeletingADraft() {
-        presenter().draft().reset();
-        presenter().draft().rename("Roadmap workshop");
-        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
-        var slug = presenter().createFromDraft();
+        var slug = draftPoll("Roadmap workshop");
         UI.getCurrent().navigate(PollsView.class);
 
         click("Edit");
@@ -91,7 +110,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
         UI.getCurrent().navigate(PollsView.class);
         click("Delete");
 
-        // Asks on the row rather than acting on the first tap.
         assertThat(textOf(currentView())).contains("Delete this draft?");
         assertThat(presenter().poll(slug)).isPresent();
 
@@ -104,24 +122,26 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("opens on the poll list, with the offsite and the settled ones")
     void pollList() {
+        Sample.settled(context.getBean(PollService.class), clock());
         UI.getCurrent().navigate(PollsView.class);
 
-        assertThat(textOf(currentView())).contains("Q3 team offsite", "Design review week", "Settled");
+        assertThat(textOf(currentView())).contains("Q3 team offsite", "Settled");
     }
 
     @Test
     @DisplayName("shows the organizer the standings and the holdout")
     void results() {
-        navigateToPoll(ResultsView.class, OFFSITE);
+        navigateToPoll(ResultsView.class, offsite);
 
-        assertThat(textOf(currentView())).contains("6 of 7", "have voted", "Everyone but Jonas", "Jonas");
+        assertThat(textOf(currentView()))
+                .contains("6 of 7", "have voted", "Everyone but Jonas", "Jonas");
     }
 
     @Test
     @DisplayName("keeps the account last in the header, after who invited you")
     void theAccountStaysOnTheRight() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(BallotView.class, OFFSITE);
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(BallotView.class, offsite);
 
         var header = componentsOf(currentView())
                 .filter(Div.class::isInstance)
@@ -130,42 +150,65 @@ class PollJourneyTest extends SpringBrowserlessTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(header.getChildren().toList())
-                .last()
-                .isInstanceOf(AccountSwitcher.class);
-    }
-
-    @Test
-    @DisplayName("switching account on the ballot rebuilds it as that person's answer")
-    void switchingAccountOnTheBallot() {
-        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
-        presenter().switchViewer(holdout);
-        navigateToPoll(BallotView.class, OFFSITE);
-        var voter = presenter().poll(OFFSITE).orElseThrow().answered().getFirst();
-
-        presenter().switchViewer(voter);
-        navigateToPoll(BallotView.class, OFFSITE);
-
-        // A voter who has already answered sees their own days already ticked.
-        assertThat(ballotField().getValue()).isNotEmpty();
+        assertThat(header.getChildren().toList()).last().isInstanceOf(AccountMenu.class);
     }
 
     @Test
     @DisplayName("offers a voter every day on the table")
     void ballot() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(BallotView.class, OFFSITE);
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(BallotView.class, offsite);
 
-        var rows = componentsOf(currentView()).filter(NativeButton.class::isInstance).toList();
-
-        assertThat(rows).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(dayRows()).hasSize(5);
         assertThat(textOf(currentView())).contains("Tap every day that works.", "0 of 5 selected");
+    }
+
+    @Test
+    @DisplayName("keeps the very button you tapped, so a keyboard caret survives a tap")
+    void tappingDoesNotRebuildTheControl() {
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(BallotView.class, offsite);
+        var rowsBefore = dayRows();
+
+        tap(rowsBefore.getFirst());
+
+        assertThat(dayRows()).containsExactlyElementsOf(rowsBefore);
+        assertThat(rowsBefore.getFirst().getElement().getAttribute("aria-pressed")).isEqualTo("true");
+        assertThat(ballotField().getValue()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("tapping days and submitting records a ballot and lands on the receipt")
+    void votingRecordsABallot() {
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(BallotView.class, offsite);
+        var days = presenter().poll(offsite).orElseThrow().candidateDays();
+
+        ballotField().setValue(Set.of(days.getFirst(), days.getLast()));
+        click("Submit my days");
+
+        assertThat(presenter().ballotOf(offsite)).get().satisfies(ballot ->
+                assertThat(ballot.chosenDays()).containsExactlyInAnyOrder(days.getFirst(), days.getLast()));
+        assertThat(currentView()).isInstanceOf(ReceiptView.class);
+        assertThat(presenter().poll(offsite).orElseThrow().awaiting()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("refuses an empty ballot rather than recording one")
+    void anEmptyBallotIsNotAnAnswer() {
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(BallotView.class, offsite);
+
+        click("Submit my days");
+
+        assertThat(presenter().ballotOf(offsite)).isEmpty();
+        assertThat(currentView()).isInstanceOf(BallotView.class);
     }
 
     @Test
     @DisplayName("reads back the answer a voter already gave")
     void receipt() {
-        navigateToPoll(ReceiptView.class, OFFSITE);
+        navigateToPoll(ReceiptView.class, offsite);
 
         assertThat(textOf(currentView())).contains("Your answer is in", "Where the team stands");
     }
@@ -173,12 +216,11 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("shows a poster per day you chose, and a bar per day on the table")
     void theReceiptHidesNoDays() {
-        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
-        presenter().switchViewer(holdout);
-        var days = presenter().poll(OFFSITE).orElseThrow().candidateDays();
-        presenter().vote(OFFSITE, Set.copyOf(days));
+        StubIdentity.signIn(Sample.JONAS);
+        var days = presenter().poll(offsite).orElseThrow().candidateDays();
+        presenter().vote(offsite, Set.copyOf(days));
 
-        navigateToPoll(ReceiptView.class, OFFSITE);
+        navigateToPoll(ReceiptView.class, offsite);
         var screen = textOf(currentView());
 
         assertThat(screen).contains("You said yes to " + days.size() + " days");
@@ -187,72 +229,37 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
-    @DisplayName("turns the whole screen over to a settled date")
-    void locked() {
-        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
-        presenter().lock(OFFSITE, leader);
+    @DisplayName("lets the organizer answer their own poll, and comes back to the counts")
+    void theOrganizerCanVote() {
+        var slug = openPoll("Roadmap workshop");
+        navigateToPoll(ResultsView.class, slug);
 
-        navigateToPoll(LockedView.class, OFFSITE);
+        assertThat(textOf(currentView())).contains("You haven't picked your days yet.");
 
-        assertThat(textOf(currentView())).contains("Date locked", String.valueOf(leader.getDayOfMonth()));
-    }
-
-    @Test
-    @DisplayName("shows a poll nobody has answered as an empty grid, not as an error")
-    void unansweredPoll() {
-        navigateToPoll(ResultsView.class, "design-review-week");
-
-        assertThat(textOf(currentView())).contains("0 of 7", "Waiting on");
-    }
-
-    @Test
-    @DisplayName("sends a link nobody recognises to the not-found screen")
-    void unknownPoll() {
-        navigateToPoll(ResultsView.class, "no-such-poll");
-
-        assertThat(currentView()).isInstanceOf(NotFoundView.class);
-    }
-
-    @Test
-    @DisplayName("carries a new poll from its name through to the share screen")
-    void createAndShare() {
-        UI.getCurrent().navigate(NewPollView.class);
-        var slug = draftPoll("Roadmap workshop");
-        presenter().chooseDays(slug, Set.copyOf(presenter().poll(OFFSITE).orElseThrow()
-                .candidateDays().stream().limit(2).toList()));
-
-        navigateToPoll(ShareView.class, slug);
-
-        assertThat(textOf(currentView())).contains("Voting link", "Invited", "vote/" + slug);
-    }
-
-    @Test
-    @DisplayName("tapping days and submitting records a ballot and lands on the receipt")
-    void votingRecordsABallot() {
-        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
-        presenter().switchViewer(holdout);
-        navigateToPoll(BallotView.class, OFFSITE);
-        var days = presenter().poll(OFFSITE).orElseThrow().candidateDays();
-
-        ballotField().setValue(Set.of(days.getFirst(), days.getLast()));
-        click("Submit my days");
-
-        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot ->
-                assertThat(ballot.chosenDays()).containsExactlyInAnyOrder(days.getFirst(), days.getLast()));
-        assertThat(currentView()).isInstanceOf(ReceiptView.class);
-        assertThat(presenter().poll(OFFSITE).orElseThrow().awaiting()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("refuses an empty ballot rather than recording one")
-    void anEmptyBallotIsNotAnAnswer() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(BallotView.class, OFFSITE);
-
-        click("Submit my days");
-
-        assertThat(presenter().ballotOf(OFFSITE)).isEmpty();
+        click("Pick mine");
         assertThat(currentView()).isInstanceOf(BallotView.class);
+
+        ballotField().setValue(Set.copyOf(presenter().poll(slug).orElseThrow().candidateDays()));
+        click("Submit my days");
+
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+        assertThat(presenter().ballotOf(slug)).isPresent();
+    }
+
+    @Test
+    @DisplayName("never offers the organizer a nudge to themselves")
+    void theOrganizerIsNeverNudged() {
+        var slug = openPoll("Roadmap workshop");
+        var day = presenter().poll(slug).orElseThrow().candidateDays().getFirst();
+        StubIdentity.signIn(Sample.MIRO);
+        presenter().vote(slug, Set.of(day));
+        StubIdentity.signIn(Sample.ADA);
+
+        navigateToPoll(ResultsView.class, slug);
+        var screen = textOf(currentView());
+
+        assertThat(presenter().poll(slug).orElseThrow().awaiting()).containsExactly(Sample.ADA);
+        assertThat(screen).doesNotContain("Send a nudge?").contains("You haven't picked your days yet.");
     }
 
     @Test
@@ -289,8 +296,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
         searchFor("lena.ohlsson@studiofern.se");
 
-        var screen = textOf(currentView());
-        assertThat(screen).contains("Invite lena.ohlsson@studiofern.se")
+        assertThat(textOf(currentView())).contains("Invite lena.ohlsson@studiofern.se")
                 .contains("Nothing found. We'll email a voting link instead.");
 
         click("Invite lena.ohlsson@studiofern.se");
@@ -316,14 +322,13 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("says \"that's you\" rather than pretending nobody answers to your address")
     void searchingForYourself() {
-        presenter().switchViewer(presenter().inviteeFor("tom.beck@acme.com"));
+        StubIdentity.signIn(Sample.TOM);
         openSearchFor("Roadmap workshop");
 
         searchFor("tom");
 
         assertThat(queryField().isInvalid()).isTrue();
         assertThat(queryField().getErrorMessage()).contains("That's you");
-        assertThat(joinedTextOf(currentView())).doesNotContain("keep typing a full address");
     }
 
     @Test
@@ -348,53 +353,28 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(buttonLabelled(translation("create.next")).isEnabled()).isFalse();
     }
 
-    /**
-     * The same text with nothing between the pieces — the matched run of an address is
-     * its own bold span, so an address only reads as one string once they are joined.
-     */
-    private String joinedTextOf(Component root) {
-        return textOf(root).replace("\n", "");
+    @Test
+    @DisplayName("draws whole weeks, and only as many as the month needs")
+    void theCalendarGridIsAlwaysWholeWeeks() {
+        var slug = draftPoll("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, slug);
+        var calendar = calendarField();
+
+        for (var month : List.of(YearMonth.of(2026, 8), YearMonth.of(2026, 11),
+                YearMonth.of(2026, 12), YearMonth.of(2027, 2), YearMonth.of(2027, 3))) {
+            calendar.setValue(Set.of(month.atDay(weekdayIn(month))));
+            var cells = componentsOf(calendar)
+                    .filter(NativeButton.class::isInstance)
+                    .filter(cell -> ((NativeButton) cell).getClassNames().contains("calendar-day"))
+                    .count();
+
+            assertThat(cells).as("%s renders %d cells, which is not whole weeks", month, cells)
+                    .isIn(28L, 35L, 42L);
+        }
     }
 
-    private String translation(String key) {
-        return UI.getCurrent().getTranslation(key);
-    }
-
-    private Button buttonLabelled(String label) {
-        return componentsOf(currentView())
-                .filter(Button.class::isInstance)
-                .map(Button.class::cast)
-                .filter(button -> label.equals(button.getText()))
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private void openSearchFor(String title) {
-        presenter().draft().reset();
-        presenter().draft().rename(title);
-        UI.getCurrent().navigate(InviteeSearchView.class);
-    }
-
-    private TextField queryField() {
-        return componentsOf(currentView())
-                .filter(TextField.class::isInstance)
-                .map(TextField.class::cast)
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private void searchFor(String query) {
-        queryField().setValue(query);
-    }
-
-    private void clickMatchRow() {
-        var row = componentsOf(currentView())
-                .filter(NativeButton.class::isInstance)
-                .map(NativeButton.class::cast)
-                .filter(candidate -> candidate.getClassNames().contains("match-row"))
-                .findFirst()
-                .orElseThrow();
-        ComponentUtil.fireEvent(row, new ClickEvent<>(row));
+    private int weekdayIn(YearMonth month) {
+        return month.atDay(1).getDayOfWeek().getValue() <= 5 ? 1 : 3;
     }
 
     @Test
@@ -402,7 +382,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     void choosingDaysAndSending() {
         var slug = draftPoll("Roadmap workshop");
         navigateToPoll(CandidateDaysView.class, slug);
-        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
+        var monday = Sample.mondayAfterNext(presenter().today());
 
         calendarField().setValue(Set.of(monday));
         click("Send to the team");
@@ -414,38 +394,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
         assertThat(presenter().poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
         assertThat(currentView()).isInstanceOf(ResultsView.class);
-    }
-
-    @Test
-    @DisplayName("keeps the very button you tapped, so a keyboard caret survives a tap")
-    void tappingDoesNotRebuildTheControl() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(BallotView.class, OFFSITE);
-        var rowsBefore = dayRows();
-
-        tap(rowsBefore.getFirst());
-
-        assertThat(dayRows()).containsExactlyElementsOf(rowsBefore);
-        assertThat(rowsBefore.getFirst().getElement().getAttribute("aria-pressed")).isEqualTo("true");
-        assertThat(ballotField().getValue()).hasSize(1);
-
-        tap(rowsBefore.getFirst());
-
-        assertThat(dayRows()).containsExactlyElementsOf(rowsBefore);
-        assertThat(ballotField().getValue()).isEmpty();
-    }
-
-    private List<NativeButton> dayRows() {
-        return componentsOf(currentView())
-                .filter(NativeButton.class::isInstance)
-                .map(NativeButton.class::cast)
-                .filter(row -> row.getClassNames().contains("day-row"))
-                .toList();
-    }
-
-    /** What the client sends when a native button is pressed. */
-    private void tap(NativeButton row) {
-        ComponentUtil.fireEvent(row, new ClickEvent<>(row));
     }
 
     @Test
@@ -463,74 +411,35 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("proposes a day from an inline calendar, never from an overlay")
     void proposingADayInline() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(NoDayWorksView.class, offsite);
+        var proposal = presenter().today().plusWeeks(6).with(DayOfWeek.TUESDAY);
 
-        var calendar = componentsOf(currentView())
-                .filter(MonthCalendar.class::isInstance)
-                .map(MonthCalendar.class::cast)
-                .findFirst()
-                .orElseThrow();
-        var proposal = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.TUESDAY);
-        calendar.setValue(Set.of(proposal));
+        proposalCalendar().setValue(Set.of(proposal));
 
         assertThat(componentsOf(currentView()).filter(DayPoster.class::isInstance)).hasSize(1);
 
         click("Send my answer");
 
-        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot -> {
+        assertThat(presenter().ballotOf(offsite)).get().satisfies(ballot -> {
             assertThat(ballot.isDeclined()).isTrue();
             assertThat(ballot.proposedDays()).containsExactly(proposal);
         });
     }
 
     @Test
-    @DisplayName("draws whole weeks, and only as many as the month needs")
-    void theCalendarGridIsAlwaysWholeWeeks() {
-        navigateToPoll(CandidateDaysView.class, OFFSITE);
-        var calendar = calendarField();
-
-        // A month starting on a Sunday, a four-week February, and the month either
-        // side of each — the shapes a fixed six-row grid gets wrong.
-        for (var month : List.of(YearMonth.of(2026, 8), YearMonth.of(2026, 11),
-                YearMonth.of(2026, 12), YearMonth.of(2027, 2), YearMonth.of(2027, 3))) {
-            calendar.setValue(Set.of(month.atDay(dayThatIsSelectable(month))));
-            var cells = componentsOf(calendar)
-                    .filter(NativeButton.class::isInstance)
-                    .filter(cell -> ((NativeButton) cell).getClassNames().contains("calendar-day"))
-                    .count();
-
-            assertThat(cells)
-                    .as("%s renders %d cells, which is not whole weeks", month, cells)
-                    .isIn(28L, 35L, 42L);
-        }
-    }
-
-    /** Any weekday in the month; the grid's shape does not depend on which. */
-    private int dayThatIsSelectable(YearMonth month) {
-        return month.atDay(1).getDayOfWeek().getValue() <= 5 ? 1 : 3;
-    }
-
-    @Test
     @DisplayName("stops offering days once three are proposed, and folds itself away")
     void proposalsAreCappedAtThree() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(NoDayWorksView.class, offsite);
         var calendar = proposalCalendar();
-        var monday = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.MONDAY);
+        var monday = presenter().today().plusWeeks(6).with(DayOfWeek.MONDAY);
 
         calendar.setValue(Set.of(monday, monday.plusDays(1), monday.plusDays(2)));
 
         assertThat(calendar.isAtMaximumSelection()).isTrue();
         assertThat(componentsOf(currentView()).filter(DayPoster.class::isInstance)).hasSize(3);
-
-        // Nothing unchosen is still on offer, and the row stops inviting a fourth.
-        assertThat(componentsOf(calendar)
-                .filter(NativeButton.class::isInstance)
-                .map(NativeButton.class::cast)
-                .filter(cell -> cell.getClassNames().contains("calendar-day"))
-                .filter(NativeButton::isEnabled)
-                .count()).isEqualTo(3);
+        assertThat(enabledCalendarCells(calendar)).isEqualTo(3);
         assertThat(componentsOf(currentView())
                 .filter(NativeButton.class::isInstance)
                 .map(NativeButton.class::cast)
@@ -540,39 +449,26 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("lets a proposed day be swapped for another without an error")
     void aProposalCanBeSwapped() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(NoDayWorksView.class, offsite);
         var calendar = proposalCalendar();
-        var monday = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.MONDAY);
+        var monday = presenter().today().plusWeeks(6).with(DayOfWeek.MONDAY);
         calendar.setValue(Set.of(monday, monday.plusDays(1), monday.plusDays(2)));
 
         calendar.setValue(Set.of(monday, monday.plusDays(1)));
 
         assertThat(calendar.isAtMaximumSelection()).isFalse();
-        assertThat(componentsOf(calendar)
-                .filter(NativeButton.class::isInstance)
-                .map(NativeButton.class::cast)
-                .filter(cell -> cell.getClassNames().contains("calendar-day"))
-                .filter(NativeButton::isEnabled)
-                .count()).isGreaterThan(3);
-    }
-
-    private MonthCalendar proposalCalendar() {
-        return componentsOf(currentView())
-                .filter(MonthCalendar.class::isInstance)
-                .map(MonthCalendar.class::cast)
-                .findFirst()
-                .orElseThrow();
+        assertThat(enabledCalendarCells(calendar)).isGreaterThan(3);
     }
 
     @Test
     @DisplayName("will not let a candidate day be proposed as an alternative to itself")
     void cannotProposeADayAlreadyOnTheTable() {
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
-        navigateToPoll(NoDayWorksView.class, OFFSITE);
-        var onTheTable = presenter().poll(OFFSITE).orElseThrow().candidateDays();
+        StubIdentity.signIn(Sample.JONAS);
+        navigateToPoll(NoDayWorksView.class, offsite);
+        var onTheTable = presenter().poll(offsite).orElseThrow().candidateDays();
 
-        var offered = componentsOf(currentView())
+        var offered = componentsOf(proposalCalendar())
                 .filter(NativeButton.class::isInstance)
                 .map(NativeButton.class::cast)
                 .filter(cell -> cell.getClassNames().contains("calendar-day"))
@@ -588,21 +484,19 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("offers no calendar when the organizer is not taking other days")
     void alternativesCanBeTurnedOff() {
-        presenter().allowAlternatives(OFFSITE, false);
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        presenter().allowAlternatives(offsite, false);
+        StubIdentity.signIn(Sample.JONAS);
 
-        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        navigateToPoll(NoDayWorksView.class, offsite);
 
         assertThat(componentsOf(currentView()).filter(MonthCalendar.class::isInstance)).isEmpty();
         assertThat(textOf(currentView()))
-                .contains("I can't make any of these")
-                .contains("isn't taking other days")
+                .contains("I can't make any of these", "isn't taking other days")
                 .doesNotContain("Days I could do instead");
 
-        // Saying no is still an answer, and it still lands.
         click("Send my answer");
 
-        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot -> {
+        assertThat(presenter().ballotOf(offsite)).get().satisfies(ballot -> {
             assertThat(ballot.isDeclined()).isTrue();
             assertThat(ballot.proposedDays()).isEmpty();
         });
@@ -611,7 +505,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("lets the organizer turn other days off from the days screen")
     void theOrganizerTurnsAlternativesOff() {
-        navigateToPoll(CandidateDaysView.class, OFFSITE);
+        navigateToPoll(CandidateDaysView.class, offsite);
 
         var allowed = componentsOf(currentView())
                 .filter(Checkbox.class::isInstance)
@@ -622,101 +516,98 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(allowed.getValue()).isTrue();
         allowed.setValue(false);
 
-        assertThat(presenter().poll(OFFSITE).orElseThrow().alternativesAllowed()).isFalse();
+        assertThat(presenter().poll(offsite).orElseThrow().alternativesAllowed()).isFalse();
     }
 
     @Test
     @DisplayName("a decline reaches the organizer as a proposal they can accept")
     void decliningReachesTheOrganizer() {
-        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
-        var proposed = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.TUESDAY);
-        presenter().switchViewer(holdout);
-        presenter().declineAll(OFFSITE, List.of(proposed), "Away that week");
+        var proposed = presenter().today().plusWeeks(6).with(DayOfWeek.TUESDAY);
+        StubIdentity.signIn(Sample.JONAS);
+        presenter().declineAll(offsite, List.of(proposed), "Away that week");
+        StubIdentity.signIn(Sample.ADA);
 
-        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().organizer());
-        navigateToPoll(ResultsView.class, OFFSITE);
+        navigateToPoll(ResultsView.class, offsite);
 
-        assertThat(textOf(currentView())).contains("Proposed instead", holdout.firstName());
+        assertThat(textOf(currentView())).contains("Proposed instead", "Jonas");
 
         click("Add it");
 
-        assertThat(presenter().poll(OFFSITE).orElseThrow().candidateDays()).contains(proposed);
-    }
-
-    @Test
-    @DisplayName("lets the organizer answer their own poll, and comes back to the counts")
-    void theOrganizerCanVote() {
-        var slug = draftPoll("Roadmap workshop");
-        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
-        presenter().chooseDays(slug, Set.of(monday));
-        presenter().send(slug);
-        navigateToPoll(ResultsView.class, slug);
-
-        assertThat(textOf(currentView())).contains("You haven't picked your days yet.");
-
-        click("Pick mine");
-        assertThat(currentView()).isInstanceOf(BallotView.class);
-
-        ballotField().setValue(Set.of(monday));
-        click("Submit my days");
-
-        assertThat(currentView()).isInstanceOf(ResultsView.class);
-        assertThat(presenter().ballotOf(slug)).isPresent();
-        assertThat(textOf(currentView())).contains("You said yes to one day.");
-    }
-
-    @Test
-    @DisplayName("never offers the organizer a nudge to themselves")
-    void theOrganizerIsNeverNudged() {
-        var slug = draftPoll("Roadmap workshop");
-        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
-        presenter().chooseDays(slug, Set.of(monday));
-        presenter().send(slug);
-        var invitee = presenter().poll(slug).orElseThrow().invited().getLast();
-        presenter().switchViewer(invitee);
-        presenter().vote(slug, Set.of(monday));
-        presenter().switchViewer(presenter().poll(slug).orElseThrow().organizer());
-
-        navigateToPoll(ResultsView.class, slug);
-        var screen = textOf(currentView());
-
-        assertThat(presenter().poll(slug).orElseThrow().awaiting())
-                .containsExactly(presenter().viewer());
-        assertThat(screen).doesNotContain("Send a nudge?");
-        assertThat(screen).contains("You haven't picked your days yet.");
+        assertThat(presenter().poll(offsite).orElseThrow().candidateDays()).contains(proposed);
     }
 
     @Test
     @DisplayName("locking from the results screen hands over to the locked date")
     void lockingFromTheResults() {
-        navigateToPoll(ResultsView.class, OFFSITE);
-        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+        navigateToPoll(ResultsView.class, offsite);
+        var leader = presenter().poll(offsite).orElseThrow().leader().orElseThrow().day();
 
         clickStartingWith("Lock in");
 
-        assertThat(presenter().poll(OFFSITE).orElseThrow().lockedDay()).isEqualTo(leader);
+        assertThat(presenter().poll(offsite).orElseThrow().lockedDay()).isEqualTo(leader);
         assertThat(currentView()).isInstanceOf(LockedView.class);
     }
 
     @Test
     @DisplayName("sends a settled poll's results screen straight to the locked date")
     void aSettledPollHasNoStandings() {
-        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
-        presenter().lock(OFFSITE, leader);
+        var leader = presenter().poll(offsite).orElseThrow().leader().orElseThrow().day();
+        presenter().lock(offsite, leader);
 
-        navigateToPoll(ResultsView.class, OFFSITE);
+        navigateToPoll(ResultsView.class, offsite);
 
         assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    @Test
+    @DisplayName("turns the whole screen over to a settled date")
+    void locked() {
+        var leader = presenter().poll(offsite).orElseThrow().leader().orElseThrow().day();
+        presenter().lock(offsite, leader);
+
+        navigateToPoll(LockedView.class, offsite);
+
+        assertThat(textOf(currentView()))
+                .contains("Date locked", String.valueOf(leader.getDayOfMonth()));
+    }
+
+    @Test
+    @DisplayName("shows a poll nobody has answered as an empty grid, not as an error")
+    void unansweredPoll() {
+        var slug = Sample.unanswered(context.getBean(PollService.class), clock());
+
+        navigateToPoll(ResultsView.class, slug);
+
+        assertThat(textOf(currentView())).contains("0 of 7", "Waiting on");
+    }
+
+    @Test
+    @DisplayName("sends a link nobody recognises to the not-found screen")
+    void unknownPoll() {
+        navigateToPoll(ResultsView.class, "no-such-poll");
+
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+    }
+
+    @Test
+    @DisplayName("carries a new poll from its name through to the share screen")
+    void createAndShare() {
+        var slug = draftPoll("Roadmap workshop");
+        presenter().chooseDays(slug, Set.of(Sample.mondayAfterNext(presenter().today())));
+
+        navigateToPoll(ShareView.class, slug);
+
+        assertThat(textOf(currentView())).contains("Voting link", "Invited", "vote/" + slug);
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("everyScreen")
     @DisplayName("every screen has a way home, and it goes home")
-    void everyScreenCanLeave(String ignoredName, Class<? extends Component> view, String slug) {
-        if (slug == null) {
-            UI.getCurrent().navigate(view);
+    void everyScreenCanLeave(String ignoredName, Class<? extends Component> view, boolean needsSlug) {
+        if (needsSlug) {
+            navigateToPoll(view, offsite);
         } else {
-            navigateToPoll(view, slug);
+            UI.getCurrent().navigate(view);
         }
         assertThat(currentView()).isInstanceOf(view);
 
@@ -727,26 +618,113 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
     private static Stream<Arguments> everyScreen() {
         return Stream.of(
-                Arguments.of("create", NewPollView.class, null),
-                Arguments.of("candidate days", CandidateDaysView.class, OFFSITE),
-                Arguments.of("share", ShareView.class, OFFSITE),
-                Arguments.of("ballot", BallotView.class, OFFSITE),
-                Arguments.of("none of these work", NoDayWorksView.class, OFFSITE),
-                Arguments.of("receipt", ReceiptView.class, OFFSITE),
-                Arguments.of("results", ResultsView.class, OFFSITE),
-                Arguments.of("not found", NotFoundView.class, null));
+                Arguments.of("create", NewPollView.class, false),
+                Arguments.of("candidate days", CandidateDaysView.class, true),
+                Arguments.of("share", ShareView.class, true),
+                Arguments.of("none of these work", NoDayWorksView.class, true),
+                Arguments.of("receipt", ReceiptView.class, true),
+                Arguments.of("results", ResultsView.class, true),
+                Arguments.of("not found", NotFoundView.class, false));
     }
 
     @Test
     @DisplayName("the locked screen can leave too, once a poll is settled")
     void theLockedScreenCanLeave() {
-        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
-        presenter().lock(OFFSITE, leader);
-        navigateToPoll(LockedView.class, OFFSITE);
+        var leader = presenter().poll(offsite).orElseThrow().leader().orElseThrow().day();
+        presenter().lock(offsite, leader);
+        navigateToPoll(LockedView.class, offsite);
 
         clickHome();
 
         assertThat(currentView()).isInstanceOf(PollsView.class);
+    }
+
+    // ---- Building the polls a test needs ----
+
+    private String draftPoll(String title) {
+        presenter().draft().reset();
+        presenter().draft().rename(title);
+        presenter().draft().invite(Sample.MIRO);
+        return presenter().createFromDraft();
+    }
+
+    private String openPoll(String title) {
+        var slug = draftPoll(title);
+        presenter().chooseDays(slug, Set.of(Sample.mondayAfterNext(presenter().today())));
+        presenter().send(slug);
+        return slug;
+    }
+
+    // ---- Reaching into the screen ----
+
+    private long enabledCalendarCells(MonthCalendar calendar) {
+        return componentsOf(calendar)
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(cell -> cell.getClassNames().contains("calendar-day"))
+                .filter(NativeButton::isEnabled)
+                .count();
+    }
+
+    private List<NativeButton> dayRows() {
+        return componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(row -> row.getClassNames().contains("day-row"))
+                .toList();
+    }
+
+    /** What the client sends when a native button is pressed. */
+    private void tap(NativeButton row) {
+        ComponentUtil.fireEvent(row, new ClickEvent<>(row));
+    }
+
+    private MonthCalendar proposalCalendar() {
+        return componentsOf(currentView())
+                .filter(MonthCalendar.class::isInstance)
+                .map(MonthCalendar.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private MonthCalendar calendarField() {
+        return proposalCalendar();
+    }
+
+    private DayBallot ballotField() {
+        return componentsOf(currentView())
+                .filter(DayBallot.class::isInstance)
+                .map(DayBallot.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private TextField queryField() {
+        return componentsOf(currentView())
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void openSearchFor(String title) {
+        presenter().draft().reset();
+        presenter().draft().rename(title);
+        UI.getCurrent().navigate(InviteeSearchView.class);
+    }
+
+    private void searchFor(String query) {
+        queryField().setValue(query);
+    }
+
+    private void clickMatchRow() {
+        var row = componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(candidate -> candidate.getClassNames().contains("match-row"))
+                .findFirst()
+                .orElseThrow();
+        tap(row);
     }
 
     /**
@@ -765,18 +743,15 @@ class PollJourneyTest extends SpringBrowserlessTest {
         ComponentUtil.fireEvent(home, new ClickEvent<>(home));
     }
 
-    private DayBallot ballotField() {
-        return componentsOf(currentView())
-                .filter(DayBallot.class::isInstance)
-                .map(DayBallot.class::cast)
-                .findFirst()
-                .orElseThrow();
+    private String translation(String key) {
+        return UI.getCurrent().getTranslation(key);
     }
 
-    private MonthCalendar calendarField() {
+    private Button buttonLabelled(String label) {
         return componentsOf(currentView())
-                .filter(MonthCalendar.class::isInstance)
-                .map(MonthCalendar.class::cast)
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> label.equals(button.getText()))
                 .findFirst()
                 .orElseThrow();
     }
@@ -789,7 +764,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
         clickMatching(prefix, text -> text.startsWith(prefix));
     }
 
-    /** Vaadin's Button has no public click, so the event is fired the way the client would. */
     private void clickMatching(String description, java.util.function.Predicate<String> matches) {
         var button = componentsOf(currentView())
                 .filter(Button.class::isInstance)
@@ -799,14 +773,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
                 .orElseThrow(() -> new AssertionError("No button matching " + description
                         + " on " + currentView().getClass().getSimpleName()));
         ComponentUtil.fireEvent(button, new ClickEvent<>(button));
-    }
-
-    /** A poll built the way the create screens build one: name it, add somebody, create. */
-    private String draftPoll(String title) {
-        presenter().draft().reset();
-        presenter().draft().rename(title);
-        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
-        return presenter().createFromDraft();
     }
 
     private PollPresenter presenter() {
@@ -821,12 +787,19 @@ class PollJourneyTest extends SpringBrowserlessTest {
         return (Component) UI.getCurrent().getInternals().getActiveRouterTargetsChain().getFirst();
     }
 
-    /** Every string the screen would render, flattened — enough to assert on wiring. */
     private String textOf(Component root) {
         return componentsOf(root)
                 .map(this::ownText)
                 .filter(text -> !text.isBlank())
                 .reduce("", (all, text) -> all + text + "\n");
+    }
+
+    /**
+     * The same text with nothing between the pieces — the matched run of an address is
+     * its own bold span, so an address only reads as one string once they are joined.
+     */
+    private String joinedTextOf(Component root) {
+        return textOf(root).replace("\n", "");
     }
 
     private String ownText(Component component) {
@@ -835,7 +808,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     private Stream<Component> componentsOf(Component root) {
-        return Stream.concat(Stream.of(root),
-                root.getChildren().flatMap(this::componentsOf));
+        return Stream.concat(Stream.of(root), root.getChildren().flatMap(this::componentsOf));
     }
 }

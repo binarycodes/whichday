@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,6 +33,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * separates a voter who cannot make it from one who has not replied — and the days
  * put forward stay a suggestion until the organizer accepts one.
  */
+@PermitAll
 @Route("vote/:slug/none")
 public class NoDayWorksView extends PollScreen {
 

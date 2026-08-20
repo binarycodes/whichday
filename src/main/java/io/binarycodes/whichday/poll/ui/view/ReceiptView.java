@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.util.Optional;
 
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -24,6 +26,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * What you picked, at poster scale, with the standings underneath — a receipt
  * rather than a thank-you page, so that coming back to it is worth doing.
  */
+@PermitAll
 @Route("vote/:slug/done")
 public class ReceiptView extends PollScreen {
 

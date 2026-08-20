@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.util.List;
 
 import com.vaadin.flow.component.Component;
@@ -21,7 +23,6 @@ import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.base.ui.Typography;
-import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.ui.component.DraftRow;
 import io.binarycodes.whichday.poll.ui.component.PollRow;
@@ -31,6 +32,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * Coming back: the polls you are part of, each carrying its own date numeral, and
  * the ones already settled underneath.
  */
+@PermitAll
 @Route("")
 public class PollsView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
@@ -54,8 +56,8 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
         clearBody();
         clearFooter();
 
-        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(),
-                this::switchViewer, this::render));
+        body(new AppHeader(getTranslation("app.name"), presenter.viewer(),
+                presenter::signOut, this::render));
 
         var headline = Typography.displayMedium(headlineText());
         headline.addClassName("push-3xl");
@@ -205,11 +207,6 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
         var row = new Div(numeral, title, date);
         row.addClassName("settled-row");
         return row;
-    }
-
-    private void switchViewer(Person person) {
-        presenter.switchViewer(person);
-        render();
     }
 
     @Override

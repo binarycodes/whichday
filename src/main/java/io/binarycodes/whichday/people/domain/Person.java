@@ -25,7 +25,19 @@ public record Person(String email, String name, int avatarTone) {
      * the same outsider is the same colour on every screen and after every restart.
      */
     public static Person outsider(String email) {
-        return new Person(email, "", Math.abs(email.toLowerCase(Locale.ROOT).hashCode()) % TONE_COUNT);
+        return new Person(email, "", toneFor(email));
+    }
+
+    /**
+     * Somebody the identity provider has vouched for. The name is whatever they told
+     * it; an account with no name given still works, and reads as its address.
+     */
+    public static Person signedIn(String email, String name) {
+        return new Person(EmailAddress.normalise(email), name == null ? "" : name.trim(), toneFor(email));
+    }
+
+    private static int toneFor(String email) {
+        return Math.abs(email.toLowerCase(Locale.ROOT).hashCode()) % TONE_COUNT;
     }
 
     public boolean hasAccount() {

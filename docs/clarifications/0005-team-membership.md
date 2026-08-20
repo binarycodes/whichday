@@ -10,7 +10,13 @@ and a replacement for the browsable member list this file used to describe.
 only way in, and it answers nothing at all below three characters, so nobody is
 listed until the organizer has typed enough to have known who they were looking
 for. `forInvite` turns an address with no account behind it into somebody who can
-still be invited and can still vote.
+still be invited.
+
+**An account is somebody who has signed in.** Nothing seeds the directory: it
+remembers whoever authenticates, on the way past, and that is the only way it learns
+about anybody. So a colleague becomes findable once they have signed in at least
+once, which is also the honest reading of the design's "only accounts that share a
+workspace or a past poll with you".
 
 An invitee is a `Person` either way. An outsider gets one with a blank name, their
 address as `displayName()`, and an avatar tone derived from the address so they are
@@ -64,10 +70,11 @@ rule exists to prevent. `AccountDirectory` therefore matches the local part only
 and `doesNotMatchTheDomain` pins it.
 
 The other half of the design's rule — "only accounts that share a workspace or a
-past poll with you" — has nothing to filter against here: every sample account is
-in one workspace. What the sample data does support is the distinction the rows
-show, so `InviteeSearch` counts the polls two people have actually both answered
-and the matches with history sort first.
+past poll with you" — has no workspace to filter against: there is no notion of one.
+What the directory does support is the distinction the rows show, so `InviteeSearch`
+counts the polls two people have actually both answered and the matches with history
+sort first. Everybody who has signed in is findable; a workspace boundary would be a
+persistence-tier concern.
 
 ## Not built
 

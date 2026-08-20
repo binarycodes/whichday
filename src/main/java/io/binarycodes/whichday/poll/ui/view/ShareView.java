@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -29,6 +31,7 @@ import io.binarycodes.whichday.poll.ui.share.VotingLink;
  * One link, and the list of people who are owed it. Sending the invites is what
  * opens the poll, so this is the last screen before the counts start moving.
  */
+@PermitAll
 @Route("poll/:slug/share")
 public class ShareView extends PollScreen {
 

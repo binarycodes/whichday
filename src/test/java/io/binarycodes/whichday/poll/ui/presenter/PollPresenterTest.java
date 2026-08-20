@@ -2,7 +2,6 @@ package io.binarycodes.whichday.poll.ui.presenter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -13,6 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import io.binarycodes.whichday.Sample;
+import io.binarycodes.whichday.TestClock;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
@@ -26,60 +27,77 @@ import io.binarycodes.whichday.poll.service.PollService;
 class PollPresenterTest {
 
     private static final Instant NOW = Instant.parse("2026-08-20T09:00:00Z");
-    private static final String OFFSITE = "q3-team-offsite";
 
+    private TestClock clock;
     private AccountDirectory directory;
-    private ViewerSession session;
+    private PollService polls;
     private PollPresenter presenter;
+    private Person signedIn;
+    private String offsite;
 
     @BeforeEach
     void setUp() {
-        var clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        clock = new TestClock(NOW, ZoneOffset.UTC);
         directory = new AccountDirectory();
-        session = new ViewerSession(directory);
-        var polls = new PollService(clock, directory);
-        presenter = new PollPresenter(polls, new InviteeSearch(directory, polls), session, clock);
+        Sample.signedInBefore(directory);
+        polls = new PollService(clock);
+        offsite = Sample.offsite(polls, clock);
+        signedIn = Sample.ADA;
+        presenter = new PollPresenter(polls, new InviteeSearch(directory, polls), viewerSession(), clock);
+    }
+
+    /** Stands in for the signed-in user, which the application reads from the provider. */
+    private ViewerSession viewerSession() {
+        return new ViewerSession() {
+            @Override
+            public Person viewer() {
+                return signedIn;
+            }
+
+            @Override
+            public void signOut() {
+                signedIn = null;
+            }
+        };
     }
 
     @Test
-    @DisplayName("starts as the organizer and reports the clock it was given")
+    @DisplayName("reports the signed-in person and the clock it was given")
     void defaults() {
-        assertThat(presenter.viewer()).isEqualTo(directory.defaultViewer());
-        assertThat(presenter.everyone()).hasSize(9);
+        assertThat(presenter.viewer()).isEqualTo(Sample.ADA);
         assertThat(presenter.today()).isEqualTo(LocalDate.of(2026, 8, 20));
         assertThat(presenter.instant()).isEqualTo(NOW);
-        assertThat(presenter.now().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 20));
     }
 
     @Test
-    @DisplayName("counts only the polls the current viewer still owes an answer to")
-    void awaitingViewerFollowsTheViewer() {
+    @DisplayName("counts only the polls the signed-in person still owes an answer to")
+    void awaitingViewer() {
+        Sample.unanswered(polls, clock);
+
+        assertThat(presenter.awaitingViewer()).isEqualTo(1);
+
+        signedIn = Sample.JONAS;
+
         assertThat(presenter.awaitingViewer()).isEqualTo(2);
-
-        presenter.switchViewer(directory.byEmail("jonas.wirtanen@acme.com").orElseThrow());
-
-        assertThat(presenter.viewer().firstName()).isEqualTo("Jonas");
-        assertThat(presenter.awaitingViewer()).isEqualTo(3);
     }
 
     @Test
-    @DisplayName("attributes a vote to whoever is looking")
+    @DisplayName("attributes a vote to whoever is signed in")
     void votesAsTheViewer() {
-        var jonas = directory.byEmail("jonas.wirtanen@acme.com").orElseThrow();
-        presenter.switchViewer(jonas);
-        var leader = presenter.poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+        signedIn = Sample.JONAS;
+        var leader = presenter.poll(offsite).orElseThrow().leader().orElseThrow().day();
 
-        presenter.vote(OFFSITE, Set.of(leader));
+        presenter.vote(offsite, Set.of(leader));
 
-        assertThat(presenter.ballotOf(OFFSITE)).map(Ballot::voter).contains(jonas);
-        assertThat(presenter.poll(OFFSITE).orElseThrow().awaiting()).isEmpty();
+        assertThat(presenter.ballotOf(offsite)).map(Ballot::voter).contains(Sample.JONAS);
+        assertThat(presenter.poll(offsite).orElseThrow().awaiting()).isEmpty();
     }
 
     @Test
     @DisplayName("carries a new poll from a name to a sent poll")
     void createChooseSend() {
-        var slug = draftPoll("Roadmap workshop", presenter.everyone());
-        var monday = LocalDate.of(2026, 9, 7);
+        var slug = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
+        var monday = Sample.mondayAfterNext(LocalDate.now(clock));
 
         presenter.chooseDays(slug, Set.of(monday));
         assertThat(presenter.poll(slug).orElseThrow().state()).isEqualTo(PollState.DRAFT);
@@ -88,54 +106,26 @@ class PollPresenterTest {
         var poll = presenter.poll(slug).orElseThrow();
 
         assertThat(poll.state()).isEqualTo(PollState.OPEN);
-        assertThat(poll.organizer()).isEqualTo(presenter.viewer());
+        assertThat(poll.organizer()).isEqualTo(Sample.ADA);
         assertThat(presenter.isOrganizer(poll)).isTrue();
-        assertThat(poll.inviteCount()).isEqualTo(directory.allForSwitcher().size());
-    }
-
-    @Test
-    @DisplayName("sends a poll only to the people it was created for")
-    void createForASubsetOfTheTeam() {
-        var miro = directory.byEmail("m.kallio@acme.com").orElseThrow();
-        var sara = directory.byEmail("sara.naslund@acme.com").orElseThrow();
-
-        var slug = draftPoll("Roadmap workshop", List.of(miro, sara));
-        var poll = presenter.poll(slug).orElseThrow();
-
-        assertThat(poll.invited()).containsExactly(presenter.viewer(), miro, sara);
-        assertThat(poll.inviteCount()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("keeps the organizer in even when the form left them out")
-    void theOrganizerIsAlwaysInvited() {
-        var miro = directory.byEmail("m.kallio@acme.com").orElseThrow();
-
-        var slug = draftPoll("Roadmap workshop", List.of(miro));
-        var poll = presenter.poll(slug).orElseThrow();
-
-        assertThat(poll.invited()).contains(presenter.viewer());
-        assertThat(poll.organizer()).isEqualTo(presenter.viewer());
+        assertThat(poll.inviteCount()).isEqualTo(2);
     }
 
     @Test
     @DisplayName("leads with the organizer, then keeps the order people were added in")
     void theOrganizerLeadsTheInvitedList() {
-        var lena = directory.byEmail("lena.fors@acme.com").orElseThrow();
-        var miro = directory.byEmail("m.kallio@acme.com").orElseThrow();
-
-        var slug = draftPoll("Roadmap workshop", List.of(lena, miro));
+        var slug = draftPoll("Roadmap workshop", List.of(Sample.LENA, Sample.MIRO));
 
         assertThat(presenter.poll(slug).orElseThrow().invited())
-                .containsExactly(presenter.viewer(), lena, miro);
+                .containsExactly(Sample.ADA, Sample.LENA, Sample.MIRO);
     }
 
     @Test
     @DisplayName("counts the organizer once even if their own draft named them")
     void theOrganizerIsNeverCountedTwice() {
-        var slug = draftPoll("Roadmap workshop", List.of(presenter.viewer(), presenter.viewer()));
+        var slug = draftPoll("Roadmap workshop", List.of(Sample.ADA, Sample.ADA));
 
-        assertThat(presenter.poll(slug).orElseThrow().invited()).containsExactly(presenter.viewer());
+        assertThat(presenter.poll(slug).orElseThrow().invited()).containsExactly(Sample.ADA);
     }
 
     @Test
@@ -144,49 +134,60 @@ class PollPresenterTest {
         var outsider = presenter.inviteeFor("lena.ohlsson@studiofern.se");
 
         var slug = draftPoll("Roadmap workshop", List.of(outsider));
-        var poll = presenter.poll(slug).orElseThrow();
 
-        assertThat(poll.invited()).containsExactly(presenter.viewer(), outsider);
+        assertThat(presenter.poll(slug).orElseThrow().invited()).containsExactly(Sample.ADA, outsider);
         assertThat(presenter.hasAccount("lena.ohlsson@studiofern.se")).isFalse();
     }
 
     @Test
     @DisplayName("records a decline with its counter-proposal, then accepts it")
     void declineThenAccept() {
-        var jonas = directory.byEmail("jonas.wirtanen@acme.com").orElseThrow();
         var proposed = LocalDate.of(2026, 9, 28);
-        presenter.switchViewer(jonas);
+        signedIn = Sample.JONAS;
 
-        presenter.declineAll(OFFSITE, List.of(proposed), "Away that week");
+        presenter.declineAll(offsite, List.of(proposed), "Away that week");
 
-        assertThat(presenter.ballotOf(OFFSITE)).get().satisfies(ballot -> {
+        assertThat(presenter.ballotOf(offsite)).get().satisfies(ballot -> {
             assertThat(ballot.isDeclined()).isTrue();
             assertThat(ballot.proposedDays()).containsExactly(proposed);
         });
 
-        presenter.switchViewer(directory.defaultViewer());
-        presenter.acceptProposal(OFFSITE, proposed);
+        signedIn = Sample.ADA;
+        presenter.acceptProposal(offsite, proposed);
 
-        assertThat(presenter.poll(OFFSITE).orElseThrow().candidateDays()).contains(proposed);
+        assertThat(presenter.poll(offsite).orElseThrow().candidateDays()).contains(proposed);
     }
 
     @Test
     @DisplayName("locking moves the poll from the open list to the settled one")
     void lock() {
-        var leader = presenter.poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+        var leader = presenter.poll(offsite).orElseThrow().leader().orElseThrow().day();
 
-        presenter.lock(OFFSITE, leader);
+        presenter.lock(offsite, leader);
 
-        assertThat(presenter.openPolls()).extracting(PollSummary::slug).doesNotContain(OFFSITE);
-        assertThat(presenter.settledPolls()).extracting(PollSummary::slug).contains(OFFSITE);
-        assertThat(presenter.poll(OFFSITE).orElseThrow().lockedDay()).isEqualTo(leader);
+        assertThat(presenter.openPolls()).extracting(PollSummary::slug).doesNotContain(offsite);
+        assertThat(presenter.settledPolls()).extracting(PollSummary::slug).contains(offsite);
+        assertThat(presenter.poll(offsite).orElseThrow().lockedDay()).isEqualTo(leader);
     }
 
-    private String draftPoll(String title, List<Person> invitees) {
-        presenter.draft().reset();
-        presenter.draft().rename(title);
-        invitees.forEach(presenter.draft()::invite);
-        return presenter.createFromDraft();
+    @Test
+    @DisplayName("lists the signed-in person's own drafts and deletes them")
+    void drafts() {
+        var slug = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
+
+        assertThat(presenter.draftPolls()).extracting(PollSummary::slug).containsExactly(slug);
+
+        presenter.deleteDraft(slug);
+
+        assertThat(presenter.draftPolls()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("signs out through the session it was given")
+    void signOut() {
+        presenter.signOut();
+
+        assertThat(signedIn).isNull();
     }
 
     @Test
@@ -194,6 +195,12 @@ class PollPresenterTest {
     void unknownPoll() {
         assertThat(presenter.poll("nope")).isEmpty();
         assertThat(presenter.ballotOf("nope")).isEmpty();
-        assertThat(session.everyone()).isEqualTo(directory.allForSwitcher());
+    }
+
+    private String draftPoll(String title, List<Person> invitees) {
+        presenter.draft().reset();
+        presenter.draft().rename(title);
+        invitees.forEach(presenter.draft()::invite);
+        return presenter.createFromDraft();
     }
 }

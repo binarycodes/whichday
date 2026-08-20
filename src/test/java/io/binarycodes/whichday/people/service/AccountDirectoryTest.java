@@ -4,16 +4,45 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.people.domain.Person;
 
 @DisplayName("Finding somebody by address")
 class AccountDirectoryTest {
 
     private final AccountDirectory directory = new AccountDirectory();
-    private final Person searcher = directory.defaultViewer();
+    private final Person searcher = Sample.ADA;
+
+    @BeforeEach
+    void everybodyHasSignedInBefore() {
+        Sample.signedInBefore(directory);
+    }
+
+    @Test
+    @DisplayName("knows nobody until somebody has signed in")
+    void startsEmpty() {
+        var empty = new AccountDirectory();
+
+        assertThat(empty.matching("sar", searcher, List.of())).isEmpty();
+        assertThat(empty.byEmail("sara.naslund@acme.com")).isEmpty();
+        assertThat(empty.forInvite("sara.naslund@acme.com").hasAccount()).isFalse();
+    }
+
+    @Test
+    @DisplayName("remembers whoever signs in, and takes their latest name")
+    void remembersOnSignIn() {
+        var directory = new AccountDirectory();
+
+        directory.remember(Person.signedIn("New.Person@acme.com", "New Person"));
+        assertThat(directory.byEmail("new.person@acme.com")).map(Person::name).contains("New Person");
+
+        directory.remember(Person.signedIn("new.person@acme.com", "Renamed Person"));
+        assertThat(directory.byEmail("new.person@acme.com")).map(Person::name).contains("Renamed Person");
+    }
 
     @Test
     @DisplayName("answers nothing at all under the minimum query length")

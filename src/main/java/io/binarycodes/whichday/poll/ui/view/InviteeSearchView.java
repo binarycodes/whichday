@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.util.Locale;
 
 import com.vaadin.flow.component.Component;
@@ -39,6 +41,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * known who they were looking for, and anything that is an address but not an
  * account becomes an invitation rather than an error.
  */
+@PermitAll
 @Route("new/invitees")
 public class InviteeSearchView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 

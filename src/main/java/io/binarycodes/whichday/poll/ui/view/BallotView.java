@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -12,8 +14,7 @@ import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Typography;
-import io.binarycodes.whichday.people.domain.Person;
-import io.binarycodes.whichday.people.ui.AccountSwitcher;
+import io.binarycodes.whichday.people.ui.AccountMenu;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
@@ -24,6 +25,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * point is to give the team room to land on one, and a single pick would make that
  * impossible to express.
  */
+@PermitAll
 @Route("vote/:slug")
 public class BallotView extends PollScreen {
 
@@ -78,22 +80,15 @@ public class BallotView extends PollScreen {
 
     /**
      * Who invited you, between the way home and the account — which stays hard right
-     * here as it does on every other screen that shows it, rather than sitting inside
-     * the sentence.
+     * here as it does on every other screen that shows it.
      */
     private Div invitation(Poll poll) {
         var text = Typography.meta(getTranslation("ballot.invitedBy",
                 poll.organizer().firstName(), poll.title()));
-        var switcher = new AccountSwitcher(presenter.viewer(), presenter.everyone(), this::switchViewer);
-        var row = new Div(homeButton(), text, switcher);
+        var account = new AccountMenu(presenter.viewer(), presenter::signOut);
+        var row = new Div(homeButton(), text, account);
         row.addClassName("invitation");
         return row;
-    }
-
-    /** Answering as somebody else is a different ballot, so the screen is rebuilt. */
-    private void switchViewer(Person person) {
-        presenter.switchViewer(person);
-        render();
     }
 
     /**

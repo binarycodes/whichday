@@ -1,49 +1,36 @@
 # Who the browser is
 
-## The conflict
+## Resolved
+
+Signing in is the only way in, and OIDC is the only way to sign in. See
+`0009-signing-in.md` for how, and for what it cost.
+
+This file used to describe the opposite: no login, a session-scoped `ViewerSession`
+holding a `Person` from a hard-coded directory, and an account switcher on the
+header avatar so that both the organizer's and a voter's half of the design were
+reachable. That switcher was always meant to be deleted the moment there was a real
+subject to read, and it has been — the avatar now offers signing out instead.
+
+## The conflict it deferred, and how it landed
 
 The design promises, on its first screen, "No sign-up for voters. One link, one
-tap." `CODING_CONVENTIONS.md` §10b says login is mandatory on every route and
-that a route without an access annotation is denied. Both cannot hold.
+tap." `CODING_CONVENTIONS.md` §10b says login is mandatory on every route. Both
+could not hold, and this tier having no login at all deferred rather than resolved
+it.
 
-They are also not really in conflict about the same thing: §10b is about the
-organizer's library, and the design's promise is about the person answering a
-poll. A deployment can have both — public `/vote/:slug` routes and authenticated
-organizer routes — but that is a decision about the product, not about this tier.
+It is resolved now, in favour of §10b: **voters sign in**. `/vote/:slug` requires a
+session like every other route. That is the one design promise the application breaks
+outright rather than approximating, and it follows directly from "strict login only".
 
-## Decided
+What it would take to honour the design instead: a per-invitee token in the voting
+link, a route that accepts that token without a session, and a way to attribute an
+answer to somebody who has no account. None of it is small, and all of it wants
+deciding on purpose rather than as a side effect.
 
-This tier has no login at all, so nothing is resolved and nothing is violated.
-`ViewerSession` is session-scoped and holds a `Person` from `TeamDirectory`,
-defaulting to Ada Lindqvist — the organizer in the design's sample data. It is the
-seam where an authenticated subject goes: every screen asks it who is looking, and
-nothing else does.
+## What survived
 
-## The switcher is an addition
-
-The avatar in the top-right of the design is the account. Here it also opens a menu
-that changes who you are.
-
-That is not in the design, and it exists for a specific reason: half these screens
-belong to the organizer and half to a voter, and without a login there is no other
-way to reach both. Tapping the avatar and becoming Sara Näslund is what makes
-screens 4, 2a and 2b reachable at all.
-
-It is one component, `AccountSwitcher`, and it sits hard right wherever it appears —
-the header of the two screens that open the application, and the ballot's invitation
-row. The ballot briefly had a decorative copy of the viewer's avatar inside that
-sentence instead, which looked like the account control without being one.
-
-It should be deleted the moment there is a real subject to read. Everything it
-touches goes through `PollPresenter.switchViewer`, so deleting it is one component
-and one method.
-
-## What is not built
-
-- **Voting by link alone.** `/vote/:slug` is reachable without signing in, but the
-  ballot is attributed to whoever `ViewerSession` currently says — not to an
-  anonymous holder of the link. A real implementation needs a per-invitee token in
-  the URL, which is a persistence-tier concern.
-- **Nudging.** The button reports that a nudge was sent and sends nothing; there is
-  no mail or push transport behind it. Sharing does better — see
-  `0006-design-deviations.md`.
+An invitee is still a `Person` whether or not an account answers to their address.
+Somebody invited by email who has never signed in gets a blank name, their address as
+`displayName()`, and a colour derived from that address — and nothing downstream, not
+the tallies, not the ballots, not the denominators, knows the difference. That is what
+would let a token-based voting link work later without touching the counting.

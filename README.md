@@ -6,12 +6,17 @@ only, multi-select voting, and the day with the most votes wins.
 A mobile-first Vaadin application on the Aura theme, built from
 `Date Voting.dc.html` in the Claude Design project *Voting app UI mockups*.
 
+Signing in is the only way in, so it needs an OAuth client before it will start:
+
 ```bash
+export WHICHDAY_OIDC_CLIENT_ID=...apps.googleusercontent.com
+export WHICHDAY_OIDC_CLIENT_SECRET=...
 ./run.sh run
 ```
 
-Then open <http://localhost:8080>. Nothing else is needed — no database, no
-identity provider, no containers.
+Then open <http://localhost:8080>, which redirects you to Google. The client's
+authorised redirect URI must be `http://localhost:8080/login/oauth2/code/oidc`.
+There is no database and no container to bring up.
 
 ## The flow
 
@@ -37,18 +42,28 @@ route as the standings, not a screen of its own.
 There is no team and no directory. The only way onto a poll is the organizer typing
 an email address: results appear from three characters, matches show why they
 matched — the polls you have both answered, or nothing more than a shared workspace
-— and anything that is an address but not an account becomes an invitation by link
-rather than an error. `AccountDirectory` has no method that hands a screen
-everybody, which is the point.
+— and anything that is an address but not an account becomes an invitation rather
+than an error.
 
-## Signing in, and who you are
+An account is somebody who has signed in; that is the only way `AccountDirectory`
+learns about anybody, and it has no method that hands a screen everybody. So a
+colleague becomes findable once they have signed in at least once.
 
-There is no login. `ViewerSession` holds who the browser is, and the avatar in the
-top-right switches between the accounts — which is what makes both the organizer's
-screens and a voter's screens reachable without an account system. That switcher is
-a development affordance and is meant to be deleted when there is a real
-authenticated subject; see
-[`docs/clarifications/0003-voter-identity.md`](docs/clarifications/0003-voter-identity.md).
+## Signing in
+
+Every route requires a signed-in user and OIDC is the only way to sign in. There is
+no login view: an unauthenticated request redirects straight to the provider, and the
+application collects no credentials and never sees one.
+
+The registration is called `oidc` rather than after the provider behind it, so the
+vendor stays out of the application's URLs and out of `src/main` — which provider it
+is belongs to `WHICHDAY_OIDC_ISSUER_URI` and to nothing else. It refuses to start
+without a client id and secret, because an unresolved placeholder would otherwise
+bind as a literal and fail in front of the first person who tried to sign in. See
+[`docs/clarifications/0009-signing-in.md`](docs/clarifications/0009-signing-in.md).
+
+The design's "No sign-up for voters. One link, one tap" is the one promise this
+breaks outright: voters sign in like everybody else.
 
 ## Where the polls live
 
@@ -100,6 +115,9 @@ design and why.
 | `verify`  | The same against a production build                              |
 | `styles`  | Copy edited stylesheets to `target/classes` and bust the cache   |
 | `deps`    | Fetch newly added dependencies (every other task builds offline) |
+
+`run` needs `WHICHDAY_OIDC_CLIENT_ID` and `WHICHDAY_OIDC_CLIENT_SECRET` in the
+environment; the tests do not.
 
 `./run.sh` pins JDK 21, and every build carries the commit SHA — the enforcer
 plugin rejects one that does not.

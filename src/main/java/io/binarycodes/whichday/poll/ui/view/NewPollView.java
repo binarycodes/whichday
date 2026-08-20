@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -16,8 +18,8 @@ import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.AppHeader;
 import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.base.ui.Typography;
-import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.InviteeChips;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
@@ -26,6 +28,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * calendar. Both fields write to the session's draft, so stepping out to search for
  * somebody and coming back loses nothing.
  */
+@PermitAll
 @Route("new")
 public class NewPollView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
@@ -49,8 +52,8 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         clearBody();
         clearFooter();
 
-        body(new AppHeader(getTranslation("app.name"), presenter.viewer(), presenter.everyone(),
-                this::switchViewer, this::goHome));
+        body(new AppHeader(getTranslation("app.name"), presenter.viewer(),
+                presenter::signOut, this::goHome));
 
         var headline = Typography.hero(getTranslation("create.headline"));
         headline.addClassName("push-3xl");
@@ -140,11 +143,6 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
 
     private void goHome() {
         getUI().ifPresent(ui -> ui.navigate(PollsView.class));
-    }
-
-    private void switchViewer(Person person) {
-        presenter.switchViewer(person);
-        render();
     }
 
     @Override

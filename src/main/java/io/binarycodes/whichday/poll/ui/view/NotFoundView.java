@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 
@@ -8,6 +10,7 @@ import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.base.ui.Typography;
 
 /** A link to a poll that is not here — expired, or never sent. */
+@PermitAll
 @Route("gone")
 public class NotFoundView extends Screen implements HasDynamicTitle {
 

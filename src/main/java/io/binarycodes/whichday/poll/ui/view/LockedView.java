@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -21,6 +23,7 @@ import io.binarycodes.whichday.poll.ui.share.MailLink;
  * The date, and nothing else. The whole screen turns accent and the numeral takes
  * over — the design's argument that a settled date should look settled.
  */
+@PermitAll
 @Route("poll/:slug/locked")
 public class LockedView extends PollScreen {
 

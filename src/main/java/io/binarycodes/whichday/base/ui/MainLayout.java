@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.base.ui;
 
+import jakarta.annotation.security.PermitAll;
+
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.page.ColorScheme;
@@ -11,6 +13,7 @@ import com.vaadin.flow.router.RouterLayout;
  * this centres one capped column against Aura's page background rather than letting
  * a mobile-first screen stretch across a desktop.
  */
+@PermitAll
 @Layout
 public class MainLayout extends Div implements RouterLayout {
 

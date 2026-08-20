@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -26,6 +28,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * running total and the chips for what is chosen live in the footer where they
  * cannot push it around.
  */
+@PermitAll
 @Route("poll/:slug/days")
 public class CandidateDaysView extends PollScreen {
 

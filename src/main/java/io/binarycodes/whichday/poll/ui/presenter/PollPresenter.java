@@ -48,13 +48,8 @@ public class PollPresenter {
         return session.viewer();
     }
 
-    /** Only the account switcher, which stands in for a login. */
-    public List<Person> everyone() {
-        return session.everyone();
-    }
-
-    public void switchViewer(Person person) {
-        session.switchTo(person);
+    public void signOut() {
+        session.signOut();
     }
 
     public LocalDate today() {

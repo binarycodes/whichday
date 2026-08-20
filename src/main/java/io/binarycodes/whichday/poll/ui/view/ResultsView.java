@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import jakarta.annotation.security.PermitAll;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +37,7 @@ import io.binarycodes.whichday.poll.ui.share.VotingLink;
  * paint. Same layout either way, so the poll does not appear to change shape when
  * the first answer lands.
  */
+@PermitAll
 @Route("poll/:slug")
 public class ResultsView extends PollScreen {
 

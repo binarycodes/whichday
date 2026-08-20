@@ -20,7 +20,6 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 import io.binarycodes.whichday.people.domain.Person;
-import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.Ballot;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -29,8 +28,9 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
 
 /**
  * Every poll there is, and the counting. State lives in memory for as long as the
- * application runs — see {@code docs/clarifications/0002-in-memory-store.md} for
- * what that costs and what replaces it.
+ * application runs, and nothing seeds it — see
+ * {@code docs/clarifications/0002-in-memory-store.md} for what that costs and what
+ * replaces it.
  *
  * <p>Reads return immutable records built on the spot, so a screen holding one is
  * holding a snapshot rather than a view into the store.
@@ -45,9 +45,8 @@ public class PollService {
     private final AtomicInteger slugSuffix = new AtomicInteger();
     private final Clock clock;
 
-    public PollService(Clock clock, AccountDirectory directory) {
+    public PollService(Clock clock) {
         this.clock = clock;
-        SampleData.seed(this, directory, clock);
     }
 
     public synchronized String create(String title, Person organizer, List<Person> invited) {
