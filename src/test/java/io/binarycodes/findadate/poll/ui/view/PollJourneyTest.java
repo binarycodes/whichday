@@ -2,6 +2,7 @@ package io.binarycodes.findadate.poll.ui.view;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -14,13 +15,19 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.vaadin.browserless.SpringBrowserlessTest;
+import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.HasText;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.findadate.Application;
+import io.binarycodes.findadate.poll.domain.PollState;
+import io.binarycodes.findadate.poll.ui.component.DayBallot;
+import io.binarycodes.findadate.poll.ui.component.MonthCalendar;
 import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
 
 /**
@@ -112,6 +119,143 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ShareView.class, slug);
 
         assertThat(textOf(currentView())).contains("Voting link", "Invited", "vote/" + slug);
+    }
+
+    @Test
+    @DisplayName("tapping days and submitting records a ballot and lands on the receipt")
+    void votingRecordsABallot() {
+        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
+        presenter().switchViewer(holdout);
+        navigateToPoll(BallotView.class, OFFSITE);
+        var days = presenter().poll(OFFSITE).orElseThrow().candidateDays();
+
+        ballotField().setValue(Set.of(days.getFirst(), days.getLast()));
+        click("Submit my days");
+
+        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot ->
+                assertThat(ballot.chosenDays()).containsExactlyInAnyOrder(days.getFirst(), days.getLast()));
+        assertThat(currentView()).isInstanceOf(ReceiptView.class);
+        assertThat(presenter().poll(OFFSITE).orElseThrow().awaiting()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("refuses an empty ballot rather than recording one")
+    void anEmptyBallotIsNotAnAnswer() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(BallotView.class, OFFSITE);
+
+        click("Submit my days");
+
+        assertThat(presenter().ballotOf(OFFSITE)).isEmpty();
+        assertThat(currentView()).isInstanceOf(BallotView.class);
+    }
+
+    @Test
+    @DisplayName("choosing days on the calendar and sending opens the poll")
+    void choosingDaysAndSending() {
+        var slug = presenter().create("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, slug);
+        var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
+
+        calendarField().setValue(Set.of(monday));
+        click("Send to the team");
+
+        assertThat(currentView()).isInstanceOf(ShareView.class);
+        assertThat(presenter().poll(slug).orElseThrow().candidateDays()).containsExactly(monday);
+
+        click("Send 7 invites");
+
+        assertThat(presenter().poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+    }
+
+    @Test
+    @DisplayName("refuses to send a poll with nothing on the table")
+    void sendingAnEmptyPoll() {
+        var slug = presenter().create("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, slug);
+
+        click("Send to the team");
+
+        assertThat(currentView()).isInstanceOf(CandidateDaysView.class);
+        assertThat(presenter().poll(slug).orElseThrow().candidateDays()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a decline reaches the organizer as a proposal they can accept")
+    void decliningReachesTheOrganizer() {
+        var holdout = presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst();
+        var proposed = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.TUESDAY);
+        presenter().switchViewer(holdout);
+        presenter().declineAll(OFFSITE, List.of(proposed), "Away that week");
+
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().organizer());
+        navigateToPoll(ResultsView.class, OFFSITE);
+
+        assertThat(textOf(currentView())).contains("Proposed instead", holdout.firstName());
+
+        click("Add it");
+
+        assertThat(presenter().poll(OFFSITE).orElseThrow().candidateDays()).contains(proposed);
+    }
+
+    @Test
+    @DisplayName("locking from the results screen hands over to the locked date")
+    void lockingFromTheResults() {
+        navigateToPoll(ResultsView.class, OFFSITE);
+        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+
+        clickStartingWith("Lock in");
+
+        assertThat(presenter().poll(OFFSITE).orElseThrow().lockedDay()).isEqualTo(leader);
+        assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    @Test
+    @DisplayName("sends a settled poll's results screen straight to the locked date")
+    void aSettledPollHasNoStandings() {
+        var leader = presenter().poll(OFFSITE).orElseThrow().leader().orElseThrow().day();
+        presenter().lock(OFFSITE, leader);
+
+        navigateToPoll(ResultsView.class, OFFSITE);
+
+        assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    private DayBallot ballotField() {
+        return componentsOf(currentView())
+                .filter(DayBallot.class::isInstance)
+                .map(DayBallot.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private MonthCalendar calendarField() {
+        return componentsOf(currentView())
+                .filter(MonthCalendar.class::isInstance)
+                .map(MonthCalendar.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void click(String label) {
+        clickMatching(label, label::equals);
+    }
+
+    private void clickStartingWith(String prefix) {
+        clickMatching(prefix, text -> text.startsWith(prefix));
+    }
+
+    /** Vaadin's Button has no public click, so the event is fired the way the client would. */
+    private void clickMatching(String description, java.util.function.Predicate<String> matches) {
+        var button = componentsOf(currentView())
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(candidate -> candidate.getText() != null && matches.test(candidate.getText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No button matching " + description
+                        + " on " + currentView().getClass().getSimpleName()));
+        ComponentUtil.fireEvent(button, new ClickEvent<>(button));
     }
 
     private PollPresenter presenter() {
