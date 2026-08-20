@@ -151,3 +151,18 @@
   --vaadin-button-border-color: color-mix(in oklab, var(--color-accent-contrast) 45%, transparent);
   --vaadin-button-text-color: var(--color-accent-contrast);
 }
+
+/* The calendar that fills in the poster row, folded away until asked for: a whole
+   month above the note field would push it off the screen. */
+.proposal-picker {
+  padding: var(--vaadin-padding-l);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--vaadin-radius-l);
+  background: var(--color-surface-sunken);
+}
+
+.poster-add[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--color-outline-ink);
+  color: var(--color-ink);
+}

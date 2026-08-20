@@ -25,6 +25,12 @@ design greys them as a pair, which only reads as "the weekend" when they are
 adjacent — so the grid is ISO-8601 Monday-first regardless of locale. Weekday
 labels and month names still come from the locale.
 
+## Unavailable days
+
+`setUnavailable` takes days the calendar must not offer whatever the rules above
+say. One caller: the counter-proposal screen passes the poll's own candidate days,
+because a day already on the table is not an alternative to it.
+
 ## Month navigation is an addition
 
 The design shows "September 2026" and no way to leave September. A poll whose days

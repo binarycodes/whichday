@@ -4,6 +4,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,6 +43,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     private final Div weekdays = new Div();
     private final Div grid = new Div();
     private final Set<LocalDate> selection = new LinkedHashSet<>();
+    private final Set<LocalDate> unavailable = new LinkedHashSet<>();
     private final Map<LocalDate, NativeButton> cells = new HashMap<>();
     private final LocalDate earliestSelectable;
 
@@ -137,12 +139,23 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     }
 
     /**
+     * Days this calendar will not offer, however otherwise valid — the candidate days
+     * already on the table, when it is being used to propose an alternative to them.
+     */
+    public void setUnavailable(Collection<LocalDate> days) {
+        unavailable.clear();
+        unavailable.addAll(days);
+        renderGrid();
+    }
+
+    /**
      * Whole days in the future, on a working week — the design offers neither a day
      * already gone nor a weekend. See
      * {@code docs/clarifications/0004-calendar-rules.md}.
      */
     private boolean isSelectable(LocalDate day) {
         return !day.isBefore(earliestSelectable)
+                && !unavailable.contains(day)
                 && day.getDayOfWeek() != DayOfWeek.SATURDAY
                 && day.getDayOfWeek() != DayOfWeek.SUNDAY;
     }

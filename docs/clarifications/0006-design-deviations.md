@@ -60,6 +60,22 @@ shown, under a heading that promises where the *team* stands. Every candidate da
 gets a bar. Which ones are yours is already answered by the posters above it, at
 poster scale, so the bars carry no extra marking.
 
+**No dialogs anywhere.** Two screens needed a picker the design does not draw —
+choosing who decides, and proposing a day instead — and an overlay was the wrong
+answer to both. On a phone a dialog gets the same few hundred pixels as the screen
+under it, and it covers the very thing it is filling in.
+
+Choosing who decides became its own screen, because the search needs a keyboard, a
+result list and a growing set of chips at once (`0005-team-membership.md`).
+Proposing a day became an inline calendar folded away behind the design's own dashed
+"+", because a month is too tall to sit above the note field permanently but far too
+small a decision to spend a screen on. It is the same `MonthCalendar` the organizer
+puts days on the table with, so a voter proposing an alternative and an organizer
+offering one are the same gesture — and it refuses the days already on the table,
+which are not alternatives to themselves.
+
+Nothing in `src/main` constructs a `Dialog` now.
+
 **The organizer can answer their own poll.** The design gives the organizer the
 results screen and gives voting to everybody else, which leaves the one person who
 called the meeting unable to say which days work for them — while still being

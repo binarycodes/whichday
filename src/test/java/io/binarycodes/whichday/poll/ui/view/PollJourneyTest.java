@@ -36,6 +36,7 @@ import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
 import io.binarycodes.whichday.poll.ui.component.DayPoster;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
+import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
 /**
@@ -377,6 +378,50 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
         assertThat(currentView()).isInstanceOf(CandidateDaysView.class);
         assertThat(presenter().poll(slug).orElseThrow().candidateDays()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("proposes a day from an inline calendar, never from an overlay")
+    void proposingADayInline() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(NoDayWorksView.class, OFFSITE);
+
+        var calendar = componentsOf(currentView())
+                .filter(MonthCalendar.class::isInstance)
+                .map(MonthCalendar.class::cast)
+                .findFirst()
+                .orElseThrow();
+        var proposal = presenter().today().plusWeeks(6).with(java.time.DayOfWeek.TUESDAY);
+        calendar.setValue(Set.of(proposal));
+
+        assertThat(componentsOf(currentView()).filter(DayPoster.class::isInstance)).hasSize(1);
+
+        click("Send my answer");
+
+        assertThat(presenter().ballotOf(OFFSITE)).get().satisfies(ballot -> {
+            assertThat(ballot.isDeclined()).isTrue();
+            assertThat(ballot.proposedDays()).containsExactly(proposal);
+        });
+    }
+
+    @Test
+    @DisplayName("will not let a candidate day be proposed as an alternative to itself")
+    void cannotProposeADayAlreadyOnTheTable() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(NoDayWorksView.class, OFFSITE);
+        var onTheTable = presenter().poll(OFFSITE).orElseThrow().candidateDays();
+
+        var offered = componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(cell -> cell.getClassNames().contains("calendar-day"))
+                .filter(NativeButton::isEnabled)
+                .map(NativeButton::getText)
+                .toList();
+
+        assertThat(offered).isNotEmpty();
+        onTheTable.forEach(day ->
+                assertThat(offered).doesNotContain(String.valueOf(day.getDayOfMonth())));
     }
 
     @Test
