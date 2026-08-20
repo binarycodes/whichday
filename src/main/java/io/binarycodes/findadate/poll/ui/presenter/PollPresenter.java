@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -83,8 +84,15 @@ public class PollPresenter {
         return polls.poll(slug);
     }
 
-    public String create(String title) {
-        return polls.create(title, viewer(), session.everyone());
+    /**
+     * The organizer is always invited, whatever the form passed: they are deciding,
+     * and their own availability has to be counted somewhere.
+     */
+    public String create(String title, Collection<Person> invited) {
+        var everybody = session.everyone().stream()
+                .filter(person -> invited.contains(person) || person.equals(viewer()))
+                .toList();
+        return polls.create(title, viewer(), everybody);
     }
 
     public void chooseDays(String slug, Set<LocalDate> days) {

@@ -1,8 +1,10 @@
 package io.binarycodes.findadate.poll.ui.component;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.vaadin.flow.component.Component;
@@ -28,6 +30,7 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
     private static final int FACE_LIMIT = 3;
 
     private final Div rows = new Div();
+    private final Map<LocalDate, NativeButton> rowsByDay = new HashMap<>();
     private final Set<LocalDate> selection = new LinkedHashSet<>();
     private final LocalDate today;
 
@@ -71,6 +74,7 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
 
     private void render() {
         rows.removeAll();
+        rowsByDay.clear();
         tallies.stream().map(this::rowFor).forEach(rows::add);
     }
 
@@ -85,6 +89,7 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
         } else {
             row.getElement().setAttribute("aria-pressed", String.valueOf(selection.contains(tally.day())));
             row.addClickListener(event -> toggle(tally.day()));
+            rowsByDay.put(tally.day(), row);
         }
         return row;
     }
@@ -130,11 +135,19 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
         return check;
     }
 
+    /**
+     * Only aria-pressed changes: a row's note counts other people's votes, which your
+     * own tap does not move. Rebuilding the list would throw away the row that was
+     * just pressed and the caret with it.
+     */
     private void toggle(LocalDate day) {
         if (!selection.remove(day)) {
             selection.add(day);
         }
-        render();
+        var row = rowsByDay.get(day);
+        if (row != null) {
+            row.getElement().setAttribute("aria-pressed", String.valueOf(selection.contains(day)));
+        }
         updateValue();
     }
 }

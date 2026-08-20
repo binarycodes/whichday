@@ -1,5 +1,7 @@
 package io.binarycodes.findadate.poll.ui.view;
 
+import java.util.Set;
+
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -12,11 +14,10 @@ import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.AppHeader;
-import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.Screen;
 import io.binarycodes.findadate.base.ui.Typography;
 import io.binarycodes.findadate.people.domain.Person;
-import io.binarycodes.findadate.people.ui.AvatarStack;
+import io.binarycodes.findadate.people.ui.TeamField;
 import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
 
 /**
@@ -25,9 +26,6 @@ import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
  */
 @Route("new")
 public class NewPollView extends Screen implements HasDynamicTitle {
-
-    /** Enough faces to say "a team", without turning the field into a list. */
-    private static final int TEAM_FACES = 3;
 
     private final PollPresenter presenter;
     private final Binder<PollDraft> binder = new Binder<>(PollDraft.class);
@@ -52,6 +50,7 @@ public class NewPollView extends Screen implements HasDynamicTitle {
 
         var fields = new Div(nameField(), teamField());
         fields.addClassNames("field-column", "push-2xl");
+        binder.setBean(new PollDraft(null, Set.copyOf(presenter.everyone())));
         body(fields);
 
         var next = Actions.primary(getTranslation("create.next"), ignored -> create());
@@ -71,29 +70,21 @@ public class NewPollView extends Screen implements HasDynamicTitle {
         binder.forField(field)
                 .asRequired(getTranslation("create.eventName.required"))
                 .bind(PollDraft::getTitle, PollDraft::setTitle);
-        binder.setBean(new PollDraft());
 
         var group = new Div(Typography.fieldLabel(getTranslation("create.eventName")), field);
         group.addClassName("stack-xs");
         return group;
     }
 
-    /**
-     * Who the poll goes to, shown rather than edited: the team is the whole
-     * directory until there is an account system to pick from. See
-     * {@code docs/clarifications/0005-team-membership.md}.
-     */
+    /** Who the poll goes to. Everybody by default; tapping it opens the picker. */
     private Div teamField() {
-        var people = presenter.everyone();
-        var stack = new AvatarStack(TEAM_FACES).hideOverflow().show(people);
-        var summary = Typography.meta(getTranslation("create.team",
-                presenter.teamName(), Counts.people(this, people.size())));
-        summary.addClassName("meta-faint");
+        var field = new TeamField(presenter.everyone(), presenter.viewer(), presenter.teamName());
+        field.setWidthFull();
+        binder.forField(field)
+                .withValidator(people -> people.size() > 1, getTranslation("create.deciders.needOne"))
+                .bind(PollDraft::getInvited, PollDraft::setInvited);
 
-        var box = new Div(stack, summary);
-        box.addClassName("team-field");
-
-        var group = new Div(Typography.fieldLabel(getTranslation("create.deciders")), box);
+        var group = new Div(Typography.fieldLabel(getTranslation("create.deciders")), field);
         group.addClassName("stack-xs");
         return group;
     }
@@ -104,7 +95,7 @@ public class NewPollView extends Screen implements HasDynamicTitle {
         if (!binder.validate().isOk()) {
             return;
         }
-        var slug = presenter.create(draft.getTitle());
+        var slug = presenter.create(draft.getTitle(), draft.getInvited());
         getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("slug", slug)));
     }
 

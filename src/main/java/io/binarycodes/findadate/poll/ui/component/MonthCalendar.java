@@ -4,8 +4,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -40,6 +42,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     private final Div weekdays = new Div();
     private final Div grid = new Div();
     private final Set<LocalDate> selection = new LinkedHashSet<>();
+    private final Map<LocalDate, NativeButton> cells = new HashMap<>();
     private final LocalDate earliestSelectable;
 
     private YearMonth visibleMonth;
@@ -104,6 +107,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
         year.setText(DateText.year(visibleMonth.atDay(1)));
 
         grid.removeAll();
+        cells.clear();
         var firstCell = firstCellOf(visibleMonth);
         for (var index = 0; index < WEEK_LENGTH * GRID_WEEKS; index++) {
             var day = firstCell.plusDays(index);
@@ -122,10 +126,10 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
             cell.addClassName("calendar-day-outside");
         }
         if (isSelectable(day) && inMonth) {
-            var chosen = selection.contains(day);
-            cell.getElement().setAttribute("aria-pressed", String.valueOf(chosen));
+            cell.getElement().setAttribute("aria-pressed", String.valueOf(selection.contains(day)));
             cell.setAriaLabel(DateText.full(this, day));
             cell.addClickListener(ignored -> toggle(day));
+            cells.put(day, cell);
         } else {
             cell.setEnabled(false);
         }
@@ -143,12 +147,25 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
                 && day.getDayOfWeek() != DayOfWeek.SUNDAY;
     }
 
+    /**
+     * The paint is driven entirely by aria-pressed, so a tap flips that attribute on
+     * the cell rather than rebuilding the month. Rebuilding would discard the button
+     * that was just pressed, and with it the caret of anybody selecting days from the
+     * keyboard.
+     */
     private void toggle(LocalDate day) {
         if (!selection.remove(day)) {
             selection.add(day);
         }
-        renderGrid();
+        markPressed(day);
         updateValue();
+    }
+
+    private void markPressed(LocalDate day) {
+        var cell = cells.get(day);
+        if (cell != null) {
+            cell.getElement().setAttribute("aria-pressed", String.valueOf(selection.contains(day)));
+        }
     }
 
     /**

@@ -30,6 +30,7 @@ import com.vaadin.flow.router.RouteParameters;
 import io.binarycodes.findadate.Application;
 import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.DateText;
+import io.binarycodes.findadate.people.ui.TeamField;
 import io.binarycodes.findadate.poll.domain.PollState;
 import io.binarycodes.findadate.poll.ui.component.DayBallot;
 import io.binarycodes.findadate.poll.ui.component.DayPoster;
@@ -134,7 +135,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @DisplayName("carries a new poll from its name through to the share screen")
     void createAndShare() {
         UI.getCurrent().navigate(NewPollView.class);
-        var slug = presenter().create("Roadmap workshop");
+        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
         presenter().chooseDays(slug, Set.copyOf(presenter().poll(OFFSITE).orElseThrow()
                 .candidateDays().stream().limit(2).toList()));
 
@@ -173,9 +174,21 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("the create form sends the poll to whoever the team field was left holding")
+    void theTeamFieldDecidesWhoIsInvited() {
+        UI.getCurrent().navigate(NewPollView.class);
+        var miro = presenter().everyone().get(1);
+
+        teamField().setValue(Set.of(miro));
+
+        assertThat(teamField().chosenInOrder()).containsExactly(presenter().viewer(), miro);
+        assertThat(textOf(currentView())).contains("2 of 7");
+    }
+
+    @Test
     @DisplayName("choosing days on the calendar and sending opens the poll")
     void choosingDaysAndSending() {
-        var slug = presenter().create("Roadmap workshop");
+        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
         navigateToPoll(CandidateDaysView.class, slug);
         var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
 
@@ -192,9 +205,41 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("keeps the very button you tapped, so a keyboard caret survives a tap")
+    void tappingDoesNotRebuildTheControl() {
+        presenter().switchViewer(presenter().poll(OFFSITE).orElseThrow().awaiting().getFirst());
+        navigateToPoll(BallotView.class, OFFSITE);
+        var rowsBefore = dayRows();
+
+        tap(rowsBefore.getFirst());
+
+        assertThat(dayRows()).containsExactlyElementsOf(rowsBefore);
+        assertThat(rowsBefore.getFirst().getElement().getAttribute("aria-pressed")).isEqualTo("true");
+        assertThat(ballotField().getValue()).hasSize(1);
+
+        tap(rowsBefore.getFirst());
+
+        assertThat(dayRows()).containsExactlyElementsOf(rowsBefore);
+        assertThat(ballotField().getValue()).isEmpty();
+    }
+
+    private List<NativeButton> dayRows() {
+        return componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(row -> row.getClassNames().contains("day-row"))
+                .toList();
+    }
+
+    /** What the client sends when a native button is pressed. */
+    private void tap(NativeButton row) {
+        ComponentUtil.fireEvent(row, new ClickEvent<>(row));
+    }
+
+    @Test
     @DisplayName("refuses to send a poll with nothing on the table")
     void sendingAnEmptyPoll() {
-        var slug = presenter().create("Roadmap workshop");
+        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
         navigateToPoll(CandidateDaysView.class, slug);
 
         click("Send to the team");
@@ -298,6 +343,14 @@ class PollJourneyTest extends SpringBrowserlessTest {
                 .orElseThrow(() -> new AssertionError("No way home from "
                         + currentView().getClass().getSimpleName()));
         ComponentUtil.fireEvent(home, new ClickEvent<>(home));
+    }
+
+    private TeamField teamField() {
+        return componentsOf(currentView())
+                .filter(TeamField.class::isInstance)
+                .map(TeamField.class::cast)
+                .findFirst()
+                .orElseThrow();
     }
 
     private DayBallot ballotField() {

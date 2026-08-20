@@ -76,7 +76,7 @@ class PollPresenterTest {
     @Test
     @DisplayName("carries a new poll from a name to a sent poll")
     void createChooseSend() {
-        var slug = presenter.create("Roadmap workshop");
+        var slug = presenter.create("Roadmap workshop", Set.copyOf(presenter.everyone()));
         var monday = LocalDate.of(2026, 9, 7);
 
         presenter.chooseDays(slug, Set.of(monday));
@@ -89,6 +89,43 @@ class PollPresenterTest {
         assertThat(poll.organizer()).isEqualTo(presenter.viewer());
         assertThat(presenter.isOrganizer(poll)).isTrue();
         assertThat(poll.inviteCount()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("sends a poll only to the people it was created for")
+    void createForASubsetOfTheTeam() {
+        var miro = directory.byId("miro").orElseThrow();
+        var sara = directory.byId("sara").orElseThrow();
+
+        var slug = presenter.create("Roadmap workshop", Set.of(miro, sara));
+        var poll = presenter.poll(slug).orElseThrow();
+
+        assertThat(poll.invited()).containsExactly(presenter.viewer(), miro, sara);
+        assertThat(poll.inviteCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("keeps the organizer in even when the form left them out")
+    void theOrganizerIsAlwaysInvited() {
+        var miro = directory.byId("miro").orElseThrow();
+
+        var slug = presenter.create("Roadmap workshop", Set.of(miro));
+        var poll = presenter.poll(slug).orElseThrow();
+
+        assertThat(poll.invited()).contains(presenter.viewer());
+        assertThat(poll.organizer()).isEqualTo(presenter.viewer());
+    }
+
+    @Test
+    @DisplayName("invites in directory order however the set arrived")
+    void inviteesKeepDirectoryOrder() {
+        var lena = directory.byId("lena").orElseThrow();
+        var miro = directory.byId("miro").orElseThrow();
+
+        var slug = presenter.create("Roadmap workshop", Set.of(lena, miro));
+
+        assertThat(presenter.poll(slug).orElseThrow().invited())
+                .containsExactly(presenter.viewer(), miro, lena);
     }
 
     @Test

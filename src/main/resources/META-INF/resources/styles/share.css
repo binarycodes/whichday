@@ -54,14 +54,34 @@
   text-decoration: none;
 }
 
+/* A button that opens the picker, dressed as the field the design draws — so it
+   still reads as part of the form rather than as an action. */
 .team-field {
   display: flex;
   align-items: center;
   gap: var(--vaadin-gap-s);
+  width: 100%;
   min-height: 3.25rem;
   padding: 0 var(--vaadin-padding-l);
   border: 1px solid var(--color-outline);
   border-radius: var(--vaadin-radius-m);
   background: var(--color-surface-veiled);
+  font: inherit;
+  color: var(--color-ink);
+  text-align: start;
+  cursor: pointer;
   --vaadin-avatar-size: 1.625rem;
+}
+
+.team-field:hover {
+  border-color: var(--color-outline-ink);
+}
+
+/* The field wrapper contributes nothing: the box is the whole control. */
+.team-picker-field::part(label) {
+  display: none;
+}
+
+.team-picker .person-row {
+  --vaadin-avatar-size: 2rem;
 }
