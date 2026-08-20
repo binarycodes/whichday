@@ -11,6 +11,8 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
@@ -38,7 +40,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * account becomes an invitation rather than an error.
  */
 @Route("new/invitees")
-public class InviteeSearchView extends Screen implements HasDynamicTitle {
+public class InviteeSearchView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
     /** The design's rule: fire at three characters, debounced. */
     private static final int SEARCH_DEBOUNCE_MILLIS = 250;
@@ -51,6 +53,15 @@ public class InviteeSearchView extends Screen implements HasDynamicTitle {
 
     public InviteeSearchView(PollPresenter presenter) {
         this.presenter = presenter;
+    }
+
+    /**
+     * Built on navigation rather than in the constructor: Vaadin reuses a view instance
+     * when the route it is asked for is the one already showing, so a constructor-only
+     * build leaves whatever it drew the first time.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         render();
     }
 

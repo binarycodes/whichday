@@ -6,6 +6,8 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
@@ -25,12 +27,21 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * somebody and coming back loses nothing.
  */
 @Route("new")
-public class NewPollView extends Screen implements HasDynamicTitle {
+public class NewPollView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
     private final PollPresenter presenter;
 
     public NewPollView(PollPresenter presenter) {
         this.presenter = presenter;
+    }
+
+    /**
+     * Built on navigation rather than in the constructor: Vaadin reuses a view instance
+     * when the route it is asked for is the one already showing, so a constructor-only
+     * build leaves whatever it drew the first time.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         render();
     }
 

@@ -37,6 +37,7 @@ import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.AccountSwitcher;
 import io.binarycodes.whichday.poll.domain.PollState;
+import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
 import io.binarycodes.whichday.poll.ui.component.DayPoster;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
@@ -57,6 +58,48 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
     @Autowired
     private ApplicationContext context;
+
+    @Test
+    @DisplayName("lists a draft on its own, between the live polls and the settled ones")
+    void draftsHaveTheirOwnSection() {
+        presenter().draft().reset();
+        presenter().draft().rename("Roadmap workshop");
+        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
+        var slug = presenter().createFromDraft();
+
+        UI.getCurrent().navigate(PollsView.class);
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains("Drafts", "Roadmap workshop", "No days chosen yet");
+        // Not counted as needing an answer, because nobody has been asked for one.
+        assertThat(screen).doesNotContain("3 polls need you");
+        assertThat(presenter().openPolls()).extracting(PollSummary::slug).doesNotContain(slug);
+    }
+
+    @Test
+    @DisplayName("a draft is edited from the list, or deleted after it asks")
+    void editingAndDeletingADraft() {
+        presenter().draft().reset();
+        presenter().draft().rename("Roadmap workshop");
+        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
+        var slug = presenter().createFromDraft();
+        UI.getCurrent().navigate(PollsView.class);
+
+        click("Edit");
+        assertThat(currentView()).isInstanceOf(CandidateDaysView.class);
+
+        UI.getCurrent().navigate(PollsView.class);
+        click("Delete");
+
+        // Asks on the row rather than acting on the first tap.
+        assertThat(textOf(currentView())).contains("Delete this draft?");
+        assertThat(presenter().poll(slug)).isPresent();
+
+        click("Delete");
+
+        assertThat(presenter().poll(slug)).isEmpty();
+        assertThat(textOf(currentView())).doesNotContain("Roadmap workshop");
+    }
 
     @Test
     @DisplayName("opens on the poll list, with the offsite and the settled ones")

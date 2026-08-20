@@ -284,6 +284,40 @@ class PollServiceTest {
     }
 
     @Test
+    @DisplayName("keeps a draft out of the polls that are out with the team")
+    void draftsAreListedApart() {
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
+
+        assertThat(service.openPolls(organizer())).extracting(PollSummary::slug).doesNotContain(slug);
+        assertThat(service.settledPolls(organizer())).extracting(PollSummary::slug).doesNotContain(slug);
+        assertThat(service.draftPolls(organizer())).extracting(PollSummary::slug).containsExactly(slug);
+    }
+
+    @Test
+    @DisplayName("shows a draft to nobody but the person who named it")
+    void draftsArePrivate() {
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
+
+        assertThat(service.draftPolls(jonas())).extracting(PollSummary::slug).doesNotContain(slug);
+        assertThat(service.draftPolls(organizer())).extracting(PollSummary::slug).containsExactly(slug);
+    }
+
+    @Test
+    @DisplayName("discards a draft, and refuses to discard a poll that has gone out")
+    void deletingDrafts() {
+        var draft = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
+
+        service.deleteDraft(draft);
+
+        assertThat(service.poll(draft)).isEmpty();
+        assertThat(service.draftPolls(organizer())).isEmpty();
+        assertThatThrownBy(() -> service.deleteDraft(OFFSITE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot be discarded");
+        assertThat(service.poll(OFFSITE)).isPresent();
+    }
+
+    @Test
     @DisplayName("refuses an answer to a poll that was never sent")
     void refusesAnswersBeforeSending() {
         var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());

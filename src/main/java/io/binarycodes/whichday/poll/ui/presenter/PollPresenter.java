@@ -73,6 +73,15 @@ public class PollPresenter {
         return polls.openPolls(viewer());
     }
 
+    /** The viewer's own unsent polls. */
+    public List<PollSummary> draftPolls() {
+        return polls.draftPolls(viewer());
+    }
+
+    public void deleteDraft(String slug) {
+        polls.deleteDraft(slug);
+    }
+
     public List<PollSummary> settledPolls() {
         return polls.settledPolls(viewer());
     }

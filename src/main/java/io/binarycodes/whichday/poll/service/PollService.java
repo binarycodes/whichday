@@ -138,12 +138,36 @@ public class PollService {
         return Optional.ofNullable(polls.get(slug)).map(this::snapshot);
     }
 
-    /** Polls still waiting on somebody, newest first. */
+    /** Polls that are out with the team, whether or not they are still taking answers. */
     public synchronized List<PollSummary> openPolls(Person viewer) {
         return polls.values().stream()
                 .map(stored -> summary(stored, viewer))
-                .filter(summary -> !summary.isSettled())
+                .filter(summary -> !summary.isSettled() && !summary.isDraft())
                 .toList();
+    }
+
+    /**
+     * Polls this person named and never sent. Only theirs: a draft has been shown to
+     * nobody, so it is not a poll anybody else has any business seeing.
+     */
+    public synchronized List<PollSummary> draftPolls(Person viewer) {
+        return polls.values().stream()
+                .map(stored -> summary(stored, viewer))
+                .filter(PollSummary::isDraft)
+                .filter(summary -> summary.askedBy().equals(viewer))
+                .toList();
+    }
+
+    /**
+     * Throws away a draft. Only a draft: a poll that has gone out has answers in it
+     * and people waiting on it, and discarding one is a decision this does not make.
+     */
+    public synchronized void deleteDraft(String slug) {
+        var stored = require(slug);
+        if (stateOf(stored) != PollState.DRAFT) {
+            throw new IllegalStateException("Poll " + slug + " has been sent and cannot be discarded");
+        }
+        polls.remove(slug);
     }
 
     public synchronized List<PollSummary> settledPolls(Person viewer) {

@@ -29,6 +29,11 @@ public record PollSummary(String slug,
         return state == PollState.LOCKED;
     }
 
+    /** Named but never sent. Nobody else can see it, so nobody else is waiting on it. */
+    public boolean isDraft() {
+        return state == PollState.DRAFT;
+    }
+
     /** Voting is over; whether it produced a date is the organizer's to confirm. */
     public boolean isClosed() {
         return state == PollState.CLOSED;

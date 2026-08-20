@@ -7,6 +7,9 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
@@ -20,6 +23,7 @@ import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.poll.domain.PollSummary;
+import io.binarycodes.whichday.poll.ui.component.DraftRow;
 import io.binarycodes.whichday.poll.ui.component.PollRow;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
@@ -28,12 +32,21 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * the ones already settled underneath.
  */
 @Route("")
-public class PollsView extends Screen implements HasDynamicTitle {
+public class PollsView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
     private final PollPresenter presenter;
 
     public PollsView(PollPresenter presenter) {
         this.presenter = presenter;
+    }
+
+    /**
+     * Built on navigation rather than in the constructor: Vaadin reuses a view instance
+     * when the route it is asked for is the one already showing, so a constructor-only
+     * build leaves whatever it drew the first time.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         render();
     }
 
@@ -54,6 +67,11 @@ public class PollsView extends Screen implements HasDynamicTitle {
             rows.addClassNames("stack-m", "push-xl");
             open.forEach(summary -> rows.add(rowFor(summary)));
             body(rows);
+        }
+
+        var drafts = presenter.draftPolls();
+        if (!drafts.isEmpty()) {
+            body(draftSection(drafts));
         }
 
         var settled = presenter.settledPolls();
@@ -130,6 +148,40 @@ public class PollsView extends Screen implements HasDynamicTitle {
                 ui.navigate(BallotView.class, parameters);
             }
         });
+    }
+
+    /**
+     * Between the live polls and the settled ones: a draft is further along than
+     * nothing and further back than sent, and the list reads in that order.
+     */
+    private Div draftSection(List<PollSummary> drafts) {
+        var section = new Div();
+        section.addClassNames("stack-m", "push-3xl");
+        section.add(Typography.sectionLabel(getTranslation("polls.drafts")));
+        var rows = new Div();
+        rows.addClassName("stack");
+        drafts.forEach(draft -> rows.add(draftRow(draft)));
+        section.add(rows);
+        return section;
+    }
+
+    private DraftRow draftRow(PollSummary draft) {
+        return new DraftRow(draft, draftNoteFor(draft),
+                () -> getUI().ifPresent(ui ->
+                        ui.navigate(CandidateDaysView.class, new RouteParameters("slug", draft.slug()))),
+                () -> deleteDraft(draft));
+    }
+
+    private String draftNoteFor(PollSummary draft) {
+        return draft.candidateDayCount() == 0
+                ? getTranslation("polls.draft.noDays")
+                : getTranslation("polls.draft.days", Counts.days(this, draft.candidateDayCount()));
+    }
+
+    private void deleteDraft(PollSummary draft) {
+        presenter.deleteDraft(draft.slug());
+        Notification.show(getTranslation("polls.draft.deleted", draft.title()));
+        render();
     }
 
     private Div settledSection(List<PollSummary> settled) {

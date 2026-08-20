@@ -109,3 +109,47 @@
   line-height: 1;
   color: var(--color-ink-tertiary);
 }
+
+/* A draft is not something to answer, so it takes the quiet list shape the settled
+   polls use rather than a card. Its two actions sit at the end of the line. */
+.draft-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vaadin-gap-m);
+  padding: var(--vaadin-padding-m) 0;
+  border-bottom: 1px solid var(--color-outline-faint);
+}
+
+.draft-row:last-child {
+  border-bottom: none;
+}
+
+.draft-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.draft-title {
+  display: block;
+  font-size: 0.84375rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-note {
+  display: block;
+  margin-top: var(--vaadin-gap-xs);
+  font-size: 0.71875rem;
+  line-height: 1;
+  color: var(--color-ink-tertiary);
+}
+
+/* Asking on the row, so the question takes the line the title had. */
+.draft-confirm {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-ink);
+}
