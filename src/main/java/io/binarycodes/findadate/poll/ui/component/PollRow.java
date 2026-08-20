@@ -44,9 +44,8 @@ public class PollRow extends NativeButton {
      * — so the row is anchored in time even before the team agrees.
      */
     private String monthOf(PollSummary summary) {
-        return summary.hasHeadlineDay()
-                ? DateText.monthAbbreviation(this, summary.headlineDay())
-                : DateText.monthAbbreviation(this, summary.closesAt().toLocalDate());
+        var anchor = summary.hasHeadlineDay() ? summary.headlineDay() : summary.firstCandidateDay();
+        return anchor == null ? "" : DateText.monthAbbreviation(this, anchor);
     }
 
     private Div mainOf(PollSummary summary, String note) {

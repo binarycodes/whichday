@@ -8,7 +8,7 @@
 
 html {
   --screen-max-width: 30rem;
-  --screen-inset: var(--vaadin-padding-l);
+  --screen-inset: 1.375rem;
   font-family: var(--aura-font-family);
 }
 

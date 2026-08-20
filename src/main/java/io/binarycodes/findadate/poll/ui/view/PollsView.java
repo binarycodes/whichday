@@ -3,7 +3,6 @@ package io.binarycodes.findadate.poll.ui.view;
 import java.util.List;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -12,6 +11,7 @@ import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.AppHeader;
 import io.binarycodes.findadate.base.ui.Chip;
 import io.binarycodes.findadate.base.ui.Counts;
@@ -60,9 +60,9 @@ public class PollsView extends Screen implements HasDynamicTitle {
             body(settledSection(settled));
         }
 
-        var start = new Button(getTranslation("polls.new"), new Icon(VaadinIcon.PLUS),
+        var start = Actions.commit(getTranslation("polls.new"),
                 ignored -> getUI().ifPresent(ui -> ui.navigate(NewPollView.class)));
-        start.addClassNames("action", "action-commit");
+        start.setIcon(new Icon(VaadinIcon.PLUS));
         footer(start);
     }
 

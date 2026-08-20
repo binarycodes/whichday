@@ -17,6 +17,8 @@ public class AvatarStack extends Div {
 
     private final int limit;
 
+    private boolean showOverflow = true;
+
     public AvatarStack() {
         this(DEFAULT_LIMIT);
     }
@@ -24,6 +26,15 @@ public class AvatarStack extends Div {
     public AvatarStack(int limit) {
         this.limit = limit;
         addClassName("avatar-stack");
+    }
+
+    /**
+     * Show only the faces that fit and say nothing about the rest — for a field where
+     * a count already follows the stack in words.
+     */
+    public AvatarStack hideOverflow() {
+        this.showOverflow = false;
+        return this;
     }
 
     /** Larger avatars, for the locked screen where the stack is the only content. */
@@ -35,7 +46,7 @@ public class AvatarStack extends Div {
     public AvatarStack show(List<Person> people) {
         removeAll();
         people.stream().limit(limit).map(PersonAvatar::new).forEach(this::add);
-        if (people.size() > limit) {
+        if (showOverflow && people.size() > limit) {
             add(overflow("+" + (people.size() - limit)));
         }
         return this;

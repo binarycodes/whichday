@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
@@ -17,6 +16,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.HintBar;
 import io.binarycodes.findadate.base.ui.TopBar;
@@ -62,9 +62,7 @@ public class NoDayWorksView extends PollScreen {
 
         var warning = new HintBar(VaadinIcon.WARNING,
                 getTranslation("none.warning", poll.organizer().firstName()));
-        var send = new Button(getTranslation("none.send"), ignored -> send());
-        send.addClassNames("action", "action-commit");
-        footer(warning, send);
+        footer(warning, Actions.commit(getTranslation("none.send"), ignored -> send()));
     }
 
     /** Not a control: it states the answer that arriving on this screen already gave. */
@@ -101,15 +99,13 @@ public class NoDayWorksView extends PollScreen {
         var picker = new DatePicker(getTranslation("none.addDay"));
         picker.setMin(presenter.today());
         var dialog = new Dialog(picker);
-        var confirm = new Button(getTranslation("none.addDay"), ignored -> {
+        dialog.getFooter().add(Actions.primary(getTranslation("none.addDay"), ignored -> {
             if (picker.getValue() != null && !proposed.contains(picker.getValue())) {
                 proposed.add(picker.getValue());
                 renderPosters();
             }
             dialog.close();
-        });
-        confirm.addClassNames("action", "action-primary");
-        dialog.getFooter().add(confirm);
+        }));
         dialog.open();
     }
 

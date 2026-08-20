@@ -376,3 +376,15 @@
 .push-xl { margin-block-start: var(--vaadin-gap-xl); }
 .push-2xl { margin-block-start: 2rem; }
 .push-3xl { margin-block-start: 2.75rem; }
+
+/* An icon on its own — back, the month arrows. Square, chromeless, and sized to
+   the icon rather than to a label that is not there. */
+.action-icon {
+  --vaadin-button-height: 1.75rem;
+  --vaadin-button-padding: 0;
+  --vaadin-button-background: transparent;
+  --vaadin-button-border-width: 0;
+  --vaadin-button-text-color: var(--color-ink-secondary);
+  min-width: 1.75rem;
+  flex: none;
+}

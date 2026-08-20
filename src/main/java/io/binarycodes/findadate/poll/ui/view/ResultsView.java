@@ -4,13 +4,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.DateText;
 import io.binarycodes.findadate.base.ui.HintBar;
@@ -74,9 +74,7 @@ public class ResultsView extends PollScreen {
         body(waitingSection(poll));
 
         var reminder = new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder"));
-        var copy = new Button(getTranslation("results.copyLink"), ignored -> copyLink(poll));
-        copy.addClassNames("action", "action-outline");
-        footer(reminder, copy);
+        footer(reminder, Actions.outline(getTranslation("results.copyLink"), ignored -> copyLink(poll)));
     }
 
     private void buildStandings(Poll poll) {
@@ -100,10 +98,8 @@ public class ResultsView extends PollScreen {
         poll.soleHoldout().ifPresent(holdout -> body(nudge(holdout)));
 
         poll.leader().ifPresent(leader -> {
-            var lock = new Button(getTranslation("results.lock", DateText.compact(this, leader.day())),
-                    ignored -> lock(leader));
-            lock.addClassNames("action", "action-commit");
-            footer(lock);
+            footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
+                    ignored -> lock(leader)));
         });
     }
 
@@ -153,16 +149,14 @@ public class ResultsView extends PollScreen {
 
     private HintBar proposalRow(Ballot ballot) {
         var days = ballot.proposedDays().stream().map(day -> DateText.compact(this, day)).toList();
-        var accept = new Button(getTranslation("results.acceptProposal"), ignored -> accept(ballot));
-        accept.addClassNames("action", "action-outline", "action-inline");
+        var accept = Actions.inline(getTranslation("results.acceptProposal"), ignored -> accept(ballot));
         return new HintBar(VaadinIcon.CALENDAR, getTranslation("results.proposal",
                 ballot.voter().firstName(), String.join(", ", days))).outlined().withAction(accept);
     }
 
     private HintBar nudge(Person holdout) {
-        var send = new Button(getTranslation("results.nudge.action"),
+        var send = Actions.inline(getTranslation("results.nudge.action"),
                 ignored -> Notification.show(getTranslation("results.nudged", holdout.firstName())));
-        send.addClassNames("action", "action-outline", "action-inline");
         var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
                 .outlined().withAction(send);
         bar.addClassName("push-xl");

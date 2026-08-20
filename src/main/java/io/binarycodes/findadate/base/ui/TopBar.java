@@ -1,10 +1,8 @@
 package io.binarycodes.findadate.base.ui;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 
 /**
@@ -24,10 +22,7 @@ public class TopBar extends Div {
     }
 
     public TopBar withBack(String label, Runnable onBack) {
-        var back = new Button(new Icon(VaadinIcon.ANGLE_LEFT), ignored -> onBack.run());
-        back.setAriaLabel(label);
-        back.addClassNames("action-link");
-        addComponentAsFirst(back);
+        addComponentAsFirst(Actions.icon(VaadinIcon.ANGLE_LEFT, label, ignored -> onBack.run()));
         return this;
     }
 

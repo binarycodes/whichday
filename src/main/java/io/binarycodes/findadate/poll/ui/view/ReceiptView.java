@@ -2,12 +2,12 @@ package io.binarycodes.findadate.poll.ui.view;
 
 import java.util.Optional;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Chip;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.DateText;
@@ -40,8 +40,7 @@ public class ReceiptView extends PollScreen {
         var ballot = poll.ballotOf(presenter.viewer());
 
         var badge = new Chip(getTranslation("receipt.badge"), Chip.Tone.LIVE);
-        var edit = new Button(getTranslation("receipt.edit"), ignored -> goTo(BallotView.class));
-        edit.addClassName("action-link");
+        var edit = Actions.link(getTranslation("receipt.edit"), ignored -> goTo(BallotView.class));
         var header = new Div(badge, edit);
         header.addClassName("row-between");
         body(header);

@@ -183,6 +183,7 @@ public class PollService {
                 poll.title(),
                 poll.organizer(),
                 headlineDay,
+                poll.candidateDays().stream().findFirst().orElse(headlineDay),
                 poll.closesAt(),
                 poll.candidateDays().size(),
                 poll.answerCount(),

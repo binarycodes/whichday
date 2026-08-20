@@ -4,12 +4,12 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Typography;
 import io.binarycodes.findadate.people.ui.PersonAvatar;
 import io.binarycodes.findadate.poll.domain.DayTally;
@@ -58,9 +58,7 @@ public class BallotView extends PollScreen {
         body(ballot);
 
         progress.addClassNames("row-between", "meta");
-        var submit = new Button(getTranslation("ballot.submit"), ignored -> submit(poll));
-        submit.addClassNames("action", "action-primary");
-        footer(progress, submit);
+        footer(progress, Actions.primary(getTranslation("ballot.submit"), ignored -> submit(poll)));
         renderProgress(poll);
     }
 
@@ -92,9 +90,7 @@ public class BallotView extends PollScreen {
     private void renderProgress(Poll poll) {
         progress.removeAll();
         progress.add(new Span(getTranslation("ballot.selected", chosen.size(), poll.candidateDays().size())));
-        var none = new Button(getTranslation("ballot.noneWork"), ignored -> goTo(NoDayWorksView.class));
-        none.addClassName("action-link");
-        progress.add(none);
+        progress.add(Actions.link(getTranslation("ballot.noneWork"), ignored -> goTo(NoDayWorksView.class)));
     }
 
     private void submit(Poll poll) {

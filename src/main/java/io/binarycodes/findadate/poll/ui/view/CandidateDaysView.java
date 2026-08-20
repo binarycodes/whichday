@@ -4,11 +4,11 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Chip;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.DateText;
@@ -55,9 +55,7 @@ public class CandidateDaysView extends PollScreen {
 
         summary.addClassNames("row-between", "divider-top");
         chips.addClassNames("chip-row", "push-m");
-        var send = new Button(getTranslation("days.send"), ignored -> send());
-        send.addClassNames("action", "action-commit");
-        footer(summary, chips, send);
+        footer(summary, chips, Actions.commit(getTranslation("days.send"), ignored -> send()));
         renderChosen();
     }
 
@@ -67,9 +65,7 @@ public class CandidateDaysView extends PollScreen {
                 ? getTranslation("days.none")
                 : getTranslation("days.onTheTable", Counts.days(this, chosen.size()))));
         if (!chosen.isEmpty()) {
-            var clear = new Button(getTranslation("days.clear"), ignored -> clear());
-            clear.addClassName("action-link");
-            summary.add(clear);
+            summary.add(Actions.link(getTranslation("days.clear"), ignored -> clear()));
         }
 
         chips.removeAll();

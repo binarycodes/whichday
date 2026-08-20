@@ -1,6 +1,5 @@
 package io.binarycodes.findadate.poll.ui.view;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -11,6 +10,7 @@ import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.AppHeader;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.Screen;
@@ -25,6 +25,9 @@ import io.binarycodes.findadate.poll.ui.presenter.PollPresenter;
  */
 @Route("new")
 public class NewPollView extends Screen implements HasDynamicTitle {
+
+    /** Enough faces to say "a team", without turning the field into a list. */
+    private static final int TEAM_FACES = 3;
 
     private final PollPresenter presenter;
     private final Binder<PollDraft> binder = new Binder<>(PollDraft.class);
@@ -50,8 +53,9 @@ public class NewPollView extends Screen implements HasDynamicTitle {
         fields.addClassNames("field-column", "push-2xl");
         body(fields);
 
-        var next = new Button(getTranslation("create.next"), new Icon(VaadinIcon.ARROW_RIGHT), ignored -> create());
-        next.addClassNames("action", "action-primary");
+        var next = Actions.primary(getTranslation("create.next"), ignored -> create());
+        next.setIcon(new Icon(VaadinIcon.ARROW_RIGHT));
+        next.setIconAfterText(true);
         var footnote = Typography.meta(getTranslation("create.footnote"));
         footnote.addClassNames("meta-faint", "meta-centred");
         footer(next, footnote);
@@ -80,7 +84,7 @@ public class NewPollView extends Screen implements HasDynamicTitle {
      */
     private Div teamField() {
         var people = presenter.everyone();
-        var stack = new AvatarStack(3).show(people);
+        var stack = new AvatarStack(TEAM_FACES).hideOverflow().show(people);
         var summary = Typography.meta(getTranslation("create.team",
                 presenter.teamName(), Counts.people(this, people.size())));
         summary.addClassName("meta-faint");

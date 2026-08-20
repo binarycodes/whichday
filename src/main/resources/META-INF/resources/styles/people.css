@@ -10,7 +10,7 @@
 /* Overlap, with a ring in the surface colour so the stack reads as a stack
    rather than as one wide smudge. */
 .avatar-stack > * + * {
-  margin-inline-start: -0.5rem;
+  margin-inline-start: -0.4375rem;
 }
 
 .avatar-stack > * {
@@ -81,4 +81,11 @@
 .waiting-chip {
   padding-inline-start: var(--vaadin-padding-xs);
   --vaadin-avatar-size: 1.375rem;
+}
+
+/* The account avatar opens the viewer menu, so it wants a pointer — it carries no
+   other affordance, exactly as the design draws it. */
+.account-avatar {
+  --vaadin-avatar-size: 1.875rem;
+  cursor: pointer;
 }

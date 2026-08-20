@@ -1,6 +1,5 @@
 package io.binarycodes.findadate.poll.ui.view;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -9,6 +8,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
 
+import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.Counts;
 import io.binarycodes.findadate.base.ui.DateText;
 import io.binarycodes.findadate.base.ui.HintBar;
@@ -52,11 +52,9 @@ public class ShareView extends PollScreen {
 
         var closes = new HintBar(VaadinIcon.CLOCK, getTranslation("share.closes",
                 DateText.closing(this, poll.closesAt() == null ? presenter.now() : poll.closesAt())));
-        var send = new Button(poll.inviteCount() == 1
+        footer(closes, Actions.primary(poll.inviteCount() == 1
                 ? getTranslation("share.send.one")
-                : getTranslation("share.send.many", poll.inviteCount()), ignored -> send());
-        send.addClassNames("action", "action-primary");
-        footer(closes, send);
+                : getTranslation("share.send.many", poll.inviteCount()), ignored -> send()));
     }
 
     private Div linkCard(Poll poll) {
@@ -66,8 +64,8 @@ public class ShareView extends PollScreen {
         var text = new Div(label, url);
         text.addClassName("link-text");
 
-        var copy = new Button(getTranslation("share.copy"), ignored -> copyLink(poll));
-        copy.addClassNames("action", "action-primary", "action-copy");
+        var copy = Actions.primary(getTranslation("share.copy"), ignored -> copyLink(poll));
+        copy.addClassName("action-copy");
 
         var card = new Div(text, copy);
         card.addClassNames("link-card", "push-xl");
