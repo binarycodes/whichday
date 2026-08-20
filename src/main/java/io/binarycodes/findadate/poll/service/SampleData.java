@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.binarycodes.findadate.people.domain.Person;
-import io.binarycodes.findadate.people.service.TeamDirectory;
+import io.binarycodes.findadate.people.service.AccountDirectory;
 
 /**
  * The data the design was drawn with: the Q3 offsite, seven people, five
@@ -31,14 +31,18 @@ final class SampleData {
     private SampleData() {
     }
 
-    static void seed(PollService service, TeamDirectory directory, Clock clock) {
-        var organizer = directory.byId("ada").orElseThrow();
-        var miro = directory.byId("miro").orElseThrow();
-        var sara = directory.byId("sara").orElseThrow();
-        var tom = directory.byId("tom").orElseThrow();
-        var priya = directory.byId("priya").orElseThrow();
-        var lena = directory.byId("lena").orElseThrow();
-        var everyone = directory.members();
+    static void seed(PollService service, AccountDirectory directory, Clock clock) {
+        var organizer = directory.byEmail("ada.lindqvist@acme.com").orElseThrow();
+        var miro = directory.byEmail("m.kallio@acme.com").orElseThrow();
+        var sara = directory.byEmail("sara.naslund@acme.com").orElseThrow();
+        var tom = directory.byEmail("tom.beck@acme.com").orElseThrow();
+        var priya = directory.byEmail("priya.rao@acme.com").orElseThrow();
+        var lena = directory.byEmail("lena.fors@acme.com").orElseThrow();
+        // The seven the design draws, not every account there is: the directory also
+        // holds people outside this team, so that searching has something to narrow.
+        var everyone = List.of(organizer, miro, sara, tom, priya,
+                directory.byEmail("jonas.wirtanen@acme.com").orElseThrow(),
+                lena);
 
         var monday = firstMondayAfter(LocalDate.now(clock));
         var day14 = monday.plusDays(OFFSET_MON);

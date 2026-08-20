@@ -22,7 +22,7 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 import io.binarycodes.findadate.people.domain.Person;
-import io.binarycodes.findadate.people.service.TeamDirectory;
+import io.binarycodes.findadate.people.service.AccountDirectory;
 import io.binarycodes.findadate.poll.domain.Ballot;
 import io.binarycodes.findadate.poll.domain.DayTally;
 import io.binarycodes.findadate.poll.domain.Poll;
@@ -47,7 +47,7 @@ public class PollService {
     private final AtomicInteger slugSuffix = new AtomicInteger();
     private final Clock clock;
 
-    public PollService(Clock clock, TeamDirectory directory) {
+    public PollService(Clock clock, AccountDirectory directory) {
         this.clock = clock;
         SampleData.seed(this, directory, clock);
     }
@@ -157,7 +157,7 @@ public class PollService {
 
     private List<Person> votersFor(StoredPoll stored, LocalDate day) {
         return stored.invited().stream()
-                .filter(person -> Optional.ofNullable(stored.ballots().get(person.id()))
+                .filter(person -> Optional.ofNullable(stored.ballots().get(person.email()))
                         .map(ballot -> ballot.chosenDays().contains(day))
                         .orElse(false))
                 .toList();
@@ -165,7 +165,7 @@ public class PollService {
 
     private List<Ballot> ballots(StoredPoll stored) {
         return stored.invited().stream()
-                .map(person -> stored.ballots().get(person.id()))
+                .map(person -> stored.ballots().get(person.email()))
                 .filter(Objects::nonNull)
                 .map(ballot -> new Ballot(ballot.voter(),
                         Set.copyOf(ballot.chosenDays()),
@@ -190,6 +190,23 @@ public class PollService {
                 poll.inviteCount(),
                 poll.ballotOf(viewer).isPresent(),
                 poll.state());
+    }
+
+    /**
+     * How often two people have answered the same poll — what tells an organizer that
+     * a search hit is the colleague they meant rather than a stranger with a similar
+     * address.
+     */
+    public synchronized int pollsSharedBy(Person viewer, Person other) {
+        return (int) polls.values().stream()
+                .filter(stored -> stored.ballots().containsKey(viewer.email()))
+                .filter(stored -> stored.ballots().containsKey(other.email()))
+                .count();
+    }
+
+    /** Somebody the organizer thought of after sending it out. */
+    public synchronized void addInvitee(String slug, Person invitee) {
+        require(slug).invite(invitee);
     }
 
     private LocalDateTime defaultClosingMoment() {

@@ -15,10 +15,6 @@ public final class Counts {
         return owner.getTranslation(count == 1 ? "count.days.one" : "count.days.many", count);
     }
 
-    public static String people(Component owner, int count) {
-        return owner.getTranslation(count == 1 ? "count.people.one" : "count.people.many", count);
-    }
-
     public static String progress(Component owner, int answered, int invited) {
         return owner.getTranslation("count.progress", answered, invited);
     }

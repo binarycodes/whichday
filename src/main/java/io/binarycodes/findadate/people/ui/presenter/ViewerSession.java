@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 
 import io.binarycodes.findadate.people.domain.Person;
-import io.binarycodes.findadate.people.service.TeamDirectory;
+import io.binarycodes.findadate.people.service.AccountDirectory;
 
 /**
  * Who this browser is. Session-scoped because it is a property of the session and
@@ -21,11 +21,11 @@ import io.binarycodes.findadate.people.service.TeamDirectory;
 @VaadinSessionScope
 public class ViewerSession {
 
-    private final TeamDirectory directory;
+    private final AccountDirectory directory;
 
     private Person viewer;
 
-    public ViewerSession(TeamDirectory directory) {
+    public ViewerSession(AccountDirectory directory) {
         this.directory = directory;
         this.viewer = directory.defaultViewer();
     }
@@ -38,11 +38,8 @@ public class ViewerSession {
         this.viewer = person;
     }
 
+    /** Only the account switcher asks for this; nothing in the product lists people. */
     public List<Person> everyone() {
-        return directory.members();
-    }
-
-    public String teamName() {
-        return directory.teamName();
+        return directory.allForSwitcher();
     }
 }

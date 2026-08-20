@@ -46,6 +46,11 @@ the counts", and the design never draws that screen. The results view grows a
 the only thing that makes the promise true — and the only thing that makes
 `PollService.acceptProposal` reachable.
 
+**Invitee chips truncate the address; they do not abbreviate it.** The design's
+chips read `miro@…`, cutting the domain. Here the chip holds the whole address and
+lets CSS truncate it, with the full one on the chip's tooltip and in the Added list
+underneath — one rule instead of a rule plus an abbreviation scheme to get wrong.
+
 **The receipt's standings show every day on the table.** The design's receipt draws
 three bars, and the voter it draws had said yes to three of five days — so the three
 bars are as easily "the days you chose" as "the leading three". Neither truncation

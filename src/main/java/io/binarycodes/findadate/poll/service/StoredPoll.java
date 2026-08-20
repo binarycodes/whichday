@@ -3,6 +3,7 @@ package io.binarycodes.findadate.poll.service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,7 +21,7 @@ class StoredPoll {
 
     private final String slug;
     private final Person organizer;
-    private final List<Person> invited;
+    private final List<Person> invited = new ArrayList<>();
     private final Map<String, StoredBallot> ballots = new LinkedHashMap<>();
     private final Set<LocalDate> candidateDays = new LinkedHashSet<>();
 
@@ -33,7 +34,7 @@ class StoredPoll {
         this.slug = slug;
         this.title = title;
         this.organizer = organizer;
-        this.invited = List.copyOf(invited);
+        invited.forEach(this::invite);
     }
 
     String slug() {
@@ -53,7 +54,14 @@ class StoredPoll {
     }
 
     List<Person> invited() {
-        return invited;
+        return List.copyOf(invited);
+    }
+
+    /** Adding somebody twice would double every denominator they appear in. */
+    void invite(Person person) {
+        if (invited.stream().noneMatch(existing -> existing.email().equals(person.email()))) {
+            invited.add(person);
+        }
     }
 
     Set<LocalDate> candidateDays() {
@@ -99,6 +107,6 @@ class StoredPoll {
     }
 
     void record(StoredBallot ballot) {
-        ballots.put(ballot.voter().id(), ballot);
+        ballots.put(ballot.voter().email(), ballot);
     }
 }

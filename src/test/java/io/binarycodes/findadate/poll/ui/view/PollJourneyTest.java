@@ -25,12 +25,13 @@ import com.vaadin.flow.component.HasText;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.NativeButton;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.findadate.Application;
 import io.binarycodes.findadate.base.ui.Actions;
 import io.binarycodes.findadate.base.ui.DateText;
-import io.binarycodes.findadate.people.ui.TeamField;
+import io.binarycodes.findadate.people.domain.Person;
 import io.binarycodes.findadate.poll.domain.PollState;
 import io.binarycodes.findadate.poll.ui.component.DayBallot;
 import io.binarycodes.findadate.poll.ui.component.DayPoster;
@@ -135,7 +136,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @DisplayName("carries a new poll from its name through to the share screen")
     void createAndShare() {
         UI.getCurrent().navigate(NewPollView.class);
-        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
+        var slug = draftPoll("Roadmap workshop");
         presenter().chooseDays(slug, Set.copyOf(presenter().poll(OFFSITE).orElseThrow()
                 .candidateDays().stream().limit(2).toList()));
 
@@ -174,21 +175,138 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
-    @DisplayName("the create form sends the poll to whoever the team field was left holding")
-    void theTeamFieldDecidesWhoIsInvited() {
-        UI.getCurrent().navigate(NewPollView.class);
-        var miro = presenter().everyone().get(1);
+    @DisplayName("finds somebody from three characters, and nobody from two")
+    void theSearchScreenNeedsThreeCharacters() {
+        openSearchFor("Roadmap workshop");
 
-        teamField().setValue(Set.of(miro));
+        searchFor("sa");
+        assertThat(joinedTextOf(currentView())).doesNotContain("sara.naslund@acme.com");
 
-        assertThat(teamField().chosenInOrder()).containsExactly(presenter().viewer(), miro);
-        assertThat(textOf(currentView())).contains("2 of 7");
+        searchFor("sar");
+        assertThat(joinedTextOf(currentView())).contains("sara.naslund@acme.com", "t.sarkar@acme.com");
+    }
+
+    @Test
+    @DisplayName("adds a match as a chip and stops offering it")
+    void addingAMatch() {
+        openSearchFor("Roadmap workshop");
+        searchFor("sara.nas");
+
+        clickMatchRow();
+
+        assertThat(presenter().draft().invitees()).extracting(Person::email)
+                .containsExactly("sara.naslund@acme.com");
+
+        searchFor("sara.nas");
+        assertThat(textOf(currentView())).doesNotContain("Matches");
+    }
+
+    @Test
+    @DisplayName("offers an address with no account behind it as an invitation")
+    void invitingAnOutsider() {
+        openSearchFor("Roadmap workshop");
+
+        searchFor("lena.ohlsson@studiofern.se");
+
+        var screen = textOf(currentView());
+        assertThat(screen).contains("Invite lena.ohlsson@studiofern.se")
+                .contains("Nothing found. We'll email a voting link instead.");
+
+        click("Invite lena.ohlsson@studiofern.se");
+
+        assertThat(presenter().draft().invitees()).singleElement().satisfies(invitee -> {
+            assertThat(invitee.email()).isEqualTo("lena.ohlsson@studiofern.se");
+            assertThat(invitee.hasAccount()).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("splits a pasted list into chips and keeps the one that is not an address")
+    void pastingAList() {
+        openSearchFor("Roadmap workshop");
+
+        searchFor("tom.beck@acme.com, priya.rao@acme.com\njonas@acme");
+
+        assertThat(presenter().draft().invitees()).extracting(Person::email)
+                .containsExactly("tom.beck@acme.com", "priya.rao@acme.com");
+        assertThat(queryField().getValue()).isEqualTo("jonas@acme");
+    }
+
+    @Test
+    @DisplayName("says so rather than adding somebody twice")
+    void refusingADuplicate() {
+        openSearchFor("Roadmap workshop");
+        searchFor("sara.naslund@acme.com");
+        click("Invite sara.naslund@acme.com");
+
+        searchFor("sara.naslund@acme.com");
+
+        assertThat(queryField().isInvalid()).isTrue();
+        assertThat(queryField().getErrorMessage()).contains("Sara");
+        assertThat(presenter().draft().invitees()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("will not leave the search with nobody on the poll")
+    void cannotLeaveEmpty() {
+        openSearchFor("Roadmap workshop");
+
+        assertThat(buttonLabelled(translation("create.next")).isEnabled()).isFalse();
+    }
+
+    /**
+     * The same text with nothing between the pieces — the matched run of an address is
+     * its own bold span, so an address only reads as one string once they are joined.
+     */
+    private String joinedTextOf(Component root) {
+        return textOf(root).replace("\n", "");
+    }
+
+    private String translation(String key) {
+        return UI.getCurrent().getTranslation(key);
+    }
+
+    private Button buttonLabelled(String label) {
+        return componentsOf(currentView())
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> label.equals(button.getText()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void openSearchFor(String title) {
+        presenter().draft().reset();
+        presenter().draft().rename(title);
+        UI.getCurrent().navigate(InviteeSearchView.class);
+    }
+
+    private TextField queryField() {
+        return componentsOf(currentView())
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void searchFor(String query) {
+        queryField().setValue(query);
+    }
+
+    private void clickMatchRow() {
+        var row = componentsOf(currentView())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(candidate -> candidate.getClassNames().contains("match-row"))
+                .findFirst()
+                .orElseThrow();
+        ComponentUtil.fireEvent(row, new ClickEvent<>(row));
     }
 
     @Test
     @DisplayName("choosing days on the calendar and sending opens the poll")
     void choosingDaysAndSending() {
-        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
+        var slug = draftPoll("Roadmap workshop");
         navigateToPoll(CandidateDaysView.class, slug);
         var monday = presenter().today().plusWeeks(2).with(java.time.DayOfWeek.MONDAY);
 
@@ -198,7 +316,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(currentView()).isInstanceOf(ShareView.class);
         assertThat(presenter().poll(slug).orElseThrow().candidateDays()).containsExactly(monday);
 
-        click("Send 7 invites");
+        click("Send " + presenter().poll(slug).orElseThrow().inviteCount() + " invites");
 
         assertThat(presenter().poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
         assertThat(currentView()).isInstanceOf(ResultsView.class);
@@ -239,7 +357,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("refuses to send a poll with nothing on the table")
     void sendingAnEmptyPoll() {
-        var slug = presenter().create("Roadmap workshop", Set.copyOf(presenter().everyone()));
+        var slug = draftPoll("Roadmap workshop");
         navigateToPoll(CandidateDaysView.class, slug);
 
         click("Send to the team");
@@ -345,14 +463,6 @@ class PollJourneyTest extends SpringBrowserlessTest {
         ComponentUtil.fireEvent(home, new ClickEvent<>(home));
     }
 
-    private TeamField teamField() {
-        return componentsOf(currentView())
-                .filter(TeamField.class::isInstance)
-                .map(TeamField.class::cast)
-                .findFirst()
-                .orElseThrow();
-    }
-
     private DayBallot ballotField() {
         return componentsOf(currentView())
                 .filter(DayBallot.class::isInstance)
@@ -387,6 +497,14 @@ class PollJourneyTest extends SpringBrowserlessTest {
                 .orElseThrow(() -> new AssertionError("No button matching " + description
                         + " on " + currentView().getClass().getSimpleName()));
         ComponentUtil.fireEvent(button, new ClickEvent<>(button));
+    }
+
+    /** A poll built the way the create screens build one: name it, add somebody, create. */
+    private String draftPoll(String title) {
+        presenter().draft().reset();
+        presenter().draft().rename(title);
+        presenter().draft().invite(presenter().inviteeFor("t.sarkar@acme.com"));
+        return presenter().createFromDraft();
     }
 
     private PollPresenter presenter() {

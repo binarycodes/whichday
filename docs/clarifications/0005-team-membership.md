@@ -2,41 +2,69 @@
 
 ## Decided
 
-The organizer picks. The create screen's second field, "Who decides with you",
-shows the chosen team the way the design draws it — three overlapping faces and a
-summary — and tapping it opens the list to check people off. `TeamField` is a
-`CustomField<Set<Person>>`, so it goes through the form's `Binder` like any other
-field (`CODING_CONVENTIONS.md` §5).
+There is no team and no directory. The only way anybody gets onto a poll is the
+organizer typing their email address — the model section C of the design sets out,
+and a replacement for the browsable member list this file used to describe.
 
-Everybody is selected to start with, which is the common case and matches what the
-design shows. The summary says "Design team · 7 people" while that holds and
-"Design team · 3 of 7" once it does not.
+`AccountDirectory` has no method that hands a screen everybody. `matching` is the
+only way in, and it answers nothing at all below three characters, so nobody is
+listed until the organizer has typed enough to have known who they were looking
+for. `forInvite` turns an address with no account behind it into somebody who can
+still be invited and can still vote.
 
-**The organizer cannot be taken out.** Their checkbox is checked and disabled, and
-`PollPresenter.create` puts them back if a caller leaves them out anyway. They are
-deciding, so their availability has to be counted somewhere — and the design agrees:
-screen 3 lists Ada in her own invite list.
+An invitee is a `Person` either way. An outsider gets one with a blank name, their
+address as `displayName()`, and an avatar tone derived from the address so they are
+the same colour on every screen and after every restart. Nothing downstream —
+tallies, ballots, denominators — knows the difference.
 
-At least one other person is required. That is a `withValidator` on the field
-rather than a check in the submit handler, so it reports itself where the mistake
-was made.
+## Two screens, not an overlay
 
-## What this replaced, and why that was wrong
+Naming a poll and choosing who decides it are separate screens. The search needs a
+keyboard, a result list and a growing set of chips at the same time, and on a phone
+a dialog gives all three the same few hundred pixels.
 
-The field started out read-only, on the reasoning that the design draws no
-affordance for changing it and that a picker would mean deciding where teams come
-from.
+The create screen keeps the design's field: chips that wrap, each removable, and a
+prompt that opens `/new/invitees`. The prompt is text rather than an input, so the
+keyboard only ever opens on the screen that has somewhere to put results.
 
-Both halves were wrong. The design draws no affordance because it draws one state
-of a field, which is what a mockup does — and the plumbing needed no decision at
-all: `PollService.create` already took an invitee list, and `TeamDirectory` already
-had the seven people to choose among. Only the view was hard-coding "everyone". The
-work was a component, not an account system.
+Both write to `PollDraft`, held by the session-scoped presenter. Stepping out to
+search and coming back loses nothing, and abandoning the flow writes no half-built
+poll into the store.
 
-## Consequences
+## The rules, and where they came from
 
-- `inviteCount()` is no longer always seven, so it is read rather than assumed
-  everywhere it matters: the share screen's "Send N invites", the results screen's
-  "N of M", and the denominator every tally bar is filled against.
-- Sample data still invites the whole team, so the design's "6 of 7" arithmetic is
-  unchanged.
+The design's own implementation notes, followed as written:
+
+- **Three characters minimum**, debounced 250ms (`ValueChangeMode.LAZY` with a
+  matching timeout).
+- **Match a whole address as it is typed, or the start of any part of its local
+  part** — so `sar` finds both `sara.naslund@acme.com` and `t.sarkar@acme.com`.
+- **At most five rows**, because a long answer is a directory too.
+- **The organizer never appears as a match** and is added implicitly.
+- **Anything else resolves to an email invite** rather than to an error.
+
+## Where this tightened the spec
+
+The design says matches come from "email prefix or any dot/at-delimited part". Read
+literally that includes the domain, and a search for `acme` would hand five
+colleagues to anybody who guessed a company name — the listing the three-character
+rule exists to prevent. `AccountDirectory` therefore matches the local part only,
+and `doesNotMatchTheDomain` pins it.
+
+The other half of the design's rule — "only accounts that share a workspace or a
+past poll with you" — has nothing to filter against here: every sample account is
+in one workspace. What the sample data does support is the distinction the rows
+show, so `InviteeSearch` counts the polls two people have actually both answered
+and the matches with history sort first.
+
+## Not built
+
+- **Adding people after a poll is live.** `PollService.addInvitee` exists and the
+  design's C2 hint promises it ("You can keep adding people after the poll is
+  live"), but no screen calls it yet. The hint is not shown, rather than shown and
+  broken.
+- **A bounced invite.** C3 names it as a state; there is no mail transport to bounce.
+- **Warning chips for a malformed pasted address.** C3 draws the bad entry as an
+  orange chip. Here it stays in the field with the rest of the paste accepted, on
+  the grounds that an address with a typo in it is worth fixing where it can still
+  be edited — a chip you cannot correct is a worse dead end than a field you can.

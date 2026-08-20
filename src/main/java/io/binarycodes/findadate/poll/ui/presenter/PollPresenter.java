@@ -1,10 +1,10 @@
 package io.binarycodes.findadate.poll.ui.presenter;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,6 +18,8 @@ import io.binarycodes.findadate.people.ui.presenter.ViewerSession;
 import io.binarycodes.findadate.poll.domain.Ballot;
 import io.binarycodes.findadate.poll.domain.Poll;
 import io.binarycodes.findadate.poll.domain.PollSummary;
+import io.binarycodes.findadate.poll.domain.AccountMatch;
+import io.binarycodes.findadate.poll.service.InviteeSearch;
 import io.binarycodes.findadate.poll.service.PollService;
 
 /**
@@ -30,11 +32,14 @@ import io.binarycodes.findadate.poll.service.PollService;
 public class PollPresenter {
 
     private final PollService polls;
+    private final InviteeSearch invitees;
     private final ViewerSession session;
     private final Clock clock;
+    private final PollDraft draft = new PollDraft();
 
-    public PollPresenter(PollService polls, ViewerSession session, Clock clock) {
+    public PollPresenter(PollService polls, InviteeSearch invitees, ViewerSession session, Clock clock) {
         this.polls = polls;
+        this.invitees = invitees;
         this.session = session;
         this.clock = clock;
     }
@@ -43,12 +48,9 @@ public class PollPresenter {
         return session.viewer();
     }
 
+    /** Only the account switcher, which stands in for a login. */
     public List<Person> everyone() {
         return session.everyone();
-    }
-
-    public String teamName() {
-        return session.teamName();
     }
 
     public void switchViewer(Person person) {
@@ -84,15 +86,42 @@ public class PollPresenter {
         return polls.poll(slug);
     }
 
+    /** The poll being put together. Survives the trip to the invitee screen and back. */
+    public PollDraft draft() {
+        return draft;
+    }
+
+    public List<AccountMatch> searchInvitees(String query) {
+        return invitees.matching(query, viewer(), draft.invitees());
+    }
+
+    /** The address itself, whether or not an account answers to it. */
+    public Person inviteeFor(String email) {
+        return invitees.inviteFor(email);
+    }
+
+    public boolean hasAccount(String email) {
+        return invitees.hasAccount(email);
+    }
+
     /**
-     * The organizer is always invited, whatever the form passed: they are deciding,
-     * and their own availability has to be counted somewhere.
+     * The organizer leads the invited list, and the rest keep the order they were
+     * added in — not directory order, which an outsider has no place in. Anybody who
+     * managed to add the organizer to their own draft is not counted twice.
      */
-    public String create(String title, Collection<Person> invited) {
-        var everybody = session.everyone().stream()
-                .filter(person -> invited.contains(person) || person.equals(viewer()))
-                .toList();
-        return polls.create(title, viewer(), everybody);
+    public String createFromDraft() {
+        var everybody = new ArrayList<Person>();
+        everybody.add(viewer());
+        draft.invitees().stream()
+                .filter(invitee -> !invitee.email().equals(viewer().email()))
+                .forEach(everybody::add);
+        var slug = polls.create(draft.title(), viewer(), everybody);
+        draft.reset();
+        return slug;
+    }
+
+    public void addInvitee(String slug, Person person) {
+        polls.addInvitee(slug, person);
     }
 
     public void chooseDays(String slug, Set<LocalDate> days) {

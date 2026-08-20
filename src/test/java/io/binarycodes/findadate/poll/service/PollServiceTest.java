@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import io.binarycodes.findadate.people.domain.Person;
-import io.binarycodes.findadate.people.service.TeamDirectory;
+import io.binarycodes.findadate.people.service.AccountDirectory;
 import io.binarycodes.findadate.poll.domain.DayTally;
 import io.binarycodes.findadate.poll.domain.PollState;
 import io.binarycodes.findadate.poll.domain.PollSummary;
@@ -27,13 +27,13 @@ class PollServiceTest {
     private static final String OFFSITE = "q3-team-offsite";
 
     private Clock clock;
-    private TeamDirectory directory;
+    private AccountDirectory directory;
     private PollService service;
 
     @BeforeEach
     void setUp() {
         clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        directory = new TeamDirectory();
+        directory = new AccountDirectory();
         service = new PollService(clock, directory);
     }
 
@@ -60,7 +60,7 @@ class PollServiceTest {
     @Test
     @DisplayName("ranks by count and breaks a tie by date")
     void ranking() {
-        var slug = service.create("Tie break", organizer(), directory.members());
+        var slug = service.create("Tie break", organizer(), directory.allForSwitcher());
         var monday = LocalDate.of(2026, 9, 7);
         var friday = LocalDate.of(2026, 9, 11);
         service.replaceCandidateDays(slug, List.of(friday, monday));
@@ -152,7 +152,7 @@ class PollServiceTest {
     @Test
     @DisplayName("a new poll is a draft until it is sent, and then it is stamped")
     void sendingOpensThePoll() {
-        var slug = service.create("Roadmap workshop", organizer(), directory.members());
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
         service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
 
         assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.DRAFT);
@@ -168,7 +168,7 @@ class PollServiceTest {
     @Test
     @DisplayName("sending twice keeps the original closing date")
     void sendingIsIdempotent() {
-        var slug = service.create("Roadmap workshop", organizer(), directory.members());
+        var slug = service.create("Roadmap workshop", organizer(), directory.allForSwitcher());
         service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
         service.send(slug);
         var first = service.poll(slug).orElseThrow().closesAt();
@@ -181,9 +181,9 @@ class PollServiceTest {
     @Test
     @DisplayName("builds a readable slug, and keeps two polls of the same name apart")
     void slugs() {
-        assertThat(service.create("Q4 review!", organizer(), directory.members())).isEqualTo("q4-review");
+        assertThat(service.create("Q4 review!", organizer(), directory.allForSwitcher())).isEqualTo("q4-review");
 
-        var second = service.create("Q4 review!", organizer(), directory.members());
+        var second = service.create("Q4 review!", organizer(), directory.allForSwitcher());
 
         assertThat(second).startsWith("q4-review-").isNotEqualTo("q4-review");
     }
@@ -191,7 +191,7 @@ class PollServiceTest {
     @Test
     @DisplayName("a poll with no usable name still gets a slug")
     void slugForANamelessPoll() {
-        assertThat(service.create("!!!", organizer(), directory.members())).isEqualTo("poll");
+        assertThat(service.create("!!!", organizer(), directory.allForSwitcher())).isEqualTo("poll");
     }
 
     @Test
@@ -233,10 +233,10 @@ class PollServiceTest {
     }
 
     private Person organizer() {
-        return directory.byId("ada").orElseThrow();
+        return directory.byEmail("ada.lindqvist@acme.com").orElseThrow();
     }
 
     private Person jonas() {
-        return directory.byId("jonas").orElseThrow();
+        return directory.byEmail("jonas.wirtanen@acme.com").orElseThrow();
     }
 }
