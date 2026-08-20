@@ -35,9 +35,9 @@ public final class Actions {
         return styled(new Button(label, onClick), "action", "action-outline");
     }
 
-    /** A small bordered button sitting inside a hint row. */
+    /** A small bordered button sitting inside a hint row — nudge, accept a proposal. */
     public static Button inline(String label, ComponentEventListener<ClickEvent<Button>> onClick) {
-        return styled(tertiary(new Button(label, onClick)), "action", "action-outline", "action-inline");
+        return styled(new Button(label, onClick), "action", "action-outline", "action-inline");
     }
 
     /** Text that behaves like a link — "Clear", "Edit", "None of these work". */

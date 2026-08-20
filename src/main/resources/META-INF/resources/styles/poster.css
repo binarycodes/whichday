@@ -48,6 +48,12 @@
   letter-spacing: -0.03em;
 }
 
+/* With nothing proposed yet the slot would take the whole row, which reads as a
+   drop zone rather than as one of three days. */
+.poster-add:only-child {
+  flex: 0 1 32%;
+}
+
 /* The slot that adds another proposed day: same footprint, nothing in it yet. */
 .poster-add {
   display: flex;
@@ -74,13 +80,23 @@
   padding-top: var(--vaadin-padding-xl);
 }
 
+/* The body has to claim the leftover height for the date's own auto margin to have
+   anything to push against — otherwise the footer takes it all and the numeral
+   stays hard against the badge. */
+.locked-screen .screen-body {
+  flex: 1;
+}
+
 .locked-badge {
   align-self: flex-start;
   background: color-mix(in oklab, var(--color-accent-contrast) 18%, transparent);
   color: inherit;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
+/* Pushed off the badge and down the screen: the date is the only thing here, so it
+   sits where the eye lands rather than at the top. */
 .locked-date {
   margin-top: auto;
 }

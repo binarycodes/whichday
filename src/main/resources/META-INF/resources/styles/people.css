@@ -5,6 +5,9 @@
   display: flex;
   align-items: center;
   --vaadin-avatar-size: 1.625rem;
+  /* Smaller than the theme's default relative to the circle, so that both initials
+     still clear the avatar overlapping them. */
+  --vaadin-avatar-font-size: 0.625rem;
 }
 
 /* Overlap, with a ring in the surface colour so the stack reads as a stack
@@ -20,6 +23,7 @@
 
 .avatar-stack-l {
   --vaadin-avatar-size: 2.125rem;
+  --vaadin-avatar-font-size: 0.75rem;
 }
 
 .avatar-stack-overflow {
@@ -43,8 +47,24 @@
   color: var(--color-ink-tertiary);
 }
 
+/* The design splits the leftover height twice — above the date and below the faces
+   — so that neither the numeral nor the buttons sit against an edge. */
+.locked-screen .avatar-stack {
+  margin-bottom: auto;
+}
+
+/* On accent paint a tinted avatar goes muddy, so every face turns white and takes
+   the accent as its ink — and the ring becomes the background it sits on. */
 .locked-screen .avatar-stack > * {
   box-shadow: 0 0 0 2px var(--color-accent);
+  --vaadin-avatar-background: var(--color-accent-contrast);
+  --vaadin-avatar-text-color: var(--color-accent);
+  --vaadin-avatar-user-color: var(--color-accent-contrast);
+}
+
+.locked-screen .avatar-stack-overflow {
+  background: color-mix(in oklab, var(--color-accent-contrast) 20%, transparent);
+  color: var(--color-accent-contrast);
 }
 
 .person-row {

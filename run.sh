@@ -76,8 +76,14 @@ task_bundle() {
     echo "Bundle cleared and recompiled. Reload the browser to pick up the new bundle."
 }
 
+# Touching the source file is not enough on its own: spring-boot:run serves the
+# stylesheet from target/classes, so an edited partial has to be copied there
+# before the browser can be told to fetch it again.
 task_styles() {
+    resolve_java_home
     touch_styles
+    run_mvn -o -q process-resources
+    echo "Stylesheets copied. Reload the browser."
 }
 
 # Fetch dependencies. Every other task builds offline, which is what makes a

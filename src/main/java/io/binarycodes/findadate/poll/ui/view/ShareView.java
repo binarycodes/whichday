@@ -43,8 +43,7 @@ public class ShareView extends PollScreen {
                 .withTrailingSpace());
 
         var headline = Typography.displayMedium(getTranslation("share.headline",
-                Counts.days(this, poll.candidateDays().size()),
-                Counts.people(this, poll.inviteCount())));
+                Counts.days(this, poll.candidateDays().size()), poll.inviteCount()));
         headline.addClassName("push-2xl");
         body(headline);
 
