@@ -184,7 +184,7 @@ real name on polls that predate their account.
 Reads still return immutable records, and the entities never leave the service package
 — which is why no screen changed when this stopped being a map in memory. It is H2
 rather than PostgreSQL on purpose:
-[`docs/clarifications/0010-an-embedded-database-on-disk.md`](docs/clarifications/0010-an-embedded-database-on-disk.md)
+[`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 says why.
 
 ## Develop locally
@@ -236,6 +236,7 @@ a desktop.
 
 ## Decisions and known problems
 
-[`docs/clarifications/`](docs/clarifications/) records what was settled deliberately,
-and why. [`docs/issues/`](docs/issues/) records what is wrong and what fixing it would
-take — read that before deploying this anywhere that matters.
+[`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) records what the application has to do
+and every decision taken getting there, with the reason.
+[`docs/issues/`](docs/issues/) records what is wrong and what fixing it would take —
+read that before deploying this anywhere that matters.

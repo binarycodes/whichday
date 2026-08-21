@@ -178,7 +178,7 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
      * Any whole day that has not gone yet, within the range the caller allows and not
      * already ruled out. Weekends included — the design dims them, and a team that
      * wants a Saturday for a leaving lunch should not be told the tool disagrees. See
-     * {@code docs/clarifications/0004-calendar-rules.md}.
+     * {@code docs/REQUIREMENTS.md} §5.
      */
     private boolean isSelectable(LocalDate day) {
         return !day.isBefore(earliestSelectable)

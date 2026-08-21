@@ -11,7 +11,7 @@ share screen shows it; nothing on any screen adds to it. `PollService.addInvitee
 
 So an organizer who forgets somebody has no way to include them — before sending or
 after — and since
-[`../clarifications/0012-only-invited-people-see-a-poll.md`](../clarifications/0012-only-invited-people-see-a-poll.md)
+[`../REQUIREMENTS.md`](../REQUIREMENTS.md) §2
 the forgotten person cannot see the poll at all, let alone answer it. They get the
 not-found screen and no explanation, because the refusal deliberately gives none.
 

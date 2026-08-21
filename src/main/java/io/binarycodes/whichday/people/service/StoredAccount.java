@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
  *
  * <p>This is the only place a name is stored. A poll names people by address, so a
  * name corrected here is corrected on every screen at once — see
- * {@code docs/clarifications/0011-a-poll-stores-addresses.md}.
+ * {@code docs/REQUIREMENTS.md} §10.
  */
 @Entity
 @Table(name = "account")

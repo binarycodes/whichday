@@ -36,7 +36,7 @@ import jakarta.persistence.Transient;
  * a stateful UI from holding a half-updated aggregate.
  *
  * <p>People are addresses here. The names are the account table's, fetched when a
- * snapshot is built — see {@code docs/clarifications/0011-a-poll-stores-addresses.md}.
+ * snapshot is built — see {@code docs/REQUIREMENTS.md} §10.
  *
  * <p>No Lombok, deliberately. Hibernate wants a non-final class and a no-arg
  * constructor, and it reads fields directly — it does not want accessors. Generated

@@ -28,8 +28,8 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
 
 /**
  * Every poll there is, and the counting. State is rows in the database and nothing
- * seeds it — see {@code docs/clarifications/0010-an-embedded-database-on-disk.md} for
- * what it is and why it is not PostgreSQL.
+ * seeds it — see {@code docs/REQUIREMENTS.md} §9 for what it is and why it is not
+ * PostgreSQL.
  *
  * <p>Reads return immutable records built on the spot, so a screen holding one is
  * holding a snapshot rather than a view into the store. A poll stores addresses, and
