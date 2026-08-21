@@ -4,16 +4,13 @@ import jakarta.annotation.security.PermitAll;
 
 import java.util.Optional;
 
-import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Chip;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
-import io.binarycodes.whichday.base.ui.HintBar;
 import io.binarycodes.whichday.base.ui.LiveBadge;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.poll.domain.Ballot;
@@ -52,9 +49,6 @@ public class ReceiptView extends PollScreen {
 
         body(standingsHeader(poll), standings(poll));
 
-        var notify = new HintBar(VaadinIcon.BELL, getTranslation("receipt.notify")).outlined()
-                .withAction(new Checkbox(true));
-        footer(notify);
         if (poll.closesOn() != null) {
             var closes = Typography.meta(getTranslation(
                     poll.isClosed() ? "receipt.closed" : "receipt.closes",

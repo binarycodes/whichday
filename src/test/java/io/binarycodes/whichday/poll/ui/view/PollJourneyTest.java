@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -378,6 +379,41 @@ class PollJourneyTest extends SpringBrowserlessTest {
             assertThat(cells).as("%s renders %d cells, which is not whole weeks", month, cells)
                     .isIn(28L, 35L, 42L);
         }
+    }
+
+    @Test
+    @DisplayName("offers a weekend day like any other, and still refuses one already gone")
+    void theCalendarOffersWeekends() {
+        var id = draftPoll("Leaving lunch");
+        navigateToPoll(CandidateDaysView.class, id);
+        // In the month the calendar opens on, so the cell is a real one rather than an
+        // out-of-month filler.
+        var saturday = presenter().today().with(TemporalAdjusters.next(DayOfWeek.SATURDAY));
+        assertThat(YearMonth.from(saturday)).isEqualTo(YearMonth.from(presenter().today()));
+
+        // Only a selectable cell is given a label, so the labels are the offer.
+        var offered = offeredDays();
+        assertThat(offered).contains(saturday, saturday.plusDays(1));
+        assertThat(offered).noneMatch(day -> day.isBefore(presenter().today()));
+
+        calendarField().setValue(Set.of(saturday));
+        click(translation("days.send"));
+
+        assertThat(presenter().poll(id).orElseThrow().candidateDays()).containsExactly(saturday);
+    }
+
+    /** The days the visible month is actually offering, read off the cells that carry a label. */
+    private Set<LocalDate> offeredDays() {
+        var view = currentView();
+        var month = YearMonth.from(presenter().today());
+        return componentsOf(calendarField())
+                .filter(NativeButton.class::isInstance)
+                .map(NativeButton.class::cast)
+                .filter(cell -> cell.getClassNames().contains("calendar-day"))
+                .flatMap(cell -> cell.getAriaLabel().stream())
+                .flatMap(label -> month.atDay(1).datesUntil(month.plusMonths(2).atDay(1))
+                        .filter(day -> DateText.full(view, day).equals(label)))
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     private int weekdayIn(YearMonth month) {

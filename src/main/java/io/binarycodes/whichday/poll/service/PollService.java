@@ -166,9 +166,17 @@ public class PollService {
      * The poll, if it is this viewer's to see at all. An address nobody invited gets
      * {@code Optional.empty()} — the same answer an id nobody issued gets, so a screen
      * cannot tell the two apart and neither can whoever is holding the link.
+     *
+     * <p>A draft is the organizer's alone, the same rule {@link #draftPolls} applies.
+     * The state is not a column, so this is the one predicate the query cannot carry:
+     * {@code stateOf} decides it, here, rather than being restated in JPQL.
      */
     public Optional<Poll> poll(UUID id, Person viewer) {
-        return polls.findVisibleById(id, addressOf(viewer)).map(this::snapshot);
+        var email = addressOf(viewer);
+        return polls.findVisibleById(id, email)
+                .filter(stored -> stateOf(stored) != PollState.DRAFT
+                        || stored.organizerEmail().equals(email))
+                .map(this::snapshot);
     }
 
     /** Polls that are out with the team, whether or not they are still taking answers. */

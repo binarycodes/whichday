@@ -521,6 +521,24 @@ class PollServiceTest {
     }
 
     @Test
+    @DisplayName("keeps a draft to its organizer, by id as well as in the list")
+    void aDraftIsTheOrganizersAlone() {
+        var draft = service.create("Not sent yet", Sample.ADA, Sample.TEAM);
+
+        assertThat(service.poll(draft, Sample.ADA)).isPresent();
+        assertThat(service.draftPolls(Sample.ADA)).extracting(PollSummary::id).contains(draft);
+
+        // Miro is on the invitee list, which is why the list filter alone was not enough.
+        assertThat(service.poll(draft, Sample.MIRO)).isEmpty();
+        assertThat(service.draftPolls(Sample.MIRO)).isEmpty();
+
+        // Sending it is what makes it everybody's to see.
+        service.replaceCandidateDays(draft, Sample.ADA, List.of(Sample.mondayAfterNext(LocalDate.now(clock))));
+        service.send(draft, Sample.ADA);
+        assertThat(service.poll(draft, Sample.MIRO)).isPresent();
+    }
+
+    @Test
     @DisplayName("does not let a closed poll tell a stranger it exists")
     void aClosedPollIsStillInvisible() {
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));

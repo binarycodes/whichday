@@ -8,22 +8,29 @@ that has been, and a dimmed day with no outline at all. The dimmed ones are the
 days before the design's "today" — the 1st to the 4th — and every Saturday and
 Sunday.
 
-`MonthCalendar` implements exactly that: a day is selectable when it is not in the
-past and not on a weekend.
+`MonthCalendar` draws exactly that grid, with one rule changed.
 
-## Consequences
+## Weekends are offered, which the design does not do
 
-**No weekend events.** A leaving lunch on a Saturday cannot be put on the table.
-That is the design's rule rather than an oversight of it — the weekend columns are
-drawn dimmed in the same grey as the expired days — but it is a real product
-limitation and the first thing to revisit if anybody asks for it. Lifting it is one
-predicate, `isSelectable`.
+The design dims every Saturday and Sunday in the same grey as the expired days, and
+`isSelectable` used to agree. It no longer does: a day is selectable when it has not
+gone yet, is inside the range the caller allows, and is not already ruled out.
 
-**Monday first, in every locale.** `WeekFields.of(locale)` would start the week on
-Sunday in `en-US`, splitting Saturday and Sunday to opposite ends of the grid. The
-design greys them as a pair, which only reads as "the weekend" when they are
-adjacent — so the grid is ISO-8601 Monday-first regardless of locale. Weekday
-labels and month names still come from the locale.
+The dimmed weekend was the design's rule rather than an oversight of it, and it was
+still wrong to keep. A leaving lunch on a Saturday, a weekend offsite, a Sunday
+kickoff — a tool for asking a group which days work has no business deciding that two
+of the seven are not days. The greying said "we know better than you", about the two
+days most likely to be the answer for anything social.
+
+What is left of the rule is the reading order: the grid is ISO-8601 Monday-first
+regardless of locale, where `WeekFields.of(locale)` would start on Sunday in `en-US`
+and split the weekend to opposite ends. A week reads as five days and then the
+weekend, whether or not the weekend can be chosen. Weekday labels and month names
+still come from the locale.
+
+`theCalendarOffersWeekends` pins it, and pins that a day already gone is still refused
+— the two halves used to be one predicate and it would be easy to lose the second
+while changing the first.
 
 ## Whole weeks, always
 

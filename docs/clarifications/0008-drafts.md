@@ -7,9 +7,16 @@ leaves a `DRAFT` behind. Those are listed on their own, between the polls that a
 out with the team and the settled ones — a draft is further along than nothing and
 further back than sent, and the list reads in that order.
 
-Only the person who named it sees it. `PollService.draftPolls` filters by organizer
-as well as by state: a draft has been shown to nobody, so it is not a poll anybody
-else has business seeing.
+Only the person who named it sees it. `draftPolls` filters by organizer as well as by
+state, and `poll(id, viewer)` applies the same rule — a draft has been shown to nobody,
+so it is not a poll anybody else has business seeing, by direct link either.
+
+That second half was missing for a while: the visibility query is "organizer or
+invitee" and carries no state, so an invitee holding a draft's id could read it. It
+only ever mattered in theory, because the id is unguessable and sending the link is
+what stops it being a draft — but a rule stated twice and enforced once is a rule
+waiting to be wrong. The state is derived rather than stored, so `stateOf` decides it
+in Java rather than JPQL restating it.
 
 They take the quiet list shape the settled polls use rather than a card, because a
 draft is not something to answer and should not look like something to answer. Two
@@ -30,8 +37,8 @@ because the confirmation is what makes the tap safe.
 
 **Only a draft can be deleted.** `deleteDraft` refuses anything that has been sent:
 a live poll has answers in it and people waiting on it, and discarding one is a
-decision this does not make. If it should be possible, it wants its own thinking —
-what happens to the answers, and whether the invitees are told.
+decision this does not make. What that leaves is a sent poll nobody can call off —
+[`../issues/0009-a-sent-poll-cannot-be-called-off.md`](../issues/0009-a-sent-poll-cannot-be-called-off.md).
 
 ## A bug this uncovered
 

@@ -175,16 +175,15 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     }
 
     /**
-     * Whole days in the future, on a working week — the design offers neither a day
-     * already gone nor a weekend. See
+     * Any whole day that has not gone yet, within the range the caller allows and not
+     * already ruled out. Weekends included — the design dims them, and a team that
+     * wants a Saturday for a leaving lunch should not be told the tool disagrees. See
      * {@code docs/clarifications/0004-calendar-rules.md}.
      */
     private boolean isSelectable(LocalDate day) {
         return !day.isBefore(earliestSelectable)
                 && (latestSelectable == null || !day.isAfter(latestSelectable))
-                && !unavailable.contains(day)
-                && day.getDayOfWeek() != DayOfWeek.SATURDAY
-                && day.getDayOfWeek() != DayOfWeek.SUNDAY;
+                && !unavailable.contains(day);
     }
 
     /**
@@ -229,9 +228,10 @@ public class MonthCalendar extends CustomField<Set<LocalDate>> {
     }
 
     /**
-     * The grid starts on Monday, not on whatever the locale calls the first day: that
-     * is what puts Saturday and Sunday together at the end, and the design greys them
-     * as a pair.
+     * The grid starts on Monday, not on whatever the locale calls the first day. It is
+     * the grid the design draws, and it keeps Saturday and Sunday adjacent instead of
+     * splitting them to opposite ends as {@code en-US} would — a week reads as five
+     * days and then the weekend, whether or not the weekend can be chosen.
      */
     private LocalDate firstCellOf(YearMonth month) {
         var firstOfMonth = month.atDay(1);

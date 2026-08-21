@@ -80,8 +80,9 @@
   box-shadow: var(--aura-shadow-s);
 }
 
-/* A day nobody would pick — a weekend, or one already gone — stays legible as
-   part of the month but takes no border and no click. */
+/* A day that cannot be picked — one already gone, one past the closing date, or one
+   already on the table — stays legible as part of the month but takes no border and
+   no click. */
 .calendar-day:disabled {
   border-color: transparent;
   background: transparent;

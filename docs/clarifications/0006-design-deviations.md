@@ -19,13 +19,23 @@ which is a real reason a day cannot be voted for.
 **The wordmark.** The design says "When2"; this is Whichday. It is `app.name` in
 `translations.properties`, so it is one key either way.
 
+**The dimmed weekend.** Every Saturday and Sunday is drawn unselectable. Here they can
+be chosen like any other day — see
+[`0004-calendar-rules.md`](0004-calendar-rules.md).
+
 ## Substituted
 
-**A checkbox, not a switch.** The receipt screen's "Tell me when the date is
-locked" is an iOS-style toggle in the design. Vaadin has no switch component, and
-turning a checkbox into one means styling into its shadow root — the kind of
-`themeFor` reach `CODING_CONVENTIONS.md` §11 makes a build step out of. It is a
-checkbox until there is a switch, and it means the same thing.
+**"Tell me when the date is locked."** The receipt screen's notify toggle is gone
+rather than substituted. It was a pre-ticked checkbox with no listener, read by
+nothing, so every voter was told a promise they had not made and that nothing could
+keep — there is no mail path at all
+([`../issues/0003-nothing-is-ever-actually-sent.md`](../issues/0003-nothing-is-ever-actually-sent.md)).
+
+That is the same reasoning as "Clashes with your calendar" above: a control that
+cannot do what it says is worse than no control. It comes back with the thing that
+would send the notification, and then the open question is Vaadin's — there is no
+switch component, and turning a checkbox into one means styling into its shadow root,
+the kind of `themeFor` reach `CODING_CONVENTIONS.md` §11 makes a build step out of.
 
 **Message and Add-to-calendar do real work.** The design shows both as buttons and
 says nothing about what happens. There is no mail server here, so "Message" is a
