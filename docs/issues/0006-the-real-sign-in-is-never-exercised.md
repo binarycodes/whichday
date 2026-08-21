@@ -43,6 +43,6 @@ The journey suite is also slow: `@DirtiesContext` rebuilds the Spring context pe
 test method, which is what keeps a shared `PollService` from leaking polls between
 tests now that nothing seeds it. Forty-four tests take about ninety seconds where
 they used to take six. Fixing it wants a deliberate reset seam on the service rather
-than a back door, and it gets easier once
-[`0001-polls-are-lost-on-restart.md`](0001-polls-are-lost-on-restart.md) gives the
-store a real lifecycle.
+than a back door, and it gets easier now that the store has a
+real lifecycle: emptying the tables in `@BeforeEach` is the reset seam, and
+`@DirtiesContext` is what can go.

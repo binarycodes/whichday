@@ -4,38 +4,133 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 
-import io.binarycodes.whichday.people.domain.Person;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.SortNatural;
+import org.springframework.data.domain.Persistable;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * The mutable poll the service keeps. Package-private and never returned: callers
  * see the immutable {@code Poll} the service builds from one, which is what keeps
  * a stateful UI from holding a half-updated aggregate.
+ *
+ * <p>People are addresses here. The names are the account table's, fetched when a
+ * snapshot is built — see {@code docs/clarifications/0011-a-poll-stores-addresses.md}.
+ *
+ * <p>No Lombok, deliberately. Hibernate wants a non-final class and a no-arg
+ * constructor, and it reads fields directly — it does not want accessors. Generated
+ * ones would put a {@code setOpenedAt} next to {@link #closeOn}, which stamps once,
+ * and a {@code setCandidateDays} next to {@link #replaceCandidateDays}, which prunes
+ * the ballots as it goes. Those two are rules, not boilerplate.
  */
-class StoredPoll {
+@Entity
+@Table(name = "poll")
+class StoredPoll implements Persistable<UUID> {
 
-    private final UUID id;
-    private final Person organizer;
-    private final List<Person> invited = new ArrayList<>();
-    private final Map<String, StoredBallot> ballots = new LinkedHashMap<>();
-    private final Set<LocalDate> candidateDays = new LinkedHashSet<>();
+    @Id
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
+    /** Unbounded, because the field that collects it sets no maximum either. */
+    @Column(name = "title", nullable = false)
     private String title;
+
+    @Column(name = "organizer_email", length = 320, nullable = false)
+    private String organizerEmail;
+
+    @Column(name = "closes_on")
     private LocalDate closesOn;
+
+    @Column(name = "locked_day")
     private LocalDate lockedDay;
+
+    @Column(name = "opened_at")
     private Instant openedAt;
+
+    /** What the list screens are ordered by, which used to be map insertion order. */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "alternatives_allowed", nullable = false)
     private boolean alternativesAllowed = true;
 
-    StoredPoll(UUID id, String title, Person organizer, List<Person> invited) {
+    /**
+     * Sorted rather than insertion-ordered: every write already sorts, so this is the
+     * order the days were in anyway, and it no longer depends on what order the rows
+     * come back in.
+     */
+    @ElementCollection
+    @CollectionTable(name = "candidate_day", joinColumns = @JoinColumn(name = "poll_id"))
+    @Column(name = "offered_day", nullable = false)
+    @SortNatural
+    private SortedSet<LocalDate> candidateDays = new TreeSet<>();
+
+    @ElementCollection
+    @CollectionTable(name = "poll_invitee", joinColumns = @JoinColumn(name = "poll_id"))
+    @OrderColumn(name = "ordinal")
+    @Column(name = "email", length = 320, nullable = false)
+    private List<String> inviteeEmails = new ArrayList<>();
+
+    @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
+    @MapKey(name = "voterEmail")
+    @BatchSize(size = 50)
+    private Map<String, StoredBallot> ballots = new LinkedHashMap<>();
+
+    @Transient
+    private boolean unsaved = true;
+
+    protected StoredPoll() {
+    }
+
+    StoredPoll(UUID id, String title, String organizerEmail, List<String> inviteeEmails, Instant createdAt) {
         this.id = id;
         this.title = title;
-        this.organizer = organizer;
-        invited.forEach(this::invite);
+        this.organizerEmail = organizerEmail;
+        this.createdAt = createdAt;
+        inviteeEmails.forEach(this::invite);
+    }
+
+    /**
+     * Says "new" until it has been loaded or written, so that {@code save} inserts
+     * rather than merges. A merge on a taken id is a silent {@code update}, which is
+     * one poll landing on top of another; an insert is a primary-key violation, which
+     * is somebody being told.
+     */
+    @Override
+    public boolean isNew() {
+        return unsaved;
+    }
+
+    @PostLoad
+    @PrePersist
+    void tracked() {
+        unsaved = false;
+    }
+
+    @Override
+    public UUID getId() {
+        return id;
     }
 
     UUID id() {
@@ -46,22 +141,18 @@ class StoredPoll {
         return title;
     }
 
-    void rename(String newTitle) {
-        this.title = newTitle;
+    String organizerEmail() {
+        return organizerEmail;
     }
 
-    Person organizer() {
-        return organizer;
-    }
-
-    List<Person> invited() {
-        return List.copyOf(invited);
+    List<String> inviteeEmails() {
+        return List.copyOf(inviteeEmails);
     }
 
     /** Adding somebody twice would double every denominator they appear in. */
-    void invite(Person person) {
-        if (invited.stream().noneMatch(existing -> existing.email().equals(person.email()))) {
-            invited.add(person);
+    void invite(String email) {
+        if (!inviteeEmails.contains(email)) {
+            inviteeEmails.add(email);
         }
     }
 
@@ -115,7 +206,8 @@ class StoredPoll {
         return ballots;
     }
 
-    void record(StoredBallot ballot) {
-        ballots.put(ballot.voter().email(), ballot);
+    void record(String voterEmail, Set<LocalDate> chosenDays, List<LocalDate> proposedDays, String note) {
+        ballots.computeIfAbsent(voterEmail, email -> new StoredBallot(this, email))
+                .answer(chosenDays, proposedDays, note);
     }
 }

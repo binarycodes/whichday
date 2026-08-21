@@ -2,9 +2,7 @@ package io.binarycodes.whichday.poll.ui.presenter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -12,9 +10,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.TestClock;
+import io.binarycodes.whichday.TestDatabase;
+import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
@@ -24,27 +25,42 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.service.InviteeSearch;
 import io.binarycodes.whichday.poll.service.PollService;
 
+@WhichdayTest
 @DisplayName("What the screens ask the presenter")
 class PollPresenterTest {
 
-    private static final Instant NOW = Instant.parse("2026-08-20T09:00:00Z");
-
+    @Autowired
     private TestClock clock;
+
+    @Autowired
+    private TestDatabase database;
+
+    @Autowired
     private AccountDirectory directory;
+
+    @Autowired
     private PollService polls;
+
+    @Autowired
+    private InviteeSearch invitees;
+
     private PollPresenter presenter;
     private Person signedIn;
     private UUID offsite;
 
+    /**
+     * The presenter is hand-built rather than injected: it is session-scoped, so there
+     * is no Vaadin session to resolve one from this early, and its {@code ViewerSession}
+     * is the thing this class is testing against.
+     */
     @BeforeEach
     void setUp() {
-        clock = new TestClock(NOW, ZoneOffset.UTC);
-        directory = new AccountDirectory();
+        database.empty();
+        clock.reset();
         Sample.signedInBefore(directory);
-        polls = new PollService(clock);
         offsite = Sample.offsite(polls, clock);
         signedIn = Sample.ADA;
-        presenter = new PollPresenter(polls, new InviteeSearch(directory, polls), viewerSession(), clock);
+        presenter = new PollPresenter(polls, invitees, viewerSession(), clock);
     }
 
     /** Stands in for the signed-in user, which the application reads from the provider. */
@@ -67,7 +83,7 @@ class PollPresenterTest {
     void defaults() {
         assertThat(presenter.viewer()).isEqualTo(Sample.ADA);
         assertThat(presenter.today()).isEqualTo(LocalDate.of(2026, 8, 20));
-        assertThat(presenter.instant()).isEqualTo(NOW);
+        assertThat(presenter.instant()).isEqualTo(TestClock.START);
     }
 
     @Test

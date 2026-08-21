@@ -23,6 +23,5 @@ result, or auto-locking the leading day. There is nowhere to put any of that.
 A scheduled sweep over open polls whose closing date has passed, doing whatever the
 product wants done. It depends on
 [`0003-nothing-is-ever-actually-sent.md`](0003-nothing-is-ever-actually-sent.md) —
-a trigger with nothing to send is not worth building — and on
-[`0001-polls-are-lost-on-restart.md`](0001-polls-are-lost-on-restart.md), because a
-sweep needs to know what it has already done across a restart.
+a trigger with nothing to send is not worth building. A sweep can now record what it
+has already done, because there is a database for it to record it in.

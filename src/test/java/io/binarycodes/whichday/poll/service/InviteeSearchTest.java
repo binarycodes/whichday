@@ -2,33 +2,45 @@ package io.binarycodes.whichday.poll.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.TestClock;
+import io.binarycodes.whichday.TestDatabase;
+import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.AccountMatch;
 
+@WhichdayTest
 @DisplayName("Searching for somebody to invite")
 class InviteeSearchTest {
 
+    @Autowired
+    private TestClock clock;
+
+    @Autowired
+    private TestDatabase database;
+
+    @Autowired
     private AccountDirectory directory;
+
+    @Autowired
+    private PollService polls;
+
+    @Autowired
     private InviteeSearch search;
 
     @BeforeEach
     void setUp() {
-        var clock = new TestClock(Instant.parse("2026-08-20T09:00:00Z"), ZoneOffset.UTC);
-        directory = new AccountDirectory();
+        database.empty();
+        clock.reset();
         Sample.signedInBefore(directory);
-        var polls = new PollService(clock);
         Sample.offsite(polls, clock);
-        search = new InviteeSearch(directory, polls);
     }
 
     @Test
@@ -83,10 +95,9 @@ class InviteeSearchTest {
     @Test
     @DisplayName("finds nobody at all before anybody has signed in")
     void anEmptyDirectoryFindsNobody() {
-        var clock = new TestClock(Instant.parse("2026-08-20T09:00:00Z"), ZoneOffset.UTC);
-        var empty = new InviteeSearch(new AccountDirectory(), new PollService(clock));
+        database.empty();
 
-        assertThat(empty.matching("sar", Sample.ADA, List.of())).isEmpty();
-        assertThat(empty.hasAccount("sara.naslund@acme.com")).isFalse();
+        assertThat(search.matching("sar", Sample.ADA, List.of())).isEmpty();
+        assertThat(search.hasAccount("sara.naslund@acme.com")).isFalse();
     }
 }

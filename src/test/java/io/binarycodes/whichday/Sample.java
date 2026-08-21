@@ -40,7 +40,11 @@ public final class Sample {
     private Sample() {
     }
 
-    /** Everybody has signed in at least once, which is how the directory knows them. */
+    /**
+     * Everybody has signed in at least once, which is how the directory knows them —
+     * and, since a poll stores addresses and reads names from there, the only reason
+     * anybody in a poll has a name at all.
+     */
     public static void signedInBefore(AccountDirectory directory) {
         EVERYBODY.forEach(directory::remember);
     }

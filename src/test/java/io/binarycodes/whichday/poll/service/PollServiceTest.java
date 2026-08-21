@@ -3,9 +3,7 @@ package io.binarycodes.whichday.poll.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -14,27 +12,46 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.TestClock;
+import io.binarycodes.whichday.TestDatabase;
+import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 
+@WhichdayTest
 @DisplayName("Counting a poll")
 class PollServiceTest {
 
-    private static final Instant NOW = Instant.parse("2026-08-20T09:00:00Z");
-
+    @Autowired
     private TestClock clock;
+
+    @Autowired
+    private TestDatabase database;
+
+    @Autowired
     private PollService service;
+
+    @Autowired
+    private AccountDirectory directory;
+
     private UUID offsite;
 
+    /**
+     * The accounts come first: a poll stores addresses, so the names on the standings
+     * are the account table's and a fixture that skipped it would have a team of
+     * nameless addresses.
+     */
     @BeforeEach
     void setUp() {
-        clock = new TestClock(NOW, ZoneOffset.UTC);
-        service = new PollService(clock);
+        database.empty();
+        clock.reset();
+        Sample.signedInBefore(directory);
         offsite = Sample.offsite(service, clock);
     }
 
@@ -199,7 +216,7 @@ class PollServiceTest {
         var sent = service.poll(id).orElseThrow();
 
         assertThat(sent.state()).isEqualTo(PollState.OPEN);
-        assertThat(sent.openedAt()).isEqualTo(NOW);
+        assertThat(sent.openedAt()).isEqualTo(TestClock.START);
     }
 
     @Test

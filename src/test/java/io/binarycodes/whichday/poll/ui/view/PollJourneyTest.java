@@ -2,7 +2,6 @@ package io.binarycodes.whichday.poll.ui.view;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -19,10 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ActiveProfiles;
 
 import com.vaadin.browserless.SpringBrowserlessTest;
 import com.vaadin.flow.component.ClickEvent;
@@ -37,9 +34,11 @@ import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
 
-import io.binarycodes.whichday.Application;
 import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.StubIdentity;
+import io.binarycodes.whichday.TestClock;
+import io.binarycodes.whichday.TestDatabase;
+import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.domain.Person;
@@ -60,11 +59,10 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * <p>Every route requires an authenticated user, so {@link StubIdentity} says who the
  * browser is. Nothing seeds the store, so each test builds the polls it needs.
  */
-@SpringBootTest(classes = Application.class)
-@ActiveProfiles("test")
-// A fresh context per method, because PollService is a singleton and nothing reseeds
-// it: without this, polls built by one test are still in the store for the next. It
-// is what makes this class slow, and the reason is worth more than the seconds.
+@WhichdayTest
+// A fresh context per method, which no longer buys the isolation it was added for now
+// that the store is a database. Removed in the commit after this one, on its own so
+// that it is the one thing to put back if a session-scoped bean turns out to leak.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @DisplayName("Walking the poll")
 class PollJourneyTest extends SpringBrowserlessTest {
@@ -72,22 +70,26 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Autowired
     private ApplicationContext context;
 
+    @Autowired
+    private TestClock clock;
+
+    @Autowired
+    private TestDatabase database;
+
     private UUID offsite;
 
     @BeforeEach
     void signIn() {
+        database.empty();
+        clock.reset();
         StubIdentity.signIn(Sample.ADA);
         Sample.signedInBefore(context.getBean(AccountDirectory.class));
-        offsite = Sample.offsite(context.getBean(PollService.class), clock());
+        offsite = Sample.offsite(context.getBean(PollService.class), clock);
     }
 
     @AfterEach
     void signOut() {
         StubIdentity.clear();
-    }
-
-    private Clock clock() {
-        return context.getBean(Clock.class);
     }
 
     @Test
@@ -126,7 +128,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("opens on the poll list, with the offsite and the settled ones")
     void pollList() {
-        Sample.settled(context.getBean(PollService.class), clock());
+        Sample.settled(context.getBean(PollService.class), clock);
         UI.getCurrent().navigate(PollsView.class);
 
         assertThat(textOf(currentView())).contains("Q3 team offsite", "Settled");
@@ -578,7 +580,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("shows a poll nobody has answered as an empty grid, not as an error")
     void unansweredPoll() {
-        var id = Sample.unanswered(context.getBean(PollService.class), clock());
+        var id = Sample.unanswered(context.getBean(PollService.class), clock);
 
         navigateToPoll(ResultsView.class, id);
 

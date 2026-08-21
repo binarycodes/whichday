@@ -125,4 +125,4 @@ so the poll does not appear to change shape when the first answer lands.
 ## Sample data
 
 The design's numerals — Mon 14, Fri 18, September 2026 — are anchored to the clock
-instead. See `0002-in-memory-store.md`.
+instead. See `0010-an-embedded-database-on-disk.md`.

@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +12,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import io.binarycodes.whichday.people.domain.EmailAddress;
 import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.service.PersonLookup;
 import io.binarycodes.whichday.poll.domain.Ballot;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -24,25 +27,34 @@ import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 
 /**
- * Every poll there is, and the counting. State lives in memory for as long as the
- * application runs, and nothing seeds it — see
- * {@code docs/clarifications/0002-in-memory-store.md} for what that costs and what
- * replaces it.
+ * Every poll there is, and the counting. State is rows in the database and nothing
+ * seeds it — see {@code docs/clarifications/0010-an-embedded-database-on-disk.md} for
+ * what it is and why it is not PostgreSQL.
  *
  * <p>Reads return immutable records built on the spot, so a screen holding one is
- * holding a snapshot rather than a view into the store.
+ * holding a snapshot rather than a view into the store. A poll stores addresses, and
+ * the names come from the account table as the snapshot is built.
+ *
+ * <p>Readers go through {@code require}; writers go through {@code requireForUpdate},
+ * which takes a row lock held until the transaction commits. That pairing is what
+ * replaced a {@code synchronized} on every method: a monitor inside a transactional
+ * proxy is released before the commit, so it reads like a guarantee and is not one.
  */
 @Service
+@Transactional(readOnly = true)
 public class PollService {
 
     /** Whole days only, so a closing date rather than a closing moment. */
     private static final int MINIMUM_VOTING_DAYS = 1;
 
-    private final Map<UUID, StoredPoll> polls = new LinkedHashMap<>();
     private final Clock clock;
+    private final PollRepository polls;
+    private final PersonLookup people;
 
-    public PollService(Clock clock) {
+    public PollService(Clock clock, PollRepository polls, PersonLookup people) {
         this.clock = clock;
+        this.polls = polls;
+        this.people = people;
     }
 
     /**
@@ -50,20 +62,23 @@ public class PollService {
      * ask about "Team event" months apart, and a poll that inherited an existing
      * name would be a poll on top of somebody else's.
      */
-    public synchronized UUID create(String title, Person organizer, List<Person> invited) {
+    @Transactional
+    public UUID create(String title, Person organizer, List<Person> invited) {
         var id = UUID.randomUUID();
-        polls.put(id, new StoredPoll(id, title, organizer, invited));
+        var invitees = invited.stream().map(PollService::addressOf).distinct().toList();
+        polls.save(new StoredPoll(id, title, addressOf(organizer), invitees, clock.instant()));
         return id;
     }
 
-    public synchronized void replaceCandidateDays(UUID id, Collection<LocalDate> days) {
-        var stored = require(id);
-        stored.replaceCandidateDays(days.stream().sorted().toList());
+    @Transactional
+    public void replaceCandidateDays(UUID id, Collection<LocalDate> days) {
+        requireForUpdate(id).replaceCandidateDays(days.stream().sorted().toList());
     }
 
     /** Sending the poll out is what opens it; until then it has no closing date. */
-    public synchronized void send(UUID id) {
-        var stored = require(id);
+    @Transactional
+    public void send(UUID id) {
+        var stored = requireForUpdate(id);
         if (stored.closesOn() == null) {
             stored.closeOn(defaultClosingDayFor(stored), clock.instant());
         }
@@ -74,8 +89,9 @@ public class PollService {
      * usefully be in — never in the past, and never on or after the first day being
      * voted on, because an answer that arrives then is about a day already gone.
      */
-    public synchronized void closeOn(UUID id, LocalDate day) {
-        var stored = require(id);
+    @Transactional
+    public void closeOn(UUID id, LocalDate day) {
+        var stored = requireForUpdate(id);
         stored.closeOn(clampClosingDay(stored, day), clock.instant());
     }
 
@@ -83,7 +99,7 @@ public class PollService {
      * When this poll would close if it went out now — what the share screen promises
      * before there is anything to promise it from.
      */
-    public synchronized Optional<LocalDate> plannedClosing(UUID id) {
+    public Optional<LocalDate> plannedClosing(UUID id) {
         var stored = require(id);
         if (stored.closesOn() != null) {
             return Optional.of(stored.closesOn());
@@ -94,24 +110,28 @@ public class PollService {
     }
 
     /** The last day the organizer may close on: the last day on the table. */
-    public synchronized Optional<LocalDate> latestClosingDay(UUID id) {
+    public Optional<LocalDate> latestClosingDay(UUID id) {
         return lastDayOnTheTable(require(id));
     }
 
-    public synchronized void castVote(UUID id, Person voter, Set<LocalDate> chosenDays) {
+    @Transactional
+    public void castVote(UUID id, Person voter, Set<LocalDate> chosenDays) {
         requireOpen(id);
         record(id, voter, chosenDays);
     }
 
     /**
-     * An answer without the open-for-answers check. Only the sample seeder uses it,
-     * to build polls that were decided before the application started — history the
-     * public path is right to refuse.
+     * An answer without the open-for-answers check, for building polls that were
+     * decided before the application started — history the public path is right to
+     * refuse.
+     *
+     * <p>Package-private, so it carries no {@code @Transactional} of its own: Spring
+     * would silently ignore one. It runs in its caller's transaction.
      */
-    synchronized void record(UUID id, Person voter, Set<LocalDate> chosenDays) {
+    void record(UUID id, Person voter, Set<LocalDate> chosenDays) {
         var stored = require(id);
         var onTheTable = chosenDays.stream().filter(stored.candidateDays()::contains).sorted().toList();
-        stored.record(new StoredBallot(voter, new LinkedHashSet<>(onTheTable), List.of(), null));
+        stored.record(addressOf(voter), new LinkedHashSet<>(onTheTable), List.of(), null);
     }
 
     /**
@@ -119,93 +139,160 @@ public class PollService {
      * the ballot rather than added to the candidate days: it becomes a column only
      * if the organizer accepts it.
      */
-    public synchronized void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
-        requireOpen(id).record(new StoredBallot(voter, Set.of(), proposedDays, note));
+    @Transactional
+    public void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
+        requireOpen(id).record(addressOf(voter), Set.of(), proposedDays, note);
     }
 
-    public synchronized void acceptProposal(UUID id, LocalDate day) {
-        var stored = require(id);
+    @Transactional
+    public void acceptProposal(UUID id, LocalDate day) {
+        var stored = requireForUpdate(id);
         var days = new LinkedHashSet<>(stored.candidateDays());
         days.add(day);
         stored.replaceCandidateDays(days.stream().sorted().toList());
     }
 
-    public synchronized void lock(UUID id, LocalDate day) {
-        require(id).lock(day);
+    @Transactional
+    public void lock(UUID id, LocalDate day) {
+        requireForUpdate(id).lock(day);
     }
 
-    public synchronized Optional<Poll> poll(UUID id) {
-        return Optional.ofNullable(polls.get(id)).map(this::snapshot);
+    public Optional<Poll> poll(UUID id) {
+        return polls.findById(id).map(this::snapshot);
     }
 
     /** Polls that are out with the team, whether or not they are still taking answers. */
-    public synchronized List<PollSummary> openPolls(Person viewer) {
-        return polls.values().stream()
-                .map(stored -> summary(stored, viewer))
+    public List<PollSummary> openPolls(Person viewer) {
+        return summaries(polls.findByLockedDayIsNullAndClosesOnIsNotNull(PollRepository.CREATION_ORDER), viewer)
                 .filter(summary -> !summary.isSettled() && !summary.isDraft())
                 .toList();
     }
 
     /**
      * Polls this person named and never sent. Only theirs: a draft has been shown to
-     * nobody, so it is not a poll anybody else has any business seeing.
+     * nobody, so it is not a poll anybody else has any business seeing. Scoped by
+     * address in the query, where it used to compare whole people — so a draft whose
+     * author has since corrected their name is no longer invisible to its author.
      */
-    public synchronized List<PollSummary> draftPolls(Person viewer) {
-        return polls.values().stream()
-                .map(stored -> summary(stored, viewer))
-                .filter(PollSummary::isDraft)
-                .filter(summary -> summary.askedBy().equals(viewer))
-                .toList();
+    public List<PollSummary> draftPolls(Person viewer) {
+        var mine = polls.findByOrganizerEmailAndLockedDayIsNull(addressOf(viewer), PollRepository.CREATION_ORDER);
+        return summaries(mine, viewer).filter(PollSummary::isDraft).toList();
     }
 
     /**
      * Throws away a draft. Only a draft: a poll that has gone out has answers in it
      * and people waiting on it, and discarding one is a decision this does not make.
      */
-    public synchronized void deleteDraft(UUID id) {
-        var stored = require(id);
+    @Transactional
+    public void deleteDraft(UUID id) {
+        var stored = requireForUpdate(id);
         if (stateOf(stored) != PollState.DRAFT) {
             throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
         }
-        polls.remove(id);
+        polls.delete(stored);
     }
 
-    public synchronized List<PollSummary> settledPolls(Person viewer) {
-        return polls.values().stream()
-                .map(stored -> summary(stored, viewer))
+    /**
+     * Nulls last rather than {@code Comparator.comparing} alone. A settled poll has a
+     * locked day and so always has a headline day — but a row can now be written by
+     * something other than this code, and a null there used to take the whole screen
+     * down with a {@code NullPointerException}.
+     */
+    public List<PollSummary> settledPolls(Person viewer) {
+        return summaries(polls.findByLockedDayIsNotNull(PollRepository.CREATION_ORDER), viewer)
                 .filter(PollSummary::isSettled)
-                .sorted(Comparator.comparing(PollSummary::headlineDay).reversed())
+                .sorted(Comparator.comparing(PollSummary::headlineDay,
+                                Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder()))
+                        .reversed())
                 .toList();
     }
 
+    /**
+     * How often two people have answered the same poll — what tells an organizer that
+     * a search hit is the colleague they meant rather than a stranger with a similar
+     * address.
+     */
+    public int pollsSharedBy(Person viewer, Person other) {
+        return Math.toIntExact(polls.countPollsAnsweredByBoth(addressOf(viewer), addressOf(other)));
+    }
+
+    /**
+     * Whether voters may put other days forward. Turning it off does not take away
+     * their ability to say none of the days work — that is an answer the organizer
+     * needs either way — only the ask to add to the table.
+     */
+    @Transactional
+    public void allowAlternatives(UUID id, boolean allowed) {
+        requireForUpdate(id).allowAlternatives(allowed);
+    }
+
+    /** Somebody the organizer thought of after sending it out. */
+    @Transactional
+    public void addInvitee(UUID id, Person invitee) {
+        requireForUpdate(id).invite(addressOf(invitee));
+    }
+
     private Poll snapshot(StoredPoll stored) {
+        return snapshot(stored, peopleFor(List.of(stored)));
+    }
+
+    private Poll snapshot(StoredPoll stored, Map<String, Person> named) {
         return new Poll(stored.id(),
                 stored.title(),
-                stored.organizer(),
-                stored.invited(),
+                named.get(stored.organizerEmail()),
+                invited(stored, named),
                 List.copyOf(stored.candidateDays()),
                 stored.closesOn(),
                 stored.lockedDay(),
                 stored.openedAt(),
                 stored.alternativesAllowed(),
                 stateOf(stored),
-                tallies(stored),
-                ballots(stored));
+                tallies(stored, named),
+                ballots(stored, named));
+    }
+
+    /**
+     * One lookup for a whole list rather than one per person, so a screenful of polls
+     * reads the account table once.
+     */
+    private Stream<PollSummary> summaries(List<StoredPoll> stored, Person viewer) {
+        var named = peopleFor(stored);
+        return stored.stream().map(poll -> summary(poll, viewer, named));
+    }
+
+    /**
+     * Every address a snapshot will need a name for. An address with no account gets an
+     * outsider, so nothing downstream has to handle a missing one — and because every
+     * mention of one address in a snapshot comes from this map, two mentions of the
+     * same person are equal, which is what {@code Poll.awaiting} compares.
+     */
+    private Map<String, Person> peopleFor(List<StoredPoll> stored) {
+        var addresses = new LinkedHashSet<String>();
+        stored.forEach(poll -> {
+            addresses.add(poll.organizerEmail());
+            addresses.addAll(poll.inviteeEmails());
+            addresses.addAll(poll.ballots().keySet());
+        });
+        return people.forInvites(addresses);
+    }
+
+    private List<Person> invited(StoredPoll stored, Map<String, Person> named) {
+        return stored.inviteeEmails().stream().map(named::get).toList();
     }
 
     /**
      * Ranked by vote count, and by date where two days tie — a stable order matters
      * because the rank is what the bars are painted from.
      */
-    private List<DayTally> tallies(StoredPoll stored) {
+    private List<DayTally> tallies(StoredPoll stored, Map<String, Person> named) {
         record Counted(LocalDate day, List<Person> voters) {
         }
         var counted = stored.candidateDays().stream()
-                .map(day -> new Counted(day, votersFor(stored, day)))
+                .map(day -> new Counted(day, votersFor(stored, named, day)))
                 .sorted(Comparator.comparingInt((Counted entry) -> entry.voters().size()).reversed()
                         .thenComparing(Counted::day))
                 .toList();
-        var inviteCount = stored.invited().size();
+        var inviteCount = stored.inviteeEmails().size();
         return IntStream.range(0, counted.size())
                 .mapToObj(index -> new DayTally(counted.get(index).day(),
                         counted.get(index).voters(),
@@ -214,27 +301,28 @@ public class PollService {
                 .toList();
     }
 
-    private List<Person> votersFor(StoredPoll stored, LocalDate day) {
-        return stored.invited().stream()
-                .filter(person -> Optional.ofNullable(stored.ballots().get(person.email()))
+    private List<Person> votersFor(StoredPoll stored, Map<String, Person> named, LocalDate day) {
+        return stored.inviteeEmails().stream()
+                .filter(email -> Optional.ofNullable(stored.ballots().get(email))
                         .map(ballot -> ballot.chosenDays().contains(day))
                         .orElse(false))
+                .map(named::get)
                 .toList();
     }
 
-    private List<Ballot> ballots(StoredPoll stored) {
-        return stored.invited().stream()
-                .map(person -> stored.ballots().get(person.email()))
+    private List<Ballot> ballots(StoredPoll stored, Map<String, Person> named) {
+        return stored.inviteeEmails().stream()
+                .map(email -> stored.ballots().get(email))
                 .filter(Objects::nonNull)
-                .map(ballot -> new Ballot(ballot.voter(),
+                .map(ballot -> new Ballot(named.get(ballot.voterEmail()),
                         Set.copyOf(ballot.chosenDays()),
-                        ballot.proposedDays(),
+                        List.copyOf(ballot.proposedDays()),
                         ballot.note()))
                 .toList();
     }
 
-    private PollSummary summary(StoredPoll stored, Person viewer) {
-        var poll = snapshot(stored);
+    private PollSummary summary(StoredPoll stored, Person viewer, Map<String, Person> named) {
+        var poll = snapshot(stored, named);
         var headlineDay = poll.lockedDay() != null
                 ? poll.lockedDay()
                 : poll.leader().map(DayTally::day).orElse(null);
@@ -252,35 +340,13 @@ public class PollService {
     }
 
     /**
-     * How often two people have answered the same poll — what tells an organizer that
-     * a search hit is the colleague they meant rather than a stranger with a similar
-     * address.
-     */
-    public synchronized int pollsSharedBy(Person viewer, Person other) {
-        return (int) polls.values().stream()
-                .filter(stored -> stored.ballots().containsKey(viewer.email()))
-                .filter(stored -> stored.ballots().containsKey(other.email()))
-                .count();
-    }
-
-    /**
-     * Whether voters may put other days forward. Turning it off does not take away
-     * their ability to say none of the days work — that is an answer the organizer
-     * needs either way — only the ask to add to the table.
-     */
-    public synchronized void allowAlternatives(UUID id, boolean allowed) {
-        require(id).allowAlternatives(allowed);
-    }
-
-    /** Somebody the organizer thought of after sending it out. */
-    public synchronized void addInvitee(UUID id, Person invitee) {
-        require(id).invite(invitee);
-    }
-
-    /**
      * Which state the poll is in, settled here because this is what holds the clock.
      * A poll past its closing date has stopped collecting answers whether or not the
      * organizer has been back to lock a day in.
+     *
+     * <p>Derived rather than stored: a state column would be wrong from the moment the
+     * clock crossed the closing date with nobody writing to the row, and the sweep that
+     * would fix that is {@code docs/issues/0005-closing-happens-on-read.md}.
      */
     private PollState stateOf(StoredPoll stored) {
         if (stored.lockedDay() != null) {
@@ -327,7 +393,7 @@ public class PollService {
      * the screens, so that a stale tab cannot post one after the date has passed.
      */
     private StoredPoll requireOpen(UUID id) {
-        var stored = require(id);
+        var stored = requireForUpdate(id);
         if (stateOf(stored) != PollState.OPEN) {
             throw new PollClosedException(id);
         }
@@ -335,10 +401,24 @@ public class PollService {
     }
 
     private StoredPoll require(UUID id) {
-        var stored = polls.get(id);
-        if (stored == null) {
-            throw new IllegalArgumentException("No poll with id " + id);
-        }
-        return stored;
+        return polls.findById(id).orElseThrow(() -> unknown(id));
+    }
+
+    /** The same poll, with the row locked until this transaction commits. */
+    private StoredPoll requireForUpdate(UUID id) {
+        return polls.findWithLockById(id).orElseThrow(() -> unknown(id));
+    }
+
+    private static IllegalArgumentException unknown(UUID id) {
+        return new IllegalArgumentException("No poll with id " + id);
+    }
+
+    /**
+     * One canonical form for an address, because an address is the identity now.
+     * {@code Person.outsider} does not normalise its argument, so without this a person
+     * built from a mixed-case address would be written as a row nothing can find again.
+     */
+    private static String addressOf(Person person) {
+        return EmailAddress.normalise(person.email());
     }
 }

@@ -37,5 +37,6 @@ remembering to.
 Note that an invitee may have no account yet — somebody invited by email who has
 never signed in — so the check is by address, not by account id.
 
-Worth doing with [`0001-polls-are-lost-on-restart.md`](0001-polls-are-lost-on-restart.md),
-since scoping is a property of the query layer either way.
+The query layer this needs now exists: every poll is a row and every read is a query,
+and `V1` already indexes `poll.organizer_email` and `poll_invitee.email`. So this is a
+`where` clause and a guard in `PollService.poll`, not a migration and not a rewrite.
