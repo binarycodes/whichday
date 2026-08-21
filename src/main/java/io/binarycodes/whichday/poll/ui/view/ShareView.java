@@ -44,13 +44,14 @@ public class ShareView extends PollScreen {
     }
 
     /**
-     * Editing a poll is the organizer's, so anybody else who follows this URL is sent
-     * to the screen the poll actually has for them. Not the not-found screen: they were
-     * invited, so the poll is theirs to see — just not theirs to change.
+     * Editing a poll is the organizer's, and only while it is still taking answers.
+     * Anybody else who follows this URL, and everybody once voting is over, is sent to
+     * the screen the poll actually has for them. Not the not-found screen: an invitee
+     * may see the poll, just not change it.
      */
     @Override
     protected boolean redirect(BeforeEnterEvent event, Poll poll) {
-        if (presenter.isOrganizer(poll)) {
+        if (presenter.isOrganizer(poll) && poll.isEditable()) {
             return false;
         }
         forwardToPoll(event, ResultsView.class);

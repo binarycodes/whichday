@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.YearMonth;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
@@ -698,6 +699,62 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ResultsView.class, offsite);
 
         assertThat(textOf(currentView())).contains("Proposed instead").doesNotContain("Add it");
+    }
+
+    @Test
+    @DisplayName("sends even the organizer away from the editing screens once voting is over")
+    void aClosedPollCannotBeEdited() {
+        var id = closedPoll();
+
+        navigateToPoll(CandidateDaysView.class, id);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+
+        navigateToPoll(ShareView.class, id);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+    }
+
+    @Test
+    @DisplayName("offers nothing to settle on a poll whose closing date has passed")
+    void aClosedPollOffersNoLock() {
+        navigateToPoll(ResultsView.class, offsite);
+        assertThat(textOf(currentView())).contains("Lock in");
+
+        var id = closedPoll();
+        navigateToPoll(ResultsView.class, id);
+
+        // The standings are still the answer it ended on; there is just nothing to do.
+        assertThat(textOf(currentView())).contains("have voted").doesNotContain("Lock in");
+    }
+
+    @Test
+    @DisplayName("still shows a proposed day on a closed poll, with no way to accept it")
+    void aClosedPollOffersNoProposalAction() {
+        var id = openPoll("Roadmap workshop");
+        var day = presenter().poll(id).orElseThrow().candidateDays().getFirst().plusDays(21);
+        StubIdentity.signIn(Sample.MIRO);
+        presenter().declineAll(id, List.of(day), "Away that week");
+        StubIdentity.signIn(Sample.ADA);
+
+        navigateToPoll(ResultsView.class, id);
+        assertThat(textOf(currentView())).contains("Proposed instead").contains("Add it");
+
+        clock.advanceDays(ChronoUnit.DAYS.between(presenter().today(),
+                presenter().poll(id).orElseThrow().closesOn()) + 1);
+        navigateToPoll(ResultsView.class, id);
+
+        assertThat(textOf(currentView())).contains("Proposed instead").doesNotContain("Add it");
+    }
+
+    /** A poll of Ada's, answered by one person, whose closing date has gone by. */
+    private UUID closedPoll() {
+        var id = openPoll("Roadmap workshop");
+        var day = presenter().poll(id).orElseThrow().candidateDays().getFirst();
+        StubIdentity.signIn(Sample.MIRO);
+        presenter().vote(id, Set.of(day));
+        StubIdentity.signIn(Sample.ADA);
+        clock.advanceDays(ChronoUnit.DAYS.between(presenter().today(),
+                presenter().poll(id).orElseThrow().closesOn()) + 1);
+        return id;
     }
 
     @Test

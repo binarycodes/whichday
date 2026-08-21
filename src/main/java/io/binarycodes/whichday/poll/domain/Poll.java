@@ -37,9 +37,18 @@ public record Poll(UUID id,
         return state == PollState.OPEN;
     }
 
-    /** Voting is over and nobody has locked a day in — the organizer's move. */
+    /** Voting is over and nobody locked a day in. Nothing more happens to it. */
     public boolean isClosed() {
         return state == PollState.CLOSED;
+    }
+
+    /**
+     * Whether anything about this poll can still change. A draft is still being put
+     * together and an open poll is still collecting; once voting is over the poll is
+     * final, down to the invitee list and the locked day.
+     */
+    public boolean isEditable() {
+        return state == PollState.DRAFT || state == PollState.OPEN;
     }
 
     public int inviteCount() {

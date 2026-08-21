@@ -57,7 +57,10 @@ Three permissions, and they nest.
 | `openPolls`, `settledPolls` | scoped in the query, both arms indexed |
 | `draftPolls` | organizer only |
 | `castVote`, `decline` | anybody on the invitee list |
-| `send`, `closeOn`, `replaceCandidateDays`, `acceptProposal`, `allowAlternatives`, `lock`, `addInvitee`, `deleteDraft` | the organizer alone |
+| `send`, `closeOn`, `replaceCandidateDays`, `acceptProposal`, `allowAlternatives`, `lock`, `addInvitee`, `deleteDraft` | the organizer alone, and only while the poll is `DRAFT` or `OPEN` |
+
+Seeing a poll needs an invitation, answering it needs an invitation, changing it needs
+to be the person who called it — and nothing changes at all once voting is over (§6).
 
 Enforced in `PollService`, never on the screens. The screens do hide what is not
 yours, and that is a courtesy; a hidden button is not a check.
@@ -296,12 +299,9 @@ match, so the clamp is a backstop rather than the thing the organizer meets. Whe
 two bounds cannot both hold — the last option is today or tomorrow — the last day on
 the table wins.
 
-That bound is also why "You can extend it later" stops being true at a definite moment.
-While a candidate day is still ahead the organizer can extend, even after the poll has
-gone `CLOSED`. Once every day on the table has passed there is no legal closing date
-left, so extending is undefined rather than refused — the poll does not need more time,
-it needs different days, which is a different operation and one nothing offers
-([issue 0004](issues/0004-a-closed-poll-is-a-dead-end.md)).
+The share screen's "You can extend it later" therefore means *while it is still open*.
+That screen is only reachable on a poll that can still change, so the promise is never
+shown to somebody it is no longer true for.
 
 ### What this replaced, and why it was wrong
 
@@ -325,9 +325,36 @@ answers too. The ballot and the counter-proposal screen forward away rather than
 offering a control that would fail, and the results screen drops the nudge and the
 your-turn prompt, because neither is anybody's move any more.
 
-`PollState` carries `CLOSED` for the moment voting is over with no day locked in. That
-is the organizer's cue: the poll list marks it, and the results screen shows the
-standings with only the lock left to do.
+`PollState` carries `CLOSED` for the moment voting is over with no day locked in.
+
+**`CLOSED` and `LOCKED` are final.** Nothing about a poll changes once voting is over —
+not an answer, not an invitation, not the closing date, not the locked day. Every
+writing method in `PollService` goes through `requireEditable`, which admits only
+`DRAFT` and `OPEN`; answers are refused separately by `requireOpen`, which says so in
+the voter's own terms rather than the organizer's.
+
+That means **the organizer has to settle on a day before the poll closes.** The default
+closing date is the last day on the table, so the window is the whole life of the poll,
+and a date locked in after the days have gone would be a decision about days nobody can
+attend anyway. A poll that reaches its closing date unlocked has ended on its standings,
+and the results screen shows them with nothing left to do.
+
+Two things follow, and both are deliberate:
+
+- **The days cannot be swapped under answers that are already final.**
+  `replaceCandidateDays` prunes each ballot down to the days still on the table, which
+  is right while the poll is live and is silent destruction after it: replace every day
+  at once and every yes becomes an empty ballot, with the ballot row surviving so the
+  voter still counts as having answered. That path is closed.
+- **There is no reopening.** A closed poll cannot be extended, re-dated or re-asked. If
+  the question still needs answering it is a new poll, which costs a title and an
+  invitee list and leaves the old answers saying what they actually said.
+
+The screens agree without being the rule: `/poll/:id/days` and `/poll/:id/share` send
+even the organizer to the results once voting is over, and the results screen drops the
+lock button, the nudge, the your-turn prompt and the accept-a-proposal action. A
+proposed day is still *shown* on a closed poll — it is part of what the team said — with
+no way to act on it.
 
 **The state is derived on every read, never stored** — a pure function of the locked
 day, whether there are candidate days, the closing date and the clock. A stored column

@@ -539,6 +539,69 @@ class PollServiceTest {
     }
 
     @Test
+    @DisplayName("refuses every change to a poll whose closing date has passed")
+    void nothingChangesOnceVotingIsOver() {
+        var day = Sample.mondayAfterNext(LocalDate.now(clock));
+        var id = openPoll(Sample.TEAM, day);
+        service.castVote(id, Sample.MIRO, Set.of(day));
+        var before = poll(id).orElseThrow();
+        clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), before.closesOn()) + 1);
+        assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.CLOSED);
+
+        assertThatThrownBy(() -> service.replaceCandidateDays(id, Sample.ADA, List.of(day.plusWeeks(4))))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.closeOn(id, Sample.ADA, day.plusWeeks(4)))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.acceptProposal(id, Sample.ADA, day.plusWeeks(4)))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.allowAlternatives(id, Sample.ADA, false))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.addInvitee(id, Sample.ADA, Sample.TANVI))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.lock(id, Sample.ADA, day))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.send(id, Sample.ADA))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.deleteDraft(id, Sample.ADA))
+                .isInstanceOf(PollNotEditableException.class);
+        // Answers were already refused, and say so in the voter's own terms.
+        assertThatThrownBy(() -> service.castVote(id, Sample.SARA, Set.of(day)))
+                .isInstanceOf(PollClosedException.class);
+
+        var after = poll(id).orElseThrow();
+        assertThat(after.state()).isEqualTo(PollState.CLOSED);
+        assertThat(after.candidateDays()).isEqualTo(before.candidateDays());
+        assertThat(after.closesOn()).isEqualTo(before.closesOn());
+        assertThat(after.lockedDay()).isNull();
+        assertThat(after.inviteCount()).isEqualTo(before.inviteCount());
+        assertThat(after.alternativesAllowed()).isEqualTo(before.alternativesAllowed());
+        assertThat(after.answerCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("refuses every change to a poll that has been settled")
+    void nothingChangesOnceADayIsLocked() {
+        var id = Sample.settled(service, clock);
+        var settled = poll(id).orElseThrow();
+        assertThat(settled.state()).isEqualTo(PollState.LOCKED);
+        var other = settled.lockedDay().plusWeeks(3);
+
+        assertThatThrownBy(() -> service.replaceCandidateDays(id, Sample.ADA, List.of(other)))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.lock(id, Sample.ADA, other))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.addInvitee(id, Sample.ADA, Sample.TANVI))
+                .isInstanceOf(PollNotEditableException.class);
+        assertThatThrownBy(() -> service.closeOn(id, Sample.ADA, other))
+                .isInstanceOf(PollNotEditableException.class);
+
+        var after = poll(id).orElseThrow();
+        assertThat(after.lockedDay()).isEqualTo(settled.lockedDay());
+        assertThat(after.candidateDays()).isEqualTo(settled.candidateDays());
+        assertThat(after.inviteCount()).isEqualTo(settled.inviteCount());
+    }
+
+    @Test
     @DisplayName("does not let a closed poll tell a stranger it exists")
     void aClosedPollIsStillInvisible() {
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));

@@ -113,23 +113,23 @@ public class ResultsView extends PollScreen {
         body(tallies);
 
         proposalSection(poll).ifPresent(this::body);
-        // Once voting is over there is nothing to answer and nobody to chase; the only
-        // move left is the organizer's.
+        // Once voting is over there is nothing to answer, nobody to chase and nothing
+        // left to settle: a closed poll is final, and the standings are the answer it
+        // ended on.
         if (poll.isOpen()) {
             body(ownAnswer(poll));
             var others = poll.awaitingOthers(presenter.viewer());
             if (others.size() == 1) {
                 body(nudge(others.getFirst()));
             }
-        }
-
-        // Settling the poll is the organizer's, so nobody else is shown the button. The
-        // service refuses it either way; this is so an invitee is not offered a decision
-        // that is not theirs.
-        if (presenter.isOrganizer(poll)) {
-            poll.leader().ifPresent(leader ->
-                    footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
-                            ignored -> lock(leader))));
+            // Settling is the organizer's, so nobody else is shown the button. The
+            // service refuses it either way; this is so an invitee is not offered a
+            // decision that is not theirs.
+            if (presenter.isOrganizer(poll)) {
+                poll.leader().ifPresent(leader ->
+                        footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
+                                ignored -> lock(leader))));
+            }
         }
     }
 
@@ -178,14 +178,15 @@ public class ResultsView extends PollScreen {
     }
 
     /**
-     * Everybody sees what was put forward; only the organizer is offered the button that
-     * puts it on the table, because accepting one adds a column to everybody's ballot.
+     * Everybody sees what was put forward, for as long as the poll exists. Only the
+     * organizer is offered the button that puts it on the table, because accepting one
+     * adds a column to everybody's ballot — and only while the poll can still change.
      */
     private HintBar proposalRow(Poll poll, Ballot ballot) {
         var days = ballot.proposedDays().stream().map(day -> DateText.compact(this, day)).toList();
         var row = new HintBar(VaadinIcon.CALENDAR, getTranslation("results.proposal",
                 ballot.voter().firstName(), String.join(", ", days))).outlined();
-        if (presenter.isOrganizer(poll)) {
+        if (presenter.isOrganizer(poll) && poll.isEditable()) {
             row.withAction(Actions.inline(getTranslation("results.acceptProposal"), ignored -> accept(ballot)));
         }
         return row;

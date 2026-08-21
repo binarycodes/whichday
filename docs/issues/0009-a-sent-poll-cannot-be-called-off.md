@@ -10,10 +10,10 @@ remove a poll. So an organizer who sends the wrong thing — the wrong days, the
 people, a duplicate of one a colleague already ran — has no way to withdraw it. The
 poll sits in every invitee's list asking to be answered.
 
-The only exits are to lock a day nobody wants, which files it under Settled and
-tells everybody a date was chosen, or to leave it open until its closing date passes
-and it becomes a closed poll nobody can do anything with either
-([`0004-a-closed-poll-is-a-dead-end.md`](0004-a-closed-poll-is-a-dead-end.md)).
+The only exits are to lock a day nobody wants, which files it under Settled and tells
+everybody a date was chosen, or to let it run to its closing date — which is at most
+the last day on the table, so a poll sent months ahead asks for an answer the whole
+time. Once it closes it is final and unchangeable, which at least stops it asking.
 
 Together with [`0007-a-forgotten-invitee-cannot-be-added.md`](0007-a-forgotten-invitee-cannot-be-added.md)
 this makes a sent poll close to immutable: nobody can be added to it, and it cannot

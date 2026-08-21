@@ -76,26 +76,27 @@ public class PollService {
 
     @Transactional
     public void replaceCandidateDays(UUID id, Person organizer, Collection<LocalDate> days) {
-        requireOrganizer(id, organizer).replaceCandidateDays(days.stream().sorted().toList());
+        requireEditable(requireOrganizer(id, organizer))
+                .replaceCandidateDays(days.stream().sorted().toList());
     }
 
     /** Sending the poll out is what opens it; until then it has no closing date. */
     @Transactional
     public void send(UUID id, Person organizer) {
-        var stored = requireOrganizer(id, organizer);
+        var stored = requireEditable(requireOrganizer(id, organizer));
         if (stored.closesOn() == null) {
             stored.closeOn(defaultClosingDayFor(stored), clock.instant());
         }
     }
 
     /**
-     * The organizer's own closing date. Clamped to the range a closing date can
-     * usefully be in — never in the past, and never on or after the first day being
-     * voted on, because an answer that arrives then is about a day already gone.
+     * The organizer's own closing date, while the poll is still taking answers.
+     * Clamped to the range a closing date can usefully be in — never in the past, and
+     * never past the last day on the table.
      */
     @Transactional
     public void closeOn(UUID id, Person organizer, LocalDate day) {
-        var stored = requireOrganizer(id, organizer);
+        var stored = requireEditable(requireOrganizer(id, organizer));
         stored.closeOn(clampClosingDay(stored, day), clock.instant());
     }
 
@@ -151,15 +152,19 @@ public class PollService {
 
     @Transactional
     public void acceptProposal(UUID id, Person organizer, LocalDate day) {
-        var stored = requireOrganizer(id, organizer);
+        var stored = requireEditable(requireOrganizer(id, organizer));
         var days = new LinkedHashSet<>(stored.candidateDays());
         days.add(day);
         stored.replaceCandidateDays(days.stream().sorted().toList());
     }
 
+    /**
+     * Settling on a day. It has to happen while the poll is still open: a closing date
+     * that has passed closes the poll to this as much as to anything else.
+     */
     @Transactional
     public void lock(UUID id, Person organizer, LocalDate day) {
-        requireOrganizer(id, organizer).lock(day);
+        requireEditable(requireOrganizer(id, organizer)).lock(day);
     }
 
     /**
@@ -203,7 +208,7 @@ public class PollService {
      */
     @Transactional
     public void deleteDraft(UUID id, Person organizer) {
-        var stored = requireOrganizer(id, organizer);
+        var stored = requireEditable(requireOrganizer(id, organizer));
         if (stateOf(stored) != PollState.DRAFT) {
             throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
         }
@@ -241,13 +246,13 @@ public class PollService {
      */
     @Transactional
     public void allowAlternatives(UUID id, Person organizer, boolean allowed) {
-        requireOrganizer(id, organizer).allowAlternatives(allowed);
+        requireEditable(requireOrganizer(id, organizer)).allowAlternatives(allowed);
     }
 
     /** Somebody the organizer thought of after sending it out. */
     @Transactional
     public void addInvitee(UUID id, Person organizer, Person invitee) {
-        requireOrganizer(id, organizer).invite(addressOf(invitee));
+        requireEditable(requireOrganizer(id, organizer)).invite(addressOf(invitee));
     }
 
     private Poll snapshot(StoredPoll stored) {
@@ -404,6 +409,30 @@ public class PollService {
 
     private Optional<LocalDate> lastDayOnTheTable(StoredPoll stored) {
         return stored.candidateDays().stream().max(LocalDate::compareTo);
+    }
+
+    /**
+     * Nothing about a poll changes once voting is over. A {@code DRAFT} is still being
+     * put together and an {@code OPEN} poll is still collecting, so both may be
+     * changed. {@code CLOSED} and {@code LOCKED} are final states: no answer, no
+     * invitation, no closing date, no locked day, nothing.
+     *
+     * <p>Every writing method goes through here, and that is the point — a rule with
+     * exceptions in it is a rule somebody has to remember. Answers are refused by
+     * {@link #requireOpen} instead, which says so in the voter's terms.
+     *
+     * <p>It also closes the way the days could be swapped under answers that were
+     * already final. `replaceCandidateDays` prunes each ballot down to the days still
+     * on the table, which is right while the poll is live and silent destruction after
+     * it: replace every day at once and every yes becomes an empty ballot, with the
+     * ballot row surviving so the voter still counted as having answered.
+     */
+    private StoredPoll requireEditable(StoredPoll stored) {
+        var state = stateOf(stored);
+        if (state != PollState.DRAFT && state != PollState.OPEN) {
+            throw new PollNotEditableException(stored.id(), state);
+        }
+        return stored;
     }
 
     /**
