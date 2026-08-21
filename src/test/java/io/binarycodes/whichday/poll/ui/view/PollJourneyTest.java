@@ -19,7 +19,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.test.annotation.DirtiesContext;
 
 import com.vaadin.browserless.SpringBrowserlessTest;
 import com.vaadin.flow.component.ClickEvent;
@@ -57,13 +56,15 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * state hand the next one something to show.
  *
  * <p>Every route requires an authenticated user, so {@link StubIdentity} says who the
- * browser is. Nothing seeds the store, so each test builds the polls it needs.
+ * browser is. Nothing seeds the store, so each test builds the polls it needs, and
+ * {@link TestDatabase} empties the tables first — one database serves the whole run.
+ *
+ * <p>One Spring context serves the whole run too. The session-scoped {@code
+ * PollPresenter} does not leak between methods because the browserless base class
+ * builds a fresh {@code VaadinSession} per method and fires session-destroy on the old
+ * one, which is what {@link #theDraftDoesNotOutliveTheSession} exists to keep true.
  */
 @WhichdayTest
-// A fresh context per method, which no longer buys the isolation it was added for now
-// that the store is a database. Removed in the commit after this one, on its own so
-// that it is the one thing to put back if a session-scoped bean turns out to leak.
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @DisplayName("Walking the poll")
 class PollJourneyTest extends SpringBrowserlessTest {
 
@@ -651,6 +652,14 @@ class PollJourneyTest extends SpringBrowserlessTest {
         clickHome();
 
         assertThat(currentView()).isInstanceOf(PollsView.class);
+    }
+
+    @Test
+    @DisplayName("starts on an empty draft, not on the one the last test left")
+    void theDraftDoesNotOutliveTheSession() {
+        assertThat(presenter().draft().isEmpty()).isTrue();
+        assertThat(presenter().draft().title()).isEmpty();
+        assertThat(presenter().draft().invitees()).isEmpty();
     }
 
     // ---- Building the polls a test needs ----
