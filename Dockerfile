@@ -36,6 +36,14 @@ RUN apk add --no-cache curl \
 WORKDIR /app
 COPY --from=build --chown=demo:demo /app/target/${APP_NAME}-${APP_VERSION}.jar /app/app.jar
 
+# The database is a file the application writes, and /app belongs to root while the
+# application runs as demo — so the one directory it writes to is created and handed
+# over here, before USER drops the privilege to do it. No VOLUME: a declared one turns
+# a forgotten -v into an anonymous volume that the next `docker run` will not reuse,
+# so the data ends up "safe" somewhere nobody can find. Mounting it is the operator's
+# to do, and the README says so.
+RUN mkdir -p /app/data && chown demo:demo /app/data
+
 USER demo:demo
 EXPOSE 8080
 

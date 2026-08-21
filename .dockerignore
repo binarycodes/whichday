@@ -1,0 +1,7 @@
+# The build stage is COPY . ., and the builder runs `mvn clean package` — so anything
+# regenerated in the image is only wasted context on the way in. `data/` is the local
+# database, which has no business anywhere near a build.
+.git
+target
+data
+node_modules
