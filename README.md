@@ -216,11 +216,16 @@ follows it, so register that one too.
 | `test`    | Unit and browserless tests, with the JaCoCo gate                 |
 | `verify`  | The same against a production build                              |
 | `styles`  | Copy edited stylesheets to `target/classes` and bust the cache   |
-| `deps`    | Fetch newly added dependencies (every other task builds offline) |
+| `deps`    | Pre-download dependencies and build plugins, so a later task needs no network |
 | `resetdb` | Delete the local database                                        |
 
 `run` needs the OIDC variables above; the tests do not. `./run.sh` pins JDK 21, and
 every build carries the commit SHA — the enforcer plugin rejects one that does not.
+
+`run.sh` is shared between projects and names none of them: what it needs to know
+about Whichday is in `run.conf`, and `resetdb` — the one task it does not ship — is in
+`run.tasks.sh`. Improve the runner upstream and copy it back rather than editing it
+here.
 
 ### Styling
 
