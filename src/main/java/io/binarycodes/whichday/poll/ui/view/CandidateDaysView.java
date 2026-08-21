@@ -10,6 +10,7 @@ import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
@@ -38,6 +39,20 @@ public class CandidateDaysView extends PollScreen {
 
     public CandidateDaysView(PollPresenter presenter) {
         super(presenter);
+    }
+
+    /**
+     * Editing a poll is the organizer's, so anybody else who follows this URL is sent
+     * to the screen the poll actually has for them. Not the not-found screen: they were
+     * invited, so the poll is theirs to see — just not theirs to change.
+     */
+    @Override
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        if (presenter.isOrganizer(poll)) {
+            return false;
+        }
+        forwardToPoll(event, ResultsView.class);
+        return true;
     }
 
     @Override

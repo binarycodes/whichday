@@ -625,6 +625,46 @@ class PollJourneyTest extends SpringBrowserlessTest {
     }
 
     @Test
+    @DisplayName("sends an invitee away from the screens that edit the poll")
+    void anInviteeCannotReachTheOrganizerScreens() {
+        StubIdentity.signIn(Sample.MIRO);
+
+        navigateToPoll(CandidateDaysView.class, offsite);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+
+        navigateToPoll(ShareView.class, offsite);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+    }
+
+    @Test
+    @DisplayName("offers the button that settles the poll to the organizer alone")
+    void onlyTheOrganizerIsOfferedTheLock() {
+        navigateToPoll(ResultsView.class, offsite);
+        assertThat(textOf(currentView())).contains("Lock in");
+
+        StubIdentity.signIn(Sample.MIRO);
+        navigateToPoll(ResultsView.class, offsite);
+
+        // Miro sees the standings and every name on them, and no decision to make.
+        assertThat(textOf(currentView())).contains("have voted").doesNotContain("Lock in");
+    }
+
+    @Test
+    @DisplayName("offers accepting a proposed day to the organizer alone")
+    void onlyTheOrganizerIsOfferedTheProposal() {
+        var day = presenter().poll(offsite).orElseThrow().candidateDays().getFirst().plusDays(21);
+        presenter().declineAll(offsite, List.of(day), "Away that week");
+
+        navigateToPoll(ResultsView.class, offsite);
+        assertThat(textOf(currentView())).contains("Proposed instead").contains("Add it");
+
+        StubIdentity.signIn(Sample.MIRO);
+        navigateToPoll(ResultsView.class, offsite);
+
+        assertThat(textOf(currentView())).contains("Proposed instead").doesNotContain("Add it");
+    }
+
+    @Test
     @DisplayName("sends a link that is not even an id to the not-found screen")
     void malformedPollId() {
         UI.getCurrent().navigate(ResultsView.class, new RouteParameters("id", "no-such-poll"));

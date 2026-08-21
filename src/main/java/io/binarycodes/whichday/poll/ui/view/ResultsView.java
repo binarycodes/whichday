@@ -123,10 +123,14 @@ public class ResultsView extends PollScreen {
             }
         }
 
-        poll.leader().ifPresent(leader -> {
-            footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
-                    ignored -> lock(leader)));
-        });
+        // Settling the poll is the organizer's, so nobody else is shown the button. The
+        // service refuses it either way; this is so an invitee is not offered a decision
+        // that is not theirs.
+        if (presenter.isOrganizer(poll)) {
+            poll.leader().ifPresent(leader ->
+                    footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
+                            ignored -> lock(leader))));
+        }
     }
 
     /**
@@ -169,15 +173,22 @@ public class ResultsView extends PollScreen {
         }
         var section = new Div(Typography.sectionLabel(getTranslation("results.proposals")));
         section.addClassNames("stack-m", "push-2xl");
-        proposals.forEach(ballot -> section.add(proposalRow(ballot)));
+        proposals.forEach(ballot -> section.add(proposalRow(poll, ballot)));
         return Optional.of(section);
     }
 
-    private HintBar proposalRow(Ballot ballot) {
+    /**
+     * Everybody sees what was put forward; only the organizer is offered the button that
+     * puts it on the table, because accepting one adds a column to everybody's ballot.
+     */
+    private HintBar proposalRow(Poll poll, Ballot ballot) {
         var days = ballot.proposedDays().stream().map(day -> DateText.compact(this, day)).toList();
-        var accept = Actions.inline(getTranslation("results.acceptProposal"), ignored -> accept(ballot));
-        return new HintBar(VaadinIcon.CALENDAR, getTranslation("results.proposal",
-                ballot.voter().firstName(), String.join(", ", days))).outlined().withAction(accept);
+        var row = new HintBar(VaadinIcon.CALENDAR, getTranslation("results.proposal",
+                ballot.voter().firstName(), String.join(", ", days))).outlined();
+        if (presenter.isOrganizer(poll)) {
+            row.withAction(Actions.inline(getTranslation("results.acceptProposal"), ignored -> accept(ballot)));
+        }
+        return row;
     }
 
     /**

@@ -1,4 +1,4 @@
-# Only invited people see a poll
+# Who may see a poll, and who may change it
 
 ## Decided
 
@@ -18,6 +18,14 @@ Enforced in `PollService`, not on the screens:
 | `openPolls`, `settledPolls` | scoped in the query, both arms indexed |
 | `draftPolls` | organizer only, as before — a draft has been shown to nobody |
 | `castVote`, `decline` | refuse anybody who is not on the invitee list |
+| `send`, `closeOn`, `replaceCandidateDays`, `acceptProposal`, `allowAlternatives`, `lock`, `addInvitee`, `deleteDraft` | the organizer alone |
+
+Three permissions, then, and they nest: seeing the poll needs an invitation, answering
+it needs an invitation, and changing it needs to be the person who called it.
+
+`plannedClosing` and `latestClosingDay` are the exception, and deliberately: they are
+reads, they say only what the ballot already shows, and the one screen that calls them
+now turns a non-organizer away at the door.
 
 ## What this replaced
 
@@ -36,7 +44,25 @@ found. We'll email a voting link instead.", and "They'll get a voting link by em
 and can answer without signing up." All three now say that everyone signs in with the
 address they were invited at.
 
-## The refusal says nothing
+## The refusals say different amounts, on purpose
+
+A stranger must not learn that the poll is real. Somebody who is on the poll already
+knows, so refusing them by name costs nothing and explains everything. So
+`requireOrganizer` has three answers rather than two: the organizer proceeds, an
+invitee gets `NotTheOrganizerException` naming the poll and the address, and anybody
+else gets the same `IllegalArgumentException` an id nobody issued gets.
+
+Getting that ordering wrong is easy, and writing the test found two places where it
+was wrong:
+
+- `requireOrganizer` loaded the poll before asking who was calling, so **a stranger
+  calling `lock` was refused by name** — which told her the poll existed.
+- `castVote` checked that the poll was open *before* checking the caller was invited,
+  so **a stranger voting on a closed poll was told it had closed**. Invitation now
+  comes first, and `requireOpen` takes a poll rather than an id so it cannot be called
+  any earlier.
+
+## The refusal to a stranger says nothing
 
 A person who was not invited must not be able to tell a real poll from an imaginary
 one. So the read path returns `Optional.empty()` and the write path throws the same
@@ -69,7 +95,10 @@ comment.
   not after. That was a shrug when a forgotten colleague could just use the link, and
   it is a dead end now:
   [`../issues/0007-a-forgotten-invitee-cannot-be-added.md`](../issues/0007-a-forgotten-invitee-cannot-be-added.md).
-- Organizer-only actions are still open to any invitee at the service layer —
-  [`../issues/0008-any-invitee-can-settle-the-poll.md`](../issues/0008-any-invitee-can-settle-the-poll.md).
-  Scoping reads shrank that from "anybody with the link" to "somebody who was invited",
-  which is a much smaller blast radius and not the same as closed.
+- **`isOrganizer` used to gate nothing at all.** It existed on the presenter and had
+  exactly one caller — `BallotView` deciding where to navigate after a submit — so the
+  results screen offered "Lock in Thursday" and "Add it" to every invitee, and the
+  service took both without asking. `/poll/:id/days` and `/poll/:id/share` had no
+  redirect either, so any invitee could edit the days or re-send the poll. All of that
+  is closed; the screens hide what is not yours as a courtesy, and the service refuses
+  it as the rule.

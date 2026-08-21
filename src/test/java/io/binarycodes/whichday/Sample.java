@@ -59,8 +59,8 @@ public final class Sample {
                 monday.plusDays(8), monday.plusDays(9));
 
         var id = service.create("Q3 team offsite", ADA, TEAM);
-        service.replaceCandidateDays(id, days);
-        service.send(id);
+        service.replaceCandidateDays(id, ADA, days);
+        service.send(id, ADA);
         service.castVote(id, ADA, Set.of(days.get(2), days.get(3)));
         service.castVote(id, MIRO, Set.of(days.get(0), days.get(2)));
         service.castVote(id, SARA, Set.of(days.get(0), days.get(2), days.get(3)));
@@ -74,9 +74,9 @@ public final class Sample {
     public static UUID unanswered(PollService service, Clock clock) {
         var monday = mondayAfterNext(LocalDate.now(clock)).plusWeeks(3);
         var id = service.create("Design review week", MIRO, TEAM);
-        service.replaceCandidateDays(id,
+        service.replaceCandidateDays(id, MIRO,
                 List.of(monday, monday.plusDays(1), monday.plusDays(2), monday.plusDays(4)));
-        service.send(id);
+        service.send(id, MIRO);
         return id;
     }
 
@@ -84,10 +84,10 @@ public final class Sample {
     public static UUID settled(PollService service, Clock clock) {
         var day = mondayAfterNext(LocalDate.now(clock)).plusWeeks(1);
         var id = service.create("Sprint 14 retro", ADA, TEAM);
-        service.replaceCandidateDays(id, List.of(day));
-        service.send(id);
+        service.replaceCandidateDays(id, ADA, List.of(day));
+        service.send(id, ADA);
         TEAM.forEach(person -> service.castVote(id, person, Set.of(day)));
-        service.lock(id, day);
+        service.lock(id, ADA, day);
         return id;
     }
 

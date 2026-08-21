@@ -28,8 +28,8 @@ a missing feature into a dead end.
 
 ## What fixing it looks like
 
-The service half exists and is tested. What is missing is one affordance, and the
-question of where it belongs:
+The service half exists, is tested, and now refuses anybody but the organizer. What is
+missing is one affordance, and the question of where it belongs:
 
 - **Before sending**, on the share screen, next to the invite list it already draws.
   This is the common case — "I forgot Sixten while setting this up" — and it needs

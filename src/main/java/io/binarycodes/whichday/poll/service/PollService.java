@@ -39,6 +39,10 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
  * which takes a row lock held until the transaction commits. That pairing is what
  * replaced a {@code synchronized} on every method: a monitor inside a transactional
  * proxy is released before the commit, so it reads like a guarantee and is not one.
+ *
+ * <p>Who may do what is decided here rather than by which button a screen draws:
+ * reading needs an invitation, answering needs an invitation, and editing, settling or
+ * discarding the poll needs to be the person who called it.
  */
 @Service
 @Transactional(readOnly = true)
@@ -71,14 +75,14 @@ public class PollService {
     }
 
     @Transactional
-    public void replaceCandidateDays(UUID id, Collection<LocalDate> days) {
-        requireForUpdate(id).replaceCandidateDays(days.stream().sorted().toList());
+    public void replaceCandidateDays(UUID id, Person organizer, Collection<LocalDate> days) {
+        requireOrganizer(id, organizer).replaceCandidateDays(days.stream().sorted().toList());
     }
 
     /** Sending the poll out is what opens it; until then it has no closing date. */
     @Transactional
-    public void send(UUID id) {
-        var stored = requireForUpdate(id);
+    public void send(UUID id, Person organizer) {
+        var stored = requireOrganizer(id, organizer);
         if (stored.closesOn() == null) {
             stored.closeOn(defaultClosingDayFor(stored), clock.instant());
         }
@@ -90,8 +94,8 @@ public class PollService {
      * voted on, because an answer that arrives then is about a day already gone.
      */
     @Transactional
-    public void closeOn(UUID id, LocalDate day) {
-        var stored = requireForUpdate(id);
+    public void closeOn(UUID id, Person organizer, LocalDate day) {
+        var stored = requireOrganizer(id, organizer);
         stored.closeOn(clampClosingDay(stored, day), clock.instant());
     }
 
@@ -116,7 +120,7 @@ public class PollService {
 
     @Transactional
     public void castVote(UUID id, Person voter, Set<LocalDate> chosenDays) {
-        requireInvited(requireOpen(id), voter);
+        requireOpen(requireInvited(id, voter));
         record(id, voter, chosenDays);
     }
 
@@ -141,21 +145,21 @@ public class PollService {
      */
     @Transactional
     public void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
-        requireInvited(requireOpen(id), voter)
+        requireOpen(requireInvited(id, voter))
                 .record(addressOf(voter), Set.of(), proposedDays, note);
     }
 
     @Transactional
-    public void acceptProposal(UUID id, LocalDate day) {
-        var stored = requireForUpdate(id);
+    public void acceptProposal(UUID id, Person organizer, LocalDate day) {
+        var stored = requireOrganizer(id, organizer);
         var days = new LinkedHashSet<>(stored.candidateDays());
         days.add(day);
         stored.replaceCandidateDays(days.stream().sorted().toList());
     }
 
     @Transactional
-    public void lock(UUID id, LocalDate day) {
-        requireForUpdate(id).lock(day);
+    public void lock(UUID id, Person organizer, LocalDate day) {
+        requireOrganizer(id, organizer).lock(day);
     }
 
     /**
@@ -190,8 +194,8 @@ public class PollService {
      * and people waiting on it, and discarding one is a decision this does not make.
      */
     @Transactional
-    public void deleteDraft(UUID id) {
-        var stored = requireForUpdate(id);
+    public void deleteDraft(UUID id, Person organizer) {
+        var stored = requireOrganizer(id, organizer);
         if (stateOf(stored) != PollState.DRAFT) {
             throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
         }
@@ -228,14 +232,14 @@ public class PollService {
      * needs either way — only the ask to add to the table.
      */
     @Transactional
-    public void allowAlternatives(UUID id, boolean allowed) {
-        requireForUpdate(id).allowAlternatives(allowed);
+    public void allowAlternatives(UUID id, Person organizer, boolean allowed) {
+        requireOrganizer(id, organizer).allowAlternatives(allowed);
     }
 
     /** Somebody the organizer thought of after sending it out. */
     @Transactional
-    public void addInvitee(UUID id, Person invitee) {
-        requireForUpdate(id).invite(addressOf(invitee));
+    public void addInvitee(UUID id, Person organizer, Person invitee) {
+        requireOrganizer(id, organizer).invite(addressOf(invitee));
     }
 
     private Poll snapshot(StoredPoll stored) {
@@ -397,11 +401,14 @@ public class PollService {
     /**
      * A poll that has closed takes no more answers. Enforced here rather than only on
      * the screens, so that a stale tab cannot post one after the date has passed.
+     *
+     * <p>Takes a poll rather than an id, because it has to run *after* the caller has
+     * been shown to be on it: telling somebody a poll has closed is telling them the
+     * poll exists.
      */
-    private StoredPoll requireOpen(UUID id) {
-        var stored = requireForUpdate(id);
+    private StoredPoll requireOpen(StoredPoll stored) {
         if (stateOf(stored) != PollState.OPEN) {
-            throw new PollClosedException(id);
+            throw new PollClosedException(stored.id());
         }
         return stored;
     }
@@ -413,11 +420,34 @@ public class PollService {
      * unknown id throws, because a person who was not invited should not be able to
      * learn from the difference that the poll is real.
      */
-    private StoredPoll requireInvited(StoredPoll stored, Person voter) {
+    private StoredPoll requireInvited(UUID id, Person voter) {
+        var stored = requireForUpdate(id);
         if (!stored.inviteeEmails().contains(addressOf(voter))) {
-            throw unknown(stored.id());
+            throw unknown(id);
         }
         return stored;
+    }
+
+    /**
+     * Editing, settling and discarding a poll belong to the person who called it.
+     * Enforced here because a hidden button is not a check: the screens do hide these
+     * from everybody else, and that is a courtesy rather than the rule.
+     *
+     * <p>Three answers, not two. The organizer proceeds. Somebody who is on the poll is
+     * refused by name, because they can already see it and there is nothing left to
+     * withhold. Anybody else is told the poll does not exist — the refusal itself must
+     * not be what reveals that it does.
+     */
+    private StoredPoll requireOrganizer(UUID id, Person asking) {
+        var stored = requireForUpdate(id);
+        var email = addressOf(asking);
+        if (stored.organizerEmail().equals(email)) {
+            return stored;
+        }
+        if (!stored.inviteeEmails().contains(email)) {
+            throw unknown(id);
+        }
+        throw new NotTheOrganizerException(id, email);
     }
 
     private StoredPoll require(UUID id) {

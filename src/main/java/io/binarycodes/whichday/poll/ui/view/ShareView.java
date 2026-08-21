@@ -8,6 +8,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import java.util.Set;
@@ -40,6 +41,20 @@ public class ShareView extends PollScreen {
 
     public ShareView(PollPresenter presenter) {
         super(presenter);
+    }
+
+    /**
+     * Editing a poll is the organizer's, so anybody else who follows this URL is sent
+     * to the screen the poll actually has for them. Not the not-found screen: they were
+     * invited, so the poll is theirs to see — just not theirs to change.
+     */
+    @Override
+    protected boolean redirect(BeforeEnterEvent event, Poll poll) {
+        if (presenter.isOrganizer(poll)) {
+            return false;
+        }
+        forwardToPoll(event, ResultsView.class);
+        return true;
     }
 
     @Override

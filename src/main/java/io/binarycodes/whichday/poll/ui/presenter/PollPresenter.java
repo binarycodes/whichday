@@ -75,7 +75,7 @@ public class PollPresenter {
     }
 
     public void deleteDraft(UUID id) {
-        polls.deleteDraft(id);
+        polls.deleteDraft(id, viewer());
     }
 
     public List<PollSummary> settledPolls() {
@@ -146,23 +146,23 @@ public class PollPresenter {
     }
 
     public void closeOn(UUID id, LocalDate day) {
-        polls.closeOn(id, day);
+        polls.closeOn(id, viewer(), day);
     }
 
     public void allowAlternatives(UUID id, boolean allowed) {
-        polls.allowAlternatives(id, allowed);
+        polls.allowAlternatives(id, viewer(), allowed);
     }
 
     public void addInvitee(UUID id, Person person) {
-        polls.addInvitee(id, person);
+        polls.addInvitee(id, viewer(), person);
     }
 
     public void chooseDays(UUID id, Set<LocalDate> days) {
-        polls.replaceCandidateDays(id, days);
+        polls.replaceCandidateDays(id, viewer(), days);
     }
 
     public void send(UUID id) {
-        polls.send(id);
+        polls.send(id, viewer());
     }
 
     public void vote(UUID id, Set<LocalDate> days) {
@@ -174,11 +174,11 @@ public class PollPresenter {
     }
 
     public void acceptProposal(UUID id, LocalDate day) {
-        polls.acceptProposal(id, day);
+        polls.acceptProposal(id, viewer(), day);
     }
 
     public void lock(UUID id, LocalDate day) {
-        polls.lock(id, day);
+        polls.lock(id, viewer(), day);
     }
 
     public Optional<Ballot> ballotOf(UUID id) {

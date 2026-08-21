@@ -149,6 +149,11 @@ screen, and it is the same screen an imaginary poll gets — the refusal does no
 that the link was real. Forwarding a voting link to somebody who was not invited
 therefore gives them nothing.
 
+**Everyone invited can answer; only the organizer can change anything.** Editing the
+days, sending it, moving the closing date, accepting a proposed day, locking one in and
+discarding a draft are all theirs alone. `PollService` refuses the rest, so a hidden
+button is a courtesy rather than the check.
+
 ## Inviting people
 
 There is no team and no directory. The only way onto a poll is the organizer typing
