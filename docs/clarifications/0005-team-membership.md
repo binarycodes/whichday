@@ -12,6 +12,13 @@ listed until the organizer has typed enough to have known who they were looking
 for. `forInvite` turns an address with no account behind it into somebody who can
 still be invited.
 
+**Being invited is being invited at an address.** The invitee answers by signing in
+with that address and no other, and until they do the poll is not visible to them at
+all — see
+[`0012-only-invited-people-see-a-poll.md`](0012-only-invited-people-see-a-poll.md).
+That is why the invite mail says so: the refusal deliberately explains nothing, so the
+mail is the only place a reader can be told which address to use.
+
 **An account is somebody who has signed in.** Nothing seeds the directory: it
 remembers whoever authenticates, on the way past, and that is the only way it learns
 about anybody. So a colleague becomes findable once they have signed in at least
@@ -78,10 +85,13 @@ persistence-tier concern.
 
 ## Not built
 
-- **Adding people after a poll is live.** `PollService.addInvitee` exists and the
-  design's C2 hint promises it ("You can keep adding people after the poll is
-  live"), but no screen calls it yet. The hint is not shown, rather than shown and
-  broken.
+- **Adding people after a poll is live.** `PollService.addInvitee` exists and no
+  screen calls it. The design's C2 hint promised it — "You can keep adding people
+  after the poll is live" — and that string has been deleted rather than left sitting
+  unused in the translation file, where the next person to build the screen would have
+  reached for it and shipped a promise that is still only half true. What it costs is
+  [`../issues/0007-a-forgotten-invitee-cannot-be-added.md`](../issues/0007-a-forgotten-invitee-cannot-be-added.md),
+  which matters more now that the invite list decides who can see the poll at all.
 - **A bounced invite**, and indeed any invite at all — see
   [`../issues/0003-nothing-is-ever-actually-sent.md`](../issues/0003-nothing-is-ever-actually-sent.md).
 - **Warning chips for a malformed pasted address.** C3 draws the bad entry as an

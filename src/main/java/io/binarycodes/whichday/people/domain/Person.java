@@ -9,11 +9,13 @@ import java.util.stream.Collectors;
  * address — which is the only way anybody is reachable here: there is no directory
  * to browse and no user id to look up.
  *
- * <p>{@code name} is blank for an address with no account behind it. Such a person
- * still gets a poll and a vote; what they do not get is a name until they claim one.
+ * <p>{@code name} is blank for an address with no account behind it. Such a person can
+ * be invited and counts towards every denominator, but answering means signing in with
+ * that address — which is also the moment they get a name. Nothing here is reachable
+ * without signing in.
  *
- * @param avatarTone stored rather than derived, so a person keeps their colour
- *                   across every screen even if their name is corrected
+ * @param avatarTone derived from the address by both factories, and therefore not a
+ *                   column: a stored tone could only disagree with a computed one
  */
 public record Person(String email, String name, int avatarTone) {
 
