@@ -296,6 +296,13 @@ match, so the clamp is a backstop rather than the thing the organizer meets. Whe
 two bounds cannot both hold — the last option is today or tomorrow — the last day on
 the table wins.
 
+That bound is also why "You can extend it later" stops being true at a definite moment.
+While a candidate day is still ahead the organizer can extend, even after the poll has
+gone `CLOSED`. Once every day on the table has passed there is no legal closing date
+left, so extending is undefined rather than refused — the poll does not need more time,
+it needs different days, which is a different operation and one nothing offers
+([issue 0004](issues/0004-a-closed-poll-is-a-dead-end.md)).
+
 ### What this replaced, and why it was wrong
 
 `today + 5 days`, rolled forward to the next-or-same Friday, at 18:00. One screenshot
