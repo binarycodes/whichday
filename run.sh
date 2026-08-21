@@ -14,6 +14,8 @@ cd "$(dirname "$0")"
 
 readonly BUNDLE_DIR="src/main/bundles"
 readonly STYLES_CSS="src/main/resources/META-INF/resources/styles.css"
+# Matches the WHICHDAY_DATA_DIR default in application.properties.
+readonly DATA_DIR="data"
 
 # Resolve a JDK 21 from SDKMAN; fall back to whatever JAVA_HOME is already set.
 resolve_java_home() {
@@ -139,6 +141,15 @@ task_clean() {
     mvn -o clean
 }
 
+# Throw away the local database. The app creates an empty one on the next start.
+#
+# Deliberately not part of `clean`: a build task that quietly deleted your polls
+# would be docs/issues/0001 with a different trigger.
+task_resetdb() {
+    rm -rf "${DATA_DIR}"
+    echo "Removed ${DATA_DIR}/"
+}
+
 usage() {
     cat <<'EOF'
 Usage: ./run.sh <task>
@@ -155,6 +166,7 @@ Tasks:
   preview    Alias of run, launched by the Claude Code preview pane
   package    Full production build (mvn clean package)
   clean      mvn clean + remove cached bundles
+  resetdb    Delete the local database (the app creates an empty one next start)
   help       Show this message
 EOF
 }
@@ -172,6 +184,7 @@ main() {
         preview) task_preview ;;
         package) task_package "${@:2}" ;;
         clean)   task_clean ;;
+        resetdb) task_resetdb ;;
         help|-h|--help) usage ;;
         *)
             echo "Unknown task: ${task}" >&2
