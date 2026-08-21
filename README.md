@@ -9,14 +9,17 @@ A mobile-first Vaadin application on the Aura theme.
 
 A prebuilt, multi-architecture image (`linux/amd64` + `linux/arm64`) is published to
 Docker Hub at **[`binarycodes/whichday`](https://hub.docker.com/r/binarycodes/whichday)**.
-It is one container with no database and nothing else to bring up.
-
-State is held in memory and does not survive a restart
-([issue 0001](docs/issues/0001-polls-are-lost-on-restart.md)).
+It is one container with its database inside it, and nothing else to bring up.
 
 - Use `binarycodes/whichday:latest` for the newest build, or pin a version tag —
   images are also tagged with the project's Maven version.
 - The app listens on port **8080**. Override it with `PORT`: `-e PORT=9090 -p 9090:9090`.
+- Polls, ballots and accounts live in an embedded database at
+  `/app/data/whichday.mv.db`. **Mount a volume at `/app/data`** and they survive a
+  restart; without one they go when the container does. `WHICHDAY_DATA_DIR` moves the
+  directory.
+- **Run one container, not two.** The database is a file, and only the process holding
+  it can open it — a second container on the same volume will not start.
 - Signing in is configured with `WHICHDAY_OIDC_CLIENT_ID` and
   `WHICHDAY_OIDC_CLIENT_SECRET`, and it refuses to start without them. Set
   `WHICHDAY_OIDC_ISSUER_URI` for a provider other than Google.
@@ -33,6 +36,8 @@ services:
     image: binarycodes/whichday:latest
     ports:
       - "8080:8080"
+    volumes:
+      - whichday-data:/app/data
     environment:
       - WHICHDAY_OIDC_CLIENT_ID=change-me.apps.googleusercontent.com
       - WHICHDAY_OIDC_CLIENT_SECRET=change-me
@@ -41,16 +46,25 @@ services:
       # Required if anything terminates TLS in front of this; see below.
       - FORWARD_HEADERS_STRATEGY=native
     restart: unless-stopped
+
+volumes:
+  whichday-data:
 ```
 
-No volume, because there is nothing durable to put in one.
+The volume is the database, so it is not optional. A named volume as above picks up
+the right ownership on its own; a bind mount has to be writable by uid 10001, which is
+the user inside the image.
+
+Do not add `deploy.replicas` or `--scale`, and do not point a second container at the
+same volume: one process, one file.
 
 ### Podman Quadlet (systemd)
 
 If you run [Podman](https://podman.io), a [Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
 lets systemd manage the container declaratively — start on boot, restart on failure,
 and optional auto-updates — without a long-running daemon. One container means one
-unit file, and no network of its own: there is nothing for it to find by name.
+unit file and no network of its own: there is nothing for it to find by name. It does
+need the volume, for the same reason compose does.
 
 It goes in `/etc/containers/systemd/` (rootful) or `~/.config/containers/systemd/`
 (rootless).
@@ -65,6 +79,7 @@ Description=Whichday
 ContainerName=whichday
 Image=docker.io/binarycodes/whichday:latest
 PublishPort=8080:8080
+Volume=whichday-data:/app/data
 Environment=WHICHDAY_OIDC_CLIENT_ID=change-me.apps.googleusercontent.com
 Environment=WHICHDAY_OIDC_CLIENT_SECRET=change-me
 # Required if anything terminates TLS in front of this; see below.
@@ -91,7 +106,9 @@ systemctl start whichday.service
 ```
 
 `AutoUpdate=registry` plus `podman-auto-update.timer` keeps it on the latest
-published image, restarting the container to do it.
+published image, restarting the container to do it. systemd stops the old container
+before starting the new one, which is what makes that safe here: only one process at a
+time may hold the database file.
 
 ### Behind a proxy
 
@@ -134,14 +151,23 @@ behind it becomes an invitation rather than an error.
 
 An account is somebody who has signed in — that is the only way `AccountDirectory`
 learns about anybody, so a colleague becomes findable once they have signed in at
-least once.
+least once, and stays findable across restarts.
 
 ## Where the polls live
 
-In memory, in a `PollService` singleton, and nothing seeds it. Reads return immutable
-records and the mutable types never leave the service package, so a persistence tier
-goes behind that boundary without a view changing —
-[issue 0001](docs/issues/0001-polls-are-lost-on-restart.md).
+In an embedded H2 database — one file under `./data` locally, `/app/data` in the
+container. Flyway owns the schema, `ddl-auto=validate` refuses to start if the entities
+and the migrations disagree, and nothing seeds it.
+
+A poll row names people by email address; the one place a name lives is the `account`
+table, written when somebody signs in. So an invitee who signs up later shows their
+real name on polls that predate their account.
+
+Reads still return immutable records, and the entities never leave the service package
+— which is why no screen changed when this stopped being a map in memory. It is H2
+rather than PostgreSQL on purpose:
+[`docs/clarifications/0010-an-embedded-database-on-disk.md`](docs/clarifications/0010-an-embedded-database-on-disk.md)
+says why.
 
 ## Develop locally
 
@@ -153,6 +179,10 @@ export WHICHDAY_OIDC_CLIENT_SECRET=...
 ./run.sh run
 ```
 
+The database appears at `./data/whichday.mv.db` on first start and survives every
+restart, devtools included. `./run.sh resetdb` deletes it and the app creates an empty
+one next time. The tests never touch it — they run against an in-memory database.
+
 Open <http://localhost:8080> and it redirects you to the provider. Register
 `http://localhost:8080/login/oauth2/code/oidc` with the client — `localhost` is the
 one host Google allows over plain HTTP. `PORT` moves the port and the redirect URI
@@ -162,13 +192,14 @@ follows it, so register that one too.
 
 `./run.sh` with no arguments lists them all. The ones you want:
 
-| Task     | What it does                                                     |
-| -------- | ---------------------------------------------------------------- |
-| `run`    | Start the app in dev mode                                        |
-| `test`   | Unit and browserless tests, with the JaCoCo gate                 |
-| `verify` | The same against a production build                              |
-| `styles` | Copy edited stylesheets to `target/classes` and bust the cache   |
-| `deps`   | Fetch newly added dependencies (every other task builds offline) |
+| Task      | What it does                                                     |
+| --------- | ---------------------------------------------------------------- |
+| `run`     | Start the app in dev mode                                        |
+| `test`    | Unit and browserless tests, with the JaCoCo gate                 |
+| `verify`  | The same against a production build                              |
+| `styles`  | Copy edited stylesheets to `target/classes` and bust the cache   |
+| `deps`    | Fetch newly added dependencies (every other task builds offline) |
+| `resetdb` | Delete the local database                                        |
 
 `run` needs the OIDC variables above; the tests do not. `./run.sh` pins JDK 21, and
 every build carries the commit SHA — the enforcer plugin rejects one that does not.
