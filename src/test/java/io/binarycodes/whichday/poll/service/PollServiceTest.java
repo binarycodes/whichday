@@ -2,10 +2,12 @@ package io.binarycodes.whichday.poll.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.poll.domain.DayTally;
+import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 
@@ -58,7 +61,7 @@ class PollServiceTest {
     @Test
     @DisplayName("reproduces the standings the design was drawn with")
     void sampleStandings() {
-        var poll = service.poll(offsite).orElseThrow();
+        var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.tallies()).extracting(DayTally::voteCount).containsExactly(6, 4, 3, 2, 1);
         assertThat(poll.inviteCount()).isEqualTo(7);
@@ -69,7 +72,7 @@ class PollServiceTest {
     @Test
     @DisplayName("leaves exactly one person owed an answer, so the nudge has a name")
     void soleHoldout() {
-        var poll = service.poll(offsite).orElseThrow();
+        var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.awaiting()).containsExactly(Sample.JONAS);
         assertThat(poll.awaitingOthers(Sample.ADA)).containsExactly(Sample.JONAS);
@@ -82,7 +85,7 @@ class PollServiceTest {
         var id = openPoll(List.of(Sample.ADA, Sample.JONAS), day);
         service.castVote(id, Sample.JONAS, Set.of(day));
 
-        var poll = service.poll(id).orElseThrow();
+        var poll = poll(id).orElseThrow();
 
         assertThat(poll.awaiting()).containsExactly(Sample.ADA);
         assertThat(poll.awaitingOthers(Sample.ADA)).isEmpty();
@@ -98,7 +101,7 @@ class PollServiceTest {
         service.send(id);
         service.castVote(id, Sample.ADA, Set.of(monday, friday));
 
-        var tallies = service.poll(id).orElseThrow().tallies();
+        var tallies = poll(id).orElseThrow().tallies();
 
         assertThat(tallies).extracting(DayTally::day).containsExactly(monday, friday);
         assertThat(tallies).extracting(DayTally::rank).containsExactly(1, 2);
@@ -107,7 +110,7 @@ class PollServiceTest {
     @Test
     @DisplayName("fills a bar against everybody invited, not against the leader")
     void shareIsOfTheInvited() {
-        var poll = service.poll(offsite).orElseThrow();
+        var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.tallies().getFirst().share()).isEqualTo(6d / 7d);
         assertThat(poll.leader()).isPresent();
@@ -116,10 +119,10 @@ class PollServiceTest {
     @Test
     @DisplayName("withdrawing a day drops the votes that were cast for it")
     void withdrawingADayDropsItsVotes() {
-        var remaining = service.poll(offsite).orElseThrow().candidateDays().stream().skip(1).toList();
+        var remaining = poll(offsite).orElseThrow().candidateDays().stream().skip(1).toList();
 
         service.replaceCandidateDays(offsite, remaining);
-        var updated = service.poll(offsite).orElseThrow();
+        var updated = poll(offsite).orElseThrow();
 
         assertThat(updated.candidateDays()).isEqualTo(remaining);
         assertThat(updated.tallies()).hasSize(remaining.size());
@@ -133,7 +136,7 @@ class PollServiceTest {
         var stranger = LocalDate.of(2027, 1, 1);
 
         service.castVote(offsite, Sample.JONAS, Set.of(stranger));
-        var updated = service.poll(offsite).orElseThrow();
+        var updated = poll(offsite).orElseThrow();
 
         assertThat(updated.tallies()).extracting(DayTally::day).doesNotContain(stranger);
         assertThat(updated.ballotOf(Sample.JONAS)).isPresent();
@@ -143,7 +146,7 @@ class PollServiceTest {
     @DisplayName("counts somebody who can make none of the days as having answered")
     void decliningIsAnAnswer() {
         service.decline(offsite, Sample.JONAS, List.of(LocalDate.of(2026, 9, 28)), "Away that week");
-        var poll = service.poll(offsite).orElseThrow();
+        var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.answerCount()).isEqualTo(7);
         assertThat(poll.awaiting()).isEmpty();
@@ -160,21 +163,21 @@ class PollServiceTest {
         var proposed = LocalDate.of(2026, 9, 28);
         service.decline(offsite, Sample.JONAS, List.of(proposed), null);
 
-        assertThat(service.poll(offsite).orElseThrow().candidateDays()).doesNotContain(proposed);
+        assertThat(poll(offsite).orElseThrow().candidateDays()).doesNotContain(proposed);
 
         service.acceptProposal(offsite, proposed);
 
-        assertThat(service.poll(offsite).orElseThrow().candidateDays()).contains(proposed);
+        assertThat(poll(offsite).orElseThrow().candidateDays()).contains(proposed);
     }
 
     @Test
     @DisplayName("takes other days forward by default, and stops when the organizer says so")
     void alternativesAreTheOrganizersChoice() {
-        assertThat(service.poll(offsite).orElseThrow().alternativesAllowed()).isTrue();
+        assertThat(poll(offsite).orElseThrow().alternativesAllowed()).isTrue();
 
         service.allowAlternatives(offsite, false);
 
-        assertThat(service.poll(offsite).orElseThrow().alternativesAllowed()).isFalse();
+        assertThat(poll(offsite).orElseThrow().alternativesAllowed()).isFalse();
     }
 
     @Test
@@ -183,7 +186,7 @@ class PollServiceTest {
         service.allowAlternatives(offsite, false);
 
         service.decline(offsite, Sample.JONAS, List.of(), "Away that week");
-        var poll = service.poll(offsite).orElseThrow();
+        var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.answerCount()).isEqualTo(7);
         assertThat(poll.declined()).singleElement().satisfies(ballot -> {
@@ -195,11 +198,11 @@ class PollServiceTest {
     @Test
     @DisplayName("locking settles the poll and moves it out of the open list")
     void locking() {
-        var leader = service.poll(offsite).orElseThrow().leader().orElseThrow().day();
+        var leader = poll(offsite).orElseThrow().leader().orElseThrow().day();
 
         service.lock(offsite, leader);
 
-        assertThat(service.poll(offsite).orElseThrow().state()).isEqualTo(PollState.LOCKED);
+        assertThat(poll(offsite).orElseThrow().state()).isEqualTo(PollState.LOCKED);
         assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(offsite);
         assertThat(service.settledPolls(Sample.ADA)).extracting(PollSummary::id).contains(offsite);
     }
@@ -210,10 +213,10 @@ class PollServiceTest {
         var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
         service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7)));
 
-        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.DRAFT);
+        assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.DRAFT);
 
         service.send(id);
-        var sent = service.poll(id).orElseThrow();
+        var sent = poll(id).orElseThrow();
 
         assertThat(sent.state()).isEqualTo(PollState.OPEN);
         assertThat(sent.openedAt()).isEqualTo(TestClock.START);
@@ -225,11 +228,11 @@ class PollServiceTest {
         var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
         service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7)));
         service.send(id);
-        var first = service.poll(id).orElseThrow().closesOn();
+        var first = poll(id).orElseThrow().closesOn();
 
         service.send(id);
 
-        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(first);
+        assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(first);
     }
 
     @Test
@@ -240,7 +243,7 @@ class PollServiceTest {
 
         var id = openPoll(Sample.TEAM, first, LocalDate.of(2026, 9, 9), last);
 
-        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last);
+        assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(last);
     }
 
     @Test
@@ -253,9 +256,9 @@ class PollServiceTest {
         clock.advanceDays(3);
 
         assertThat(LocalDate.now(clock)).isAfter(first);
-        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
         service.castVote(id, Sample.JONAS, Set.of(last));
-        assertThat(service.poll(id).orElseThrow().answerCount()).isEqualTo(1);
+        assertThat(poll(id).orElseThrow().answerCount()).isEqualTo(1);
     }
 
     @Test
@@ -263,7 +266,7 @@ class PollServiceTest {
     void neverClosesAfterTheLastCandidateDay() {
         var last = LocalDate.of(2026, 8, 24);
 
-        assertThat(service.poll(openPoll(Sample.TEAM, LocalDate.of(2026, 8, 21), last))
+        assertThat(poll(openPoll(Sample.TEAM, LocalDate.of(2026, 8, 21), last))
                 .orElseThrow().closesOn()).isEqualTo(last);
     }
 
@@ -272,7 +275,7 @@ class PollServiceTest {
     void aPollWhoseLastDayIsImminent() {
         var tomorrow = LocalDate.now(clock).plusDays(1);
 
-        var poll = service.poll(openPoll(Sample.TEAM, tomorrow)).orElseThrow();
+        var poll = poll(openPoll(Sample.TEAM, tomorrow)).orElseThrow();
 
         assertThat(poll.closesOn()).isEqualTo(tomorrow);
         assertThat(poll.state()).isEqualTo(PollState.OPEN);
@@ -285,15 +288,15 @@ class PollServiceTest {
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(1), last);
 
         service.closeOn(id, last.minusDays(4));
-        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
+        assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
 
         // Never past the last day on the table.
         service.closeOn(id, last.plusDays(3));
-        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last);
+        assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(last);
 
         // Never in the past.
         service.closeOn(id, LocalDate.now(clock).minusWeeks(1));
-        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
+        assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
 
         assertThat(service.latestClosingDay(id)).contains(last);
     }
@@ -311,29 +314,29 @@ class PollServiceTest {
 
         service.send(id);
 
-        assertThat(service.plannedClosing(id)).contains(service.poll(id).orElseThrow().closesOn());
+        assertThat(service.plannedClosing(id)).contains(poll(id).orElseThrow().closesOn());
     }
 
     @Test
     @DisplayName("stays open through its closing date and is closed the day after")
     void closesTheDayAfter() {
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
-        var closesOn = service.poll(id).orElseThrow().closesOn();
+        var closesOn = poll(id).orElseThrow().closesOn();
 
         clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn));
-        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
 
         clock.advanceDays(1);
 
-        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.CLOSED);
+        assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.CLOSED);
     }
 
     @Test
     @DisplayName("refuses an answer once voting is over")
     void refusesAnswersWhenClosed() {
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
-        var day = service.poll(id).orElseThrow().candidateDays().getFirst();
-        var closesOn = service.poll(id).orElseThrow().closesOn();
+        var day = poll(id).orElseThrow().candidateDays().getFirst();
+        var closesOn = poll(id).orElseThrow().closesOn();
 
         clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn) + 1);
 
@@ -380,11 +383,11 @@ class PollServiceTest {
 
         service.deleteDraft(draft);
 
-        assertThat(service.poll(draft)).isEmpty();
+        assertThat(poll(draft)).isEmpty();
         assertThatThrownBy(() -> service.deleteDraft(offsite))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot be discarded");
-        assertThat(service.poll(offsite)).isPresent();
+        assertThat(poll(offsite)).isPresent();
     }
 
     @Test
@@ -394,14 +397,14 @@ class PollServiceTest {
         var second = service.create("Team event", Sample.ADA, Sample.TEAM);
 
         assertThat(second).isNotEqualTo(first);
-        assertThat(service.poll(first)).isPresent();
-        assertThat(service.poll(second)).isPresent();
+        assertThat(poll(first)).isPresent();
+        assertThat(poll(second)).isPresent();
     }
 
     @Test
     @DisplayName("an id nobody issued is not a poll")
     void anIdNobodyIssued() {
-        assertThat(service.poll(UUID.randomUUID())).isEmpty();
+        assertThat(poll(UUID.randomUUID())).isEmpty();
     }
 
     @Test
@@ -453,10 +456,76 @@ class PollServiceTest {
     void unknownPoll() {
         var nobodys = UUID.randomUUID();
 
-        assertThat(service.poll(nobodys)).isEmpty();
+        assertThat(poll(nobodys)).isEmpty();
         assertThatThrownBy(() -> service.lock(nobodys, LocalDate.of(2026, 9, 7)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(nobodys.toString());
+    }
+
+    @Test
+    @DisplayName("a poll is not there at all for somebody who was not invited")
+    void aStrangerSeesNoPoll() {
+        assertThat(service.poll(offsite, Sample.TANVI)).isEmpty();
+        assertThat(poll(offsite)).isPresent();
+    }
+
+    @Test
+    @DisplayName("refuses an answer from somebody who was not invited")
+    void refusesAnUninvitedAnswer() {
+        var day = poll(offsite).orElseThrow().candidateDays().getFirst();
+
+        assertThatThrownBy(() -> service.castVote(offsite, Sample.TANVI, Set.of(day)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.decline(offsite, Sample.TANVI, List.of(day), "nope"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(poll(offsite).orElseThrow().answerCount()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("tells an uninvited answer nothing an unknown id would not have told it")
+    void refusalIsIndistinguishable() {
+        var day = poll(offsite).orElseThrow().candidateDays().getFirst();
+        var nobodys = UUID.randomUUID();
+
+        var uninvited = catchThrowable(() -> service.castVote(offsite, Sample.TANVI, Set.of(day)));
+        var unknown = catchThrowable(() -> service.castVote(nobodys, Sample.TANVI, Set.of(day)));
+
+        assertThat(uninvited).hasSameClassAs(unknown);
+        assertThat(uninvited.getMessage()).isEqualTo("No poll with id " + offsite);
+        assertThat(unknown.getMessage()).isEqualTo("No poll with id " + nobodys);
+    }
+
+    @Test
+    @DisplayName("lists only the polls the viewer is on")
+    void listsOnlyYourOwnPolls() {
+        Sample.settled(service, clock);
+        // Organized by Miro, not by the openPoll helper, which would make Ada the organizer.
+        var theirs = service.create("Theirs alone", Sample.MIRO, List.of(Sample.MIRO, Sample.JONAS));
+        service.replaceCandidateDays(theirs, List.of(LocalDate.now(clock).plusWeeks(2)));
+        service.send(theirs);
+
+        assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(theirs);
+        assertThat(service.openPolls(Sample.MIRO)).extracting(PollSummary::id).contains(theirs);
+        assertThat(service.openPolls(Sample.TANVI)).isEmpty();
+        assertThat(service.settledPolls(Sample.TANVI)).isEmpty();
+        assertThat(service.settledPolls(Sample.ADA)).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("an organizer can read their own poll even if they are not on its invitee list")
+    void theOrganizerCanAlwaysRead() {
+        var id = service.create("Just for them", Sample.ADA, List.of(Sample.MIRO));
+
+        assertThat(service.poll(id, Sample.ADA)).isPresent();
+        assertThat(service.poll(id, Sample.TANVI)).isEmpty();
+    }
+
+    /**
+     * Reading a poll needs somebody to read it as, and Ada is on every fixture here —
+     * she organizes most of them and is in {@code Sample.TEAM} for the rest.
+     */
+    private Optional<Poll> poll(UUID id) {
+        return service.poll(id, Sample.ADA);
     }
 
     private UUID openPoll(List<Person> invited, LocalDate... days) {

@@ -16,6 +16,22 @@ import jakarta.persistence.LockModeType;
 interface PollRepository extends JpaRepository<StoredPoll, UUID> {
 
     /**
+     * Who may see a poll: the person who asked, and the people they asked. Matched by
+     * address rather than by account, because an invitee may never have signed in —
+     * there is no id to compare. Both arms are indexed ({@code idx_poll_organizer},
+     * {@code idx_poll_invitee_email}).
+     *
+     * <p>The organizer arm is not redundant with the invitee arm even though
+     * {@code createFromDraft} puts them first in the list: {@code create} does not
+     * enforce that, and a poll whose author is somehow not on its own invitee list
+     * should still be readable by them.
+     */
+    String VISIBLE_TO = """
+            select poll from StoredPoll poll
+            where (poll.organizerEmail = :email or :email member of poll.inviteeEmails)
+            """;
+
+    /**
      * The order the three list screens render, which is the order the polls were
      * created in. The id breaks a tie, because a frozen clock gives several polls the
      * same instant.
@@ -32,14 +48,25 @@ interface PollRepository extends JpaRepository<StoredPoll, UUID> {
     Optional<StoredPoll> findWithLockById(UUID id);
 
     /**
+     * The one poll, and only to somebody who is on it. An address nobody invited gets
+     * an empty result — the same answer an id nobody issued gets, which is the point:
+     * whether the poll exists is not something a stranger's screen should reveal.
+     */
+    @Query(VISIBLE_TO + " and poll.id = :id")
+    Optional<StoredPoll> findVisibleById(@Param("id") UUID id, @Param("email") String email);
+
+    /**
      * Narrowed on the half of the question that does not involve the clock — sent, and
      * not settled. Which of those are still taking answers is {@code stateOf}'s to say.
      */
-    List<StoredPoll> findByLockedDayIsNullAndClosesOnIsNotNull(Sort sort);
+    @Query(VISIBLE_TO + " and poll.lockedDay is null and poll.closesOn is not null")
+    List<StoredPoll> findOpenVisibleTo(@Param("email") String email, Sort sort);
 
+    @Query(VISIBLE_TO + " and poll.lockedDay is not null")
+    List<StoredPoll> findSettledVisibleTo(@Param("email") String email, Sort sort);
+
+    /** Drafts are the organizer's alone, so this needs no invitee arm. */
     List<StoredPoll> findByOrganizerEmailAndLockedDayIsNull(String organizerEmail, Sort sort);
-
-    List<StoredPoll> findByLockedDayIsNotNull(Sort sort);
 
     /**
      * How many polls two addresses have both answered. A query rather than a scan

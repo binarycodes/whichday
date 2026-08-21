@@ -87,8 +87,13 @@ public class PollPresenter {
         return openPolls().stream().filter(PollSummary::needsViewer).count();
     }
 
+    /**
+     * The poll, if it is the viewer's to see. Every screen goes through here, so this
+     * is where the viewer gets attached to the question — a poll somebody was not
+     * invited to is absent rather than forbidden.
+     */
     public Optional<Poll> poll(UUID id) {
-        return polls.poll(id);
+        return polls.poll(id, viewer());
     }
 
     /** The poll being put together. Survives the trip to the invitee screen and back. */

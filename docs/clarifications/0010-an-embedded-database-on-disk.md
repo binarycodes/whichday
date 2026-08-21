@@ -50,10 +50,10 @@ precision would be encoding the deviation instead of hiding from it.
   the one place a partial update would have been observable.
 - The poll state is still derived on every read rather than stored, so nothing fires
   when a poll closes — [`../issues/0005-closing-happens-on-read.md`](../issues/0005-closing-happens-on-read.md).
-- Still no `owner_id` scoping (§10): anybody who has the link can read the poll —
-  [`../issues/0002-any-signed-in-user-can-read-any-poll.md`](../issues/0002-any-signed-in-user-can-read-any-poll.md).
-  The migration indexes the two columns that fix will need, so it is a `where` clause
-  and not a migration.
+- §10's rule that every query is scoped by its owner is what
+  [`0012-only-invited-people-see-a-poll.md`](0012-only-invited-people-see-a-poll.md)
+  went on to apply. The two columns it scopes by are indexed in `V1`, which is why that
+  turned out to be a `where` clause and not a migration.
 - Flyway warns at startup that H2 2.4.240 is newer than the version it was verified
   against. Both come from Boot's managed versions, so the pairing is Boot's rather
   than ours.

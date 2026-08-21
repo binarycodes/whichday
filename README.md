@@ -143,6 +143,12 @@ client. Google requires HTTPS for every redirect URI except `localhost`.
 Every route requires a signed-in user. OIDC is the only way to sign in, there is no
 login view, and the application collects no credentials.
 
+**A poll is visible only to the person who called it and the addresses they invited.**
+You sign in with the address you were invited at; anything else gets the not-found
+screen, and it is the same screen an imaginary poll gets — the refusal does not confirm
+that the link was real. Forwarding a voting link to somebody who was not invited
+therefore gives them nothing.
+
 ## Inviting people
 
 There is no team and no directory. The only way onto a poll is the organizer typing
@@ -152,6 +158,13 @@ behind it becomes an invitation rather than an error.
 An account is somebody who has signed in — that is the only way `AccountDirectory`
 learns about anybody, so a colleague becomes findable once they have signed in at
 least once, and stays findable across restarts.
+
+Inviting an address that has no account yet works, and that person answers by signing
+in with **that** address. An alias of it will not do: the invite list is matched
+literally, so `bob+team@example.com` and `bob@example.com` are two different people as
+far as a poll is concerned. And the list is fixed once the poll exists — there is no
+way to add somebody afterwards
+([issue 0007](docs/issues/0007-a-forgotten-invitee-cannot-be-added.md)).
 
 ## Where the polls live
 

@@ -304,7 +304,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         searchFor("lena.ohlsson@studiofern.se");
 
         assertThat(textOf(currentView())).contains("Invite lena.ohlsson@studiofern.se")
-                .contains("Nothing found. We'll email a voting link instead.");
+                .contains("Nothing found. Invite the address and they can sign in with it.");
 
         click("Invite lena.ohlsson@studiofern.se");
 
@@ -594,6 +594,34 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ResultsView.class, UUID.randomUUID());
 
         assertThat(currentView()).isInstanceOf(NotFoundView.class);
+    }
+
+    @Test
+    @DisplayName("signing in as somebody who was not invited is the same as no poll at all")
+    void aStrangerCannotTellThePollExists() {
+        StubIdentity.signIn(Sample.TANVI);
+
+        navigateToPoll(ResultsView.class, offsite);
+        var uninvited = textOf(currentView());
+
+        navigateToPoll(ResultsView.class, UUID.randomUUID());
+        var unknown = textOf(currentView());
+
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+        // Word for word the same screen, which is the point: whether the poll is real is
+        // not something the refusal is allowed to give away.
+        assertThat(uninvited).isEqualTo(unknown);
+    }
+
+    @Test
+    @DisplayName("a stranger cannot vote on a poll they can no longer see")
+    void aStrangerCannotVote() {
+        StubIdentity.signIn(Sample.TANVI);
+
+        navigateToPoll(BallotView.class, offsite);
+
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+        assertThat(presenter().openPolls()).isEmpty();
     }
 
     @Test

@@ -23,12 +23,12 @@ the store was a map, so `put` silently overwrote the existing poll. That was
 harmless only because nothing survived a restart anyway; it would have become durable
 data loss the moment the polls did.
 
-**A readable id is a guessable id.** Signing in is required but nothing checks *which*
-signed-in person is asking, so `q3-team-offsite` was a URL a stranger could arrive at
-by typing what a team is obviously called. That is
-[`../issues/0002-any-signed-in-user-can-read-any-poll.md`](../issues/0002-any-signed-in-user-can-read-any-poll.md),
-and an unguessable id narrows it a great deal without closing it: a link that gets
-forwarded is still a link that works.
+**A readable id is a guessable id.** At the time, signing in was required but nothing
+checked *which* signed-in person was asking, so `q3-team-offsite` was a URL a stranger
+could arrive at by typing what a team is obviously called. That hole is closed now —
+[`0012-only-invited-people-see-a-poll.md`](0012-only-invited-people-see-a-poll.md) —
+and the unguessable id is still worth having: it is what keeps the *existence* of a
+poll from being enumerable by anybody, invited or not.
 
 ## Consequences
 

@@ -116,7 +116,7 @@ public class PollService {
 
     @Transactional
     public void castVote(UUID id, Person voter, Set<LocalDate> chosenDays) {
-        requireOpen(id);
+        requireInvited(requireOpen(id), voter);
         record(id, voter, chosenDays);
     }
 
@@ -141,7 +141,8 @@ public class PollService {
      */
     @Transactional
     public void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
-        requireOpen(id).record(addressOf(voter), Set.of(), proposedDays, note);
+        requireInvited(requireOpen(id), voter)
+                .record(addressOf(voter), Set.of(), proposedDays, note);
     }
 
     @Transactional
@@ -157,13 +158,18 @@ public class PollService {
         requireForUpdate(id).lock(day);
     }
 
-    public Optional<Poll> poll(UUID id) {
-        return polls.findById(id).map(this::snapshot);
+    /**
+     * The poll, if it is this viewer's to see at all. An address nobody invited gets
+     * {@code Optional.empty()} — the same answer an id nobody issued gets, so a screen
+     * cannot tell the two apart and neither can whoever is holding the link.
+     */
+    public Optional<Poll> poll(UUID id, Person viewer) {
+        return polls.findVisibleById(id, addressOf(viewer)).map(this::snapshot);
     }
 
     /** Polls that are out with the team, whether or not they are still taking answers. */
     public List<PollSummary> openPolls(Person viewer) {
-        return summaries(polls.findByLockedDayIsNullAndClosesOnIsNotNull(PollRepository.CREATION_ORDER), viewer)
+        return summaries(polls.findOpenVisibleTo(addressOf(viewer), PollRepository.CREATION_ORDER), viewer)
                 .filter(summary -> !summary.isSettled() && !summary.isDraft())
                 .toList();
     }
@@ -199,7 +205,7 @@ public class PollService {
      * down with a {@code NullPointerException}.
      */
     public List<PollSummary> settledPolls(Person viewer) {
-        return summaries(polls.findByLockedDayIsNotNull(PollRepository.CREATION_ORDER), viewer)
+        return summaries(polls.findSettledVisibleTo(addressOf(viewer), PollRepository.CREATION_ORDER), viewer)
                 .filter(PollSummary::isSettled)
                 .sorted(Comparator.comparing(PollSummary::headlineDay,
                                 Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder()))
@@ -396,6 +402,20 @@ public class PollService {
         var stored = requireForUpdate(id);
         if (stateOf(stored) != PollState.OPEN) {
             throw new PollClosedException(id);
+        }
+        return stored;
+    }
+
+    /**
+     * An answer only counts from somebody who was asked. Enforced here rather than only
+     * by the screens, so that a stale tab, a replayed request or a forwarded link
+     * cannot post one — and it throws the same {@code IllegalArgumentException} an
+     * unknown id throws, because a person who was not invited should not be able to
+     * learn from the difference that the poll is real.
+     */
+    private StoredPoll requireInvited(StoredPoll stored, Person voter) {
+        if (!stored.inviteeEmails().contains(addressOf(voter))) {
+            throw unknown(stored.id());
         }
         return stored;
     }
