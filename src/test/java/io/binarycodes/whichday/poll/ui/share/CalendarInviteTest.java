@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import io.binarycodes.whichday.poll.domain.PollState;
 
 @DisplayName("The calendar file")
 class CalendarInviteTest {
+
+    private static final UUID OFFSITE = UUID.fromString("3f2a1c8e-5b9d-4e7a-8c6f-1d2e3a4b5c6d");
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 9, 7);
     private static final LocalDate FRIDAY = LocalDate.of(2026, 9, 11);
@@ -43,8 +46,8 @@ class CalendarInviteTest {
     void eventsAreDistinct() {
         var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY, FRIDAY), true);
 
-        assertThat(ics).contains("UID:q3-team-offsite-0@whichday")
-                .contains("UID:q3-team-offsite-1@whichday");
+        assertThat(ics).contains("UID:" + OFFSITE + "-0@whichday")
+                .contains("UID:" + OFFSITE + "-1@whichday");
     }
 
     @Test
@@ -67,7 +70,7 @@ class CalendarInviteTest {
 
     private Poll poll(String title) {
         var organizer = new Person("ada", "Ada Lindqvist", 0);
-        return new Poll("q3-team-offsite", title, organizer, List.of(organizer),
+        return new Poll(OFFSITE, title, organizer, List.of(organizer),
                 List.of(MONDAY, FRIDAY), null, null, null, true, PollState.OPEN,
                 List.of(), List.of());
     }

@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +29,7 @@ class PollServiceTest {
 
     private TestClock clock;
     private PollService service;
-    private String offsite;
+    private UUID offsite;
 
     @BeforeEach
     void setUp() {
@@ -61,10 +62,10 @@ class PollServiceTest {
     @DisplayName("never counts the person looking as somebody to chase")
     void aHoldoutIsNeverYourself() {
         var day = Sample.mondayAfterNext(LocalDate.now(clock));
-        var slug = openPoll(List.of(Sample.ADA, Sample.JONAS), day);
-        service.castVote(slug, Sample.JONAS, Set.of(day));
+        var id = openPoll(List.of(Sample.ADA, Sample.JONAS), day);
+        service.castVote(id, Sample.JONAS, Set.of(day));
 
-        var poll = service.poll(slug).orElseThrow();
+        var poll = service.poll(id).orElseThrow();
 
         assertThat(poll.awaiting()).containsExactly(Sample.ADA);
         assertThat(poll.awaitingOthers(Sample.ADA)).isEmpty();
@@ -75,12 +76,12 @@ class PollServiceTest {
     void ranking() {
         var monday = Sample.mondayAfterNext(LocalDate.now(clock));
         var friday = monday.plusDays(4);
-        var slug = service.create("Tie break", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(slug, List.of(friday, monday));
-        service.send(slug);
-        service.castVote(slug, Sample.ADA, Set.of(monday, friday));
+        var id = service.create("Tie break", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, List.of(friday, monday));
+        service.send(id);
+        service.castVote(id, Sample.ADA, Set.of(monday, friday));
 
-        var tallies = service.poll(slug).orElseThrow().tallies();
+        var tallies = service.poll(id).orElseThrow().tallies();
 
         assertThat(tallies).extracting(DayTally::day).containsExactly(monday, friday);
         assertThat(tallies).extracting(DayTally::rank).containsExactly(1, 2);
@@ -182,20 +183,20 @@ class PollServiceTest {
         service.lock(offsite, leader);
 
         assertThat(service.poll(offsite).orElseThrow().state()).isEqualTo(PollState.LOCKED);
-        assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::slug).doesNotContain(offsite);
-        assertThat(service.settledPolls(Sample.ADA)).extracting(PollSummary::slug).contains(offsite);
+        assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(offsite);
+        assertThat(service.settledPolls(Sample.ADA)).extracting(PollSummary::id).contains(offsite);
     }
 
     @Test
     @DisplayName("a new poll is a draft until it is sent, and then it is stamped")
     void sendingOpensThePoll() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7)));
 
-        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.DRAFT);
+        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.DRAFT);
 
-        service.send(slug);
-        var sent = service.poll(slug).orElseThrow();
+        service.send(id);
+        var sent = service.poll(id).orElseThrow();
 
         assertThat(sent.state()).isEqualTo(PollState.OPEN);
         assertThat(sent.openedAt()).isEqualTo(NOW);
@@ -204,14 +205,14 @@ class PollServiceTest {
     @Test
     @DisplayName("sending twice keeps the original closing date")
     void sendingIsIdempotent() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
-        service.send(slug);
-        var first = service.poll(slug).orElseThrow().closesOn();
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7)));
+        service.send(id);
+        var first = service.poll(id).orElseThrow().closesOn();
 
-        service.send(slug);
+        service.send(id);
 
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(first);
+        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(first);
     }
 
     @Test
@@ -220,9 +221,9 @@ class PollServiceTest {
         var first = LocalDate.of(2026, 9, 7);
         var last = LocalDate.of(2026, 9, 18);
 
-        var slug = openPoll(Sample.TEAM, first, LocalDate.of(2026, 9, 9), last);
+        var id = openPoll(Sample.TEAM, first, LocalDate.of(2026, 9, 9), last);
 
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last);
+        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last);
     }
 
     @Test
@@ -230,14 +231,14 @@ class PollServiceTest {
     void anEarlyOptionPassingDoesNotEndIt() {
         var first = LocalDate.now(clock).plusDays(2);
         var last = LocalDate.now(clock).plusWeeks(3);
-        var slug = openPoll(Sample.TEAM, first, last);
+        var id = openPoll(Sample.TEAM, first, last);
 
         clock.advanceDays(3);
 
         assertThat(LocalDate.now(clock)).isAfter(first);
-        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
-        service.castVote(slug, Sample.JONAS, Set.of(last));
-        assertThat(service.poll(slug).orElseThrow().answerCount()).isEqualTo(1);
+        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        service.castVote(id, Sample.JONAS, Set.of(last));
+        assertThat(service.poll(id).orElseThrow().answerCount()).isEqualTo(1);
     }
 
     @Test
@@ -264,95 +265,95 @@ class PollServiceTest {
     @DisplayName("takes the organizer's own closing date, inside the range one can be in")
     void theOrganizerChoosesTheClosingDate() {
         var last = LocalDate.now(clock).plusWeeks(2);
-        var slug = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(1), last);
+        var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(1), last);
 
-        service.closeOn(slug, last.minusDays(4));
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
+        service.closeOn(id, last.minusDays(4));
+        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
 
         // Never past the last day on the table.
-        service.closeOn(slug, last.plusDays(3));
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(last);
+        service.closeOn(id, last.plusDays(3));
+        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(last);
 
         // Never in the past.
-        service.closeOn(slug, LocalDate.now(clock).minusWeeks(1));
-        assertThat(service.poll(slug).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
+        service.closeOn(id, LocalDate.now(clock).minusWeeks(1));
+        assertThat(service.poll(id).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
 
-        assertThat(service.latestClosingDay(slug)).contains(last);
+        assertThat(service.latestClosingDay(id)).contains(last);
     }
 
     @Test
     @DisplayName("promises the closing date a draft would get, before it has one")
     void plannedClosingBeforeSending() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
 
-        assertThat(service.plannedClosing(slug)).isEmpty();
+        assertThat(service.plannedClosing(id)).isEmpty();
 
-        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 9)));
+        service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 9)));
 
-        assertThat(service.plannedClosing(slug)).contains(LocalDate.of(2026, 9, 9));
+        assertThat(service.plannedClosing(id)).contains(LocalDate.of(2026, 9, 9));
 
-        service.send(slug);
+        service.send(id);
 
-        assertThat(service.plannedClosing(slug)).contains(service.poll(slug).orElseThrow().closesOn());
+        assertThat(service.plannedClosing(id)).contains(service.poll(id).orElseThrow().closesOn());
     }
 
     @Test
     @DisplayName("stays open through its closing date and is closed the day after")
     void closesTheDayAfter() {
-        var slug = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
-        var closesOn = service.poll(slug).orElseThrow().closesOn();
+        var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
+        var closesOn = service.poll(id).orElseThrow().closesOn();
 
         clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn));
-        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
 
         clock.advanceDays(1);
 
-        assertThat(service.poll(slug).orElseThrow().state()).isEqualTo(PollState.CLOSED);
+        assertThat(service.poll(id).orElseThrow().state()).isEqualTo(PollState.CLOSED);
     }
 
     @Test
     @DisplayName("refuses an answer once voting is over")
     void refusesAnswersWhenClosed() {
-        var slug = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
-        var day = service.poll(slug).orElseThrow().candidateDays().getFirst();
-        var closesOn = service.poll(slug).orElseThrow().closesOn();
+        var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(2));
+        var day = service.poll(id).orElseThrow().candidateDays().getFirst();
+        var closesOn = service.poll(id).orElseThrow().closesOn();
 
         clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), closesOn) + 1);
 
-        assertThatThrownBy(() -> service.castVote(slug, Sample.JONAS, Set.of(day)))
+        assertThatThrownBy(() -> service.castVote(id, Sample.JONAS, Set.of(day)))
                 .isInstanceOf(PollClosedException.class)
-                .hasMessageContaining(slug);
-        assertThatThrownBy(() -> service.decline(slug, Sample.JONAS, List.of(), null))
+                .hasMessageContaining(id.toString());
+        assertThatThrownBy(() -> service.decline(id, Sample.JONAS, List.of(), null))
                 .isInstanceOf(PollClosedException.class);
     }
 
     @Test
     @DisplayName("refuses an answer to a poll that was never sent")
     void refusesAnswersBeforeSending() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(slug, List.of(LocalDate.of(2026, 9, 7)));
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, List.of(LocalDate.of(2026, 9, 7)));
 
-        assertThatThrownBy(() -> service.castVote(slug, Sample.JONAS, Set.of(LocalDate.of(2026, 9, 7))))
+        assertThatThrownBy(() -> service.castVote(id, Sample.JONAS, Set.of(LocalDate.of(2026, 9, 7))))
                 .isInstanceOf(PollClosedException.class);
     }
 
     @Test
     @DisplayName("keeps a draft out of the polls that are out with the team")
     void draftsAreListedApart() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
 
-        assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::slug).doesNotContain(slug);
-        assertThat(service.settledPolls(Sample.ADA)).extracting(PollSummary::slug).doesNotContain(slug);
-        assertThat(service.draftPolls(Sample.ADA)).extracting(PollSummary::slug).containsExactly(slug);
+        assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(id);
+        assertThat(service.settledPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(id);
+        assertThat(service.draftPolls(Sample.ADA)).extracting(PollSummary::id).containsExactly(id);
     }
 
     @Test
     @DisplayName("shows a draft to nobody but the person who named it")
     void draftsArePrivate() {
-        var slug = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
+        var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
 
-        assertThat(service.draftPolls(Sample.JONAS)).extracting(PollSummary::slug).doesNotContain(slug);
-        assertThat(service.draftPolls(Sample.ADA)).extracting(PollSummary::slug).containsExactly(slug);
+        assertThat(service.draftPolls(Sample.JONAS)).extracting(PollSummary::id).doesNotContain(id);
+        assertThat(service.draftPolls(Sample.ADA)).extracting(PollSummary::id).containsExactly(id);
     }
 
     @Test
@@ -370,19 +371,20 @@ class PollServiceTest {
     }
 
     @Test
-    @DisplayName("builds a readable slug, and keeps two polls of the same name apart")
-    void slugs() {
-        assertThat(service.create("Q4 review!", Sample.ADA, Sample.TEAM)).isEqualTo("q4-review");
+    @DisplayName("keeps two polls of the same name apart")
+    void twoPollsOfTheSameName() {
+        var first = service.create("Team event", Sample.ADA, Sample.TEAM);
+        var second = service.create("Team event", Sample.ADA, Sample.TEAM);
 
-        var second = service.create("Q4 review!", Sample.ADA, Sample.TEAM);
-
-        assertThat(second).startsWith("q4-review-").isNotEqualTo("q4-review");
+        assertThat(second).isNotEqualTo(first);
+        assertThat(service.poll(first)).isPresent();
+        assertThat(service.poll(second)).isPresent();
     }
 
     @Test
-    @DisplayName("a poll with no usable name still gets a slug")
-    void slugForANamelessPoll() {
-        assertThat(service.create("!!!", Sample.ADA, Sample.TEAM)).isEqualTo("poll");
+    @DisplayName("an id nobody issued is not a poll")
+    void anIdNobodyIssued() {
+        assertThat(service.poll(UUID.randomUUID())).isEmpty();
     }
 
     @Test
@@ -391,7 +393,7 @@ class PollServiceTest {
         Sample.unanswered(service, clock);
 
         assertThat(service.openPolls(Sample.ADA))
-                .filteredOn(summary -> summary.slug().equals(offsite))
+                .filteredOn(summary -> summary.id().equals(offsite))
                 .singleElement()
                 .satisfies(summary -> {
                     assertThat(summary.answeredByViewer()).isTrue();
@@ -399,7 +401,7 @@ class PollServiceTest {
                     assertThat(summary.askedBy()).isEqualTo(Sample.ADA);
                 });
         assertThat(service.openPolls(Sample.JONAS))
-                .filteredOn(summary -> summary.slug().equals(offsite))
+                .filteredOn(summary -> summary.id().equals(offsite))
                 .singleElement()
                 .satisfies(summary -> assertThat(summary.answeredByViewer()).isFalse());
     }
@@ -407,10 +409,10 @@ class PollServiceTest {
     @Test
     @DisplayName("a poll nobody has answered still names the month its days fall in")
     void undecidedPollNamesItsMonth() {
-        var slug = Sample.unanswered(service, clock);
+        var id = Sample.unanswered(service, clock);
 
         var review = service.openPolls(Sample.ADA).stream()
-                .filter(summary -> summary.slug().equals(slug))
+                .filter(summary -> summary.id().equals(id))
                 .findFirst()
                 .orElseThrow();
 
@@ -432,16 +434,18 @@ class PollServiceTest {
     @Test
     @DisplayName("refuses to work on a poll that is not there")
     void unknownPoll() {
-        assertThat(service.poll("nope")).isEmpty();
-        assertThatThrownBy(() -> service.lock("nope", LocalDate.of(2026, 9, 7)))
+        var nobodys = UUID.randomUUID();
+
+        assertThat(service.poll(nobodys)).isEmpty();
+        assertThatThrownBy(() -> service.lock(nobodys, LocalDate.of(2026, 9, 7)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("nope");
+                .hasMessageContaining(nobodys.toString());
     }
 
-    private String openPoll(List<Person> invited, LocalDate... days) {
-        var slug = service.create("Poll " + days[0], Sample.ADA, invited);
-        service.replaceCandidateDays(slug, List.of(days));
-        service.send(slug);
-        return slug;
+    private UUID openPoll(List<Person> invited, LocalDate... days) {
+        var id = service.create("Poll " + days[0], Sample.ADA, invited);
+        service.replaceCandidateDays(id, List.of(days));
+        service.send(id);
+        return id;
     }
 }

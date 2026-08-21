@@ -27,7 +27,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * rather than a thank-you page, so that coming back to it is worth doing.
  */
 @PermitAll
-@Route("vote/:slug/done")
+@Route("vote/:id/done")
 public class ReceiptView extends PollScreen {
 
     public ReceiptView(PollPresenter presenter) {

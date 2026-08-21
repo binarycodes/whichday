@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import io.binarycodes.whichday.people.domain.Person;
 
@@ -19,7 +20,7 @@ import io.binarycodes.whichday.people.domain.Person;
  *                            answer; this is only about adding to the table.
  * @param state               settled by the service, which is what holds the clock
  */
-public record Poll(String slug,
+public record Poll(UUID id,
                    String title,
                    Person organizer,
                    List<Person> invited,

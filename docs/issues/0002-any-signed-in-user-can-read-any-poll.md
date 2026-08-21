@@ -1,16 +1,22 @@
-# Any signed-in user can read any poll from its slug
+# Any signed-in user can read any poll from its link
 
-**Severity:** high — it is an access-control hole, not a rough edge.
+**Severity:** medium — an access-control hole, but no longer one a stranger can
+stumble into. It was high while the link was guessable.
 
 ## What happens
 
 Signing in is required, but nothing checks *which* signed-in person is asking.
-`PollService.poll(slug)` returns any poll to anybody, so a signed-in stranger who
-guesses or is given a slug can open `/poll/<slug>` and read the title, the invitee
-list, who voted for what, and the counter-proposals.
+`PollService.poll(id)` returns any poll to anybody, so a signed-in stranger who is
+given an id can open `/poll/<id>` and read the title, the invitee list, who voted for
+what, and the counter-proposals.
 
-Slugs are readable and derived from the title — `q3-team-offsite` — so guessing is
-not far-fetched.
+Guessing one is no longer realistic: the id is a random `UUID`
+([`../clarifications/0009-a-generated-poll-id.md`](../clarifications/0009-a-generated-poll-id.md)),
+where it used to be the title — `q3-team-offsite` was a URL somebody could arrive at
+by typing what a team is obviously called. That narrows this a great deal and does
+not close it. A voting link is meant to be passed around, so it ends up in forwarded
+mail and pasted into the wrong channel, and everyone who receives one can read
+everything about the poll whether they were invited or not.
 
 Drafts are the exception: `draftPolls` filters by organizer, so an unsent poll is
 visible only to the person who named it.

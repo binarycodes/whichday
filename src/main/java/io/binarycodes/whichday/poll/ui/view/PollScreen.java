@@ -1,5 +1,8 @@
 package io.binarycodes.whichday.poll.ui.view;
 
+import java.util.Optional;
+import java.util.UUID;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -14,15 +17,15 @@ import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
 /**
- * A screen about one poll. The slug only arrives with the navigation event, so the
- * content is built there rather than in the constructor — and a slug nobody
+ * A screen about one poll. The id only arrives with the navigation event, so the
+ * content is built there rather than in the constructor — and an id nobody
  * recognises is forwarded away before anything tries to read it.
  */
 abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
     protected final PollPresenter presenter;
 
-    private String slug;
+    private UUID id;
 
     protected PollScreen(PollPresenter presenter) {
         this.presenter = presenter;
@@ -30,8 +33,8 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        slug = event.getRouteParameters().get("slug").orElse("");
-        var poll = presenter.poll(slug);
+        id = event.getRouteParameters().get("id").flatMap(PollScreen::parsed).orElse(null);
+        var poll = id == null ? Optional.<Poll>empty() : presenter.poll(id);
         if (poll.isEmpty()) {
             event.forwardTo(NotFoundView.class);
             return;
@@ -40,6 +43,15 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
             return;
         }
         render();
+    }
+
+    /** An id the router carried but nobody issued reads the same as one that never existed. */
+    private static Optional<UUID> parsed(String parameter) {
+        try {
+            return Optional.of(UUID.fromString(parameter));
+        } catch (IllegalArgumentException malformed) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -54,24 +66,24 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
     }
 
     protected void forwardToPoll(BeforeEnterEvent event, Class<? extends Component> view) {
-        event.forwardTo(view, new RouteParameters("slug", slug));
+        event.forwardTo(view, new RouteParameters("id", id.toString()));
     }
 
-    protected String slug() {
-        return slug;
+    protected UUID id() {
+        return id;
     }
 
     /** Re-read the poll and rebuild, after an action that changed it. */
     protected void render() {
         clearBody();
         clearFooter();
-        build(presenter.poll(slug).orElseThrow());
+        build(presenter.poll(id).orElseThrow());
     }
 
     protected abstract void build(Poll poll);
 
     protected void goTo(Class<? extends Component> view) {
-        getUI().ifPresent(ui -> ui.navigate(view, new RouteParameters("slug", slug)));
+        getUI().ifPresent(ui -> ui.navigate(view, new RouteParameters("id", id.toString())));
     }
 
     protected void goHome() {

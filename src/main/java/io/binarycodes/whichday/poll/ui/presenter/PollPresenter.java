@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
@@ -73,8 +74,8 @@ public class PollPresenter {
         return polls.draftPolls(viewer());
     }
 
-    public void deleteDraft(String slug) {
-        polls.deleteDraft(slug);
+    public void deleteDraft(UUID id) {
+        polls.deleteDraft(id);
     }
 
     public List<PollSummary> settledPolls() {
@@ -86,8 +87,8 @@ public class PollPresenter {
         return openPolls().stream().filter(PollSummary::needsViewer).count();
     }
 
-    public Optional<Poll> poll(String slug) {
-        return polls.poll(slug);
+    public Optional<Poll> poll(UUID id) {
+        return polls.poll(id);
     }
 
     /** The poll being put together. Survives the trip to the invitee screen and back. */
@@ -118,65 +119,65 @@ public class PollPresenter {
      * added in — not directory order, which an outsider has no place in. Anybody who
      * managed to add the organizer to their own draft is not counted twice.
      */
-    public String createFromDraft() {
+    public UUID createFromDraft() {
         var everybody = new ArrayList<Person>();
         everybody.add(viewer());
         draft.invitees().stream()
                 .filter(invitee -> !invitee.email().equals(viewer().email()))
                 .forEach(everybody::add);
-        var slug = polls.create(draft.title(), viewer(), everybody);
+        var id = polls.create(draft.title(), viewer(), everybody);
         draft.reset();
-        return slug;
+        return id;
     }
 
     /** The closing date a poll has, or the one it would get if sent now. */
-    public Optional<LocalDate> plannedClosing(String slug) {
-        return polls.plannedClosing(slug);
+    public Optional<LocalDate> plannedClosing(UUID id) {
+        return polls.plannedClosing(id);
     }
 
     /** The last date the organizer may close on: the day before the first day on the table. */
-    public Optional<LocalDate> latestClosingDay(String slug) {
-        return polls.latestClosingDay(slug);
+    public Optional<LocalDate> latestClosingDay(UUID id) {
+        return polls.latestClosingDay(id);
     }
 
-    public void closeOn(String slug, LocalDate day) {
-        polls.closeOn(slug, day);
+    public void closeOn(UUID id, LocalDate day) {
+        polls.closeOn(id, day);
     }
 
-    public void allowAlternatives(String slug, boolean allowed) {
-        polls.allowAlternatives(slug, allowed);
+    public void allowAlternatives(UUID id, boolean allowed) {
+        polls.allowAlternatives(id, allowed);
     }
 
-    public void addInvitee(String slug, Person person) {
-        polls.addInvitee(slug, person);
+    public void addInvitee(UUID id, Person person) {
+        polls.addInvitee(id, person);
     }
 
-    public void chooseDays(String slug, Set<LocalDate> days) {
-        polls.replaceCandidateDays(slug, days);
+    public void chooseDays(UUID id, Set<LocalDate> days) {
+        polls.replaceCandidateDays(id, days);
     }
 
-    public void send(String slug) {
-        polls.send(slug);
+    public void send(UUID id) {
+        polls.send(id);
     }
 
-    public void vote(String slug, Set<LocalDate> days) {
-        polls.castVote(slug, viewer(), days);
+    public void vote(UUID id, Set<LocalDate> days) {
+        polls.castVote(id, viewer(), days);
     }
 
-    public void declineAll(String slug, List<LocalDate> proposedDays, String note) {
-        polls.decline(slug, viewer(), proposedDays, note);
+    public void declineAll(UUID id, List<LocalDate> proposedDays, String note) {
+        polls.decline(id, viewer(), proposedDays, note);
     }
 
-    public void acceptProposal(String slug, LocalDate day) {
-        polls.acceptProposal(slug, day);
+    public void acceptProposal(UUID id, LocalDate day) {
+        polls.acceptProposal(id, day);
     }
 
-    public void lock(String slug, LocalDate day) {
-        polls.lock(slug, day);
+    public void lock(UUID id, LocalDate day) {
+        polls.lock(id, day);
     }
 
-    public Optional<Ballot> ballotOf(String slug) {
-        return poll(slug).flatMap(poll -> poll.ballotOf(viewer()));
+    public Optional<Ballot> ballotOf(UUID id) {
+        return poll(id).flatMap(poll -> poll.ballotOf(viewer()));
     }
 
     public boolean isOrganizer(Poll poll) {

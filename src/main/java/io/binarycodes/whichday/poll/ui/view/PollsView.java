@@ -140,7 +140,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
      * the counts, everybody else answers, or reads back the answer they gave.
      */
     private void open(PollSummary summary) {
-        var parameters = new RouteParameters("slug", summary.slug());
+        var parameters = new RouteParameters("id", summary.id().toString());
         getUI().ifPresent(ui -> {
             if (summary.askedBy().equals(presenter.viewer())) {
                 ui.navigate(ResultsView.class, parameters);
@@ -170,7 +170,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
     private DraftRow draftRow(PollSummary draft) {
         return new DraftRow(draft, draftNoteFor(draft),
                 () -> getUI().ifPresent(ui ->
-                        ui.navigate(CandidateDaysView.class, new RouteParameters("slug", draft.slug()))),
+                        ui.navigate(CandidateDaysView.class, new RouteParameters("id", draft.id().toString()))),
                 () -> deleteDraft(draft));
     }
 
@@ -181,7 +181,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
     }
 
     private void deleteDraft(PollSummary draft) {
-        presenter.deleteDraft(draft.slug());
+        presenter.deleteDraft(draft.id());
         Notification.show(getTranslation("polls.draft.deleted", draft.title()));
         render();
     }

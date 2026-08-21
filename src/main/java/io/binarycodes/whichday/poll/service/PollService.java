@@ -2,18 +2,16 @@ package io.binarycodes.whichday.poll.service;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 import java.util.stream.IntStream;
 
 import org.springframework.stereotype.Service;
@@ -40,28 +38,32 @@ public class PollService {
     /** Whole days only, so a closing date rather than a closing moment. */
     private static final int MINIMUM_VOTING_DAYS = 1;
 
-    private final Map<String, StoredPoll> polls = new LinkedHashMap<>();
-    private final AtomicInteger slugSuffix = new AtomicInteger();
+    private final Map<UUID, StoredPoll> polls = new LinkedHashMap<>();
     private final Clock clock;
 
     public PollService(Clock clock) {
         this.clock = clock;
     }
 
-    public synchronized String create(String title, Person organizer, List<Person> invited) {
-        var slug = slugFor(title);
-        polls.put(slug, new StoredPoll(slug, title, organizer, invited));
-        return slug;
+    /**
+     * A generated identifier rather than one made from the title: two teams may well
+     * ask about "Team event" months apart, and a poll that inherited an existing
+     * name would be a poll on top of somebody else's.
+     */
+    public synchronized UUID create(String title, Person organizer, List<Person> invited) {
+        var id = UUID.randomUUID();
+        polls.put(id, new StoredPoll(id, title, organizer, invited));
+        return id;
     }
 
-    public synchronized void replaceCandidateDays(String slug, Collection<LocalDate> days) {
-        var stored = require(slug);
+    public synchronized void replaceCandidateDays(UUID id, Collection<LocalDate> days) {
+        var stored = require(id);
         stored.replaceCandidateDays(days.stream().sorted().toList());
     }
 
     /** Sending the poll out is what opens it; until then it has no closing date. */
-    public synchronized void send(String slug) {
-        var stored = require(slug);
+    public synchronized void send(UUID id) {
+        var stored = require(id);
         if (stored.closesOn() == null) {
             stored.closeOn(defaultClosingDayFor(stored), clock.instant());
         }
@@ -72,8 +74,8 @@ public class PollService {
      * usefully be in — never in the past, and never on or after the first day being
      * voted on, because an answer that arrives then is about a day already gone.
      */
-    public synchronized void closeOn(String slug, LocalDate day) {
-        var stored = require(slug);
+    public synchronized void closeOn(UUID id, LocalDate day) {
+        var stored = require(id);
         stored.closeOn(clampClosingDay(stored, day), clock.instant());
     }
 
@@ -81,8 +83,8 @@ public class PollService {
      * When this poll would close if it went out now — what the share screen promises
      * before there is anything to promise it from.
      */
-    public synchronized Optional<LocalDate> plannedClosing(String slug) {
-        var stored = require(slug);
+    public synchronized Optional<LocalDate> plannedClosing(UUID id) {
+        var stored = require(id);
         if (stored.closesOn() != null) {
             return Optional.of(stored.closesOn());
         }
@@ -92,13 +94,13 @@ public class PollService {
     }
 
     /** The last day the organizer may close on: the last day on the table. */
-    public synchronized Optional<LocalDate> latestClosingDay(String slug) {
-        return lastDayOnTheTable(require(slug));
+    public synchronized Optional<LocalDate> latestClosingDay(UUID id) {
+        return lastDayOnTheTable(require(id));
     }
 
-    public synchronized void castVote(String slug, Person voter, Set<LocalDate> chosenDays) {
-        requireOpen(slug);
-        record(slug, voter, chosenDays);
+    public synchronized void castVote(UUID id, Person voter, Set<LocalDate> chosenDays) {
+        requireOpen(id);
+        record(id, voter, chosenDays);
     }
 
     /**
@@ -106,8 +108,8 @@ public class PollService {
      * to build polls that were decided before the application started — history the
      * public path is right to refuse.
      */
-    synchronized void record(String slug, Person voter, Set<LocalDate> chosenDays) {
-        var stored = require(slug);
+    synchronized void record(UUID id, Person voter, Set<LocalDate> chosenDays) {
+        var stored = require(id);
         var onTheTable = chosenDays.stream().filter(stored.candidateDays()::contains).sorted().toList();
         stored.record(new StoredBallot(voter, new LinkedHashSet<>(onTheTable), List.of(), null));
     }
@@ -117,23 +119,23 @@ public class PollService {
      * the ballot rather than added to the candidate days: it becomes a column only
      * if the organizer accepts it.
      */
-    public synchronized void decline(String slug, Person voter, List<LocalDate> proposedDays, String note) {
-        requireOpen(slug).record(new StoredBallot(voter, Set.of(), proposedDays, note));
+    public synchronized void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
+        requireOpen(id).record(new StoredBallot(voter, Set.of(), proposedDays, note));
     }
 
-    public synchronized void acceptProposal(String slug, LocalDate day) {
-        var stored = require(slug);
+    public synchronized void acceptProposal(UUID id, LocalDate day) {
+        var stored = require(id);
         var days = new LinkedHashSet<>(stored.candidateDays());
         days.add(day);
         stored.replaceCandidateDays(days.stream().sorted().toList());
     }
 
-    public synchronized void lock(String slug, LocalDate day) {
-        require(slug).lock(day);
+    public synchronized void lock(UUID id, LocalDate day) {
+        require(id).lock(day);
     }
 
-    public synchronized Optional<Poll> poll(String slug) {
-        return Optional.ofNullable(polls.get(slug)).map(this::snapshot);
+    public synchronized Optional<Poll> poll(UUID id) {
+        return Optional.ofNullable(polls.get(id)).map(this::snapshot);
     }
 
     /** Polls that are out with the team, whether or not they are still taking answers. */
@@ -160,12 +162,12 @@ public class PollService {
      * Throws away a draft. Only a draft: a poll that has gone out has answers in it
      * and people waiting on it, and discarding one is a decision this does not make.
      */
-    public synchronized void deleteDraft(String slug) {
-        var stored = require(slug);
+    public synchronized void deleteDraft(UUID id) {
+        var stored = require(id);
         if (stateOf(stored) != PollState.DRAFT) {
-            throw new IllegalStateException("Poll " + slug + " has been sent and cannot be discarded");
+            throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
         }
-        polls.remove(slug);
+        polls.remove(id);
     }
 
     public synchronized List<PollSummary> settledPolls(Person viewer) {
@@ -177,7 +179,7 @@ public class PollService {
     }
 
     private Poll snapshot(StoredPoll stored) {
-        return new Poll(stored.slug(),
+        return new Poll(stored.id(),
                 stored.title(),
                 stored.organizer(),
                 stored.invited(),
@@ -236,7 +238,7 @@ public class PollService {
         var headlineDay = poll.lockedDay() != null
                 ? poll.lockedDay()
                 : poll.leader().map(DayTally::day).orElse(null);
-        return new PollSummary(poll.slug(),
+        return new PollSummary(poll.id(),
                 poll.title(),
                 poll.organizer(),
                 headlineDay,
@@ -266,13 +268,13 @@ public class PollService {
      * their ability to say none of the days work — that is an answer the organizer
      * needs either way — only the ask to add to the table.
      */
-    public synchronized void allowAlternatives(String slug, boolean allowed) {
-        require(slug).allowAlternatives(allowed);
+    public synchronized void allowAlternatives(UUID id, boolean allowed) {
+        require(id).allowAlternatives(allowed);
     }
 
     /** Somebody the organizer thought of after sending it out. */
-    public synchronized void addInvitee(String slug, Person invitee) {
-        require(slug).invite(invitee);
+    public synchronized void addInvitee(UUID id, Person invitee) {
+        require(id).invite(invitee);
     }
 
     /**
@@ -324,30 +326,19 @@ public class PollService {
      * A poll that has closed takes no more answers. Enforced here rather than only on
      * the screens, so that a stale tab cannot post one after the date has passed.
      */
-    private StoredPoll requireOpen(String slug) {
-        var stored = require(slug);
+    private StoredPoll requireOpen(UUID id) {
+        var stored = require(id);
         if (stateOf(stored) != PollState.OPEN) {
-            throw new PollClosedException(slug);
+            throw new PollClosedException(id);
         }
         return stored;
     }
 
-    private StoredPoll require(String slug) {
-        var stored = polls.get(slug);
+    private StoredPoll require(UUID id) {
+        var stored = polls.get(id);
         if (stored == null) {
-            throw new IllegalArgumentException("No poll with slug " + slug);
+            throw new IllegalArgumentException("No poll with id " + id);
         }
         return stored;
-    }
-
-    /**
-     * A readable URL rather than an identifier, because the design puts the slug on
-     * the screen as the voting link. Collisions get a counter rather than a retry:
-     * two polls may legitimately share a title.
-     */
-    private String slugFor(String title) {
-        var base = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
-        var candidate = base.isEmpty() ? "poll" : base;
-        return polls.containsKey(candidate) ? candidate + "-" + slugSuffix.incrementAndGet() : candidate;
     }
 }

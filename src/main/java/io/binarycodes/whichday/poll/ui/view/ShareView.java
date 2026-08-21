@@ -32,7 +32,7 @@ import io.binarycodes.whichday.poll.ui.share.VotingLink;
  * opens the poll, so this is the last screen before the counts start moving.
  */
 @PermitAll
-@Route("poll/:slug/share")
+@Route("poll/:id/share")
 public class ShareView extends PollScreen {
 
     /** Beyond this the list would fill the screen; the rest become one row of names. */
@@ -67,7 +67,7 @@ public class ShareView extends PollScreen {
      * arrives after that is about a day already gone.
      */
     private Div closingSection(Poll poll) {
-        var chosen = presenter.plannedClosing(poll.slug()).orElse(null);
+        var chosen = presenter.plannedClosing(poll.id()).orElse(null);
         var note = new HintBar(VaadinIcon.CLOCK, chosen == null
                 ? getTranslation("share.closes.unknown")
                 : getTranslation("share.closes", DateText.closing(this, chosen)));
@@ -87,11 +87,11 @@ public class ShareView extends PollScreen {
                 getTranslation("days.nextMonth"));
         calendar.addClassName("calendar-field");
         calendar.setMaximumSelection(1);
-        presenter.latestClosingDay(poll.slug()).ifPresent(calendar::setLatestSelectable);
+        presenter.latestClosingDay(poll.id()).ifPresent(calendar::setLatestSelectable);
         calendar.setValue(Set.of(chosen));
         calendar.addValueChangeListener(event -> event.getValue().stream().findFirst()
                 .ifPresent(day -> {
-                    presenter.closeOn(poll.slug(), day);
+                    presenter.closeOn(poll.id(), day);
                     render();
                 }));
         picker.add(calendar);
@@ -104,7 +104,7 @@ public class ShareView extends PollScreen {
 
     private Div linkCard(Poll poll) {
         var label = Typography.meta(getTranslation("share.link"));
-        var url = new Span(VotingLink.display(poll.slug()));
+        var url = new Span(VotingLink.display(poll.id()));
         url.addClassName("link-url");
         var text = new Div(label, url);
         text.addClassName("link-text");
@@ -158,12 +158,12 @@ public class ShareView extends PollScreen {
     }
 
     private void copyLink(Poll poll) {
-        VotingLink.copyToClipboard(this, poll.slug());
+        VotingLink.copyToClipboard(this, poll.id());
         Notification.show(getTranslation("share.copied"));
     }
 
     private void send() {
-        presenter.send(slug());
+        presenter.send(id());
         Notification.show(getTranslation("share.sentAll"));
         goTo(ResultsView.class);
     }

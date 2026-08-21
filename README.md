@@ -110,18 +110,18 @@ client. Google requires HTTPS for every redirect URI except `localhost`.
 
 ## The screens
 
-| Route                | What it is                                            |
-| -------------------- | ----------------------------------------------------- |
-| `/`                  | Your polls, your drafts, and the settled ones         |
-| `/new`               | Name a poll and say who decides it                    |
-| `/new/invitees`      | Find people by email address                          |
-| `/poll/:slug/days`   | Put candidate days on the table                       |
-| `/poll/:slug/share`  | The voting link, the invite list, the closing date    |
-| `/poll/:slug`        | The standings, live, and the button that locks a date  |
-| `/poll/:slug/locked` | The settled date                                      |
-| `/vote/:slug`        | Tap every day that works                              |
-| `/vote/:slug/none`   | None of them work, and a day forward instead          |
-| `/vote/:slug/done`   | What you answered, with the standings underneath      |
+| Route              | What it is                                            |
+| ------------------ | ----------------------------------------------------- |
+| `/`                | Your polls, your drafts, and the settled ones         |
+| `/new`             | Name a poll and say who decides it                    |
+| `/new/invitees`    | Find people by email address                          |
+| `/poll/:id/days`   | Put candidate days on the table                       |
+| `/poll/:id/share`  | The voting link, the invite list, the closing date    |
+| `/poll/:id`        | The standings, live, and the button that locks a date  |
+| `/poll/:id/locked` | The settled date                                      |
+| `/vote/:id`        | Tap every day that works                              |
+| `/vote/:id/none`   | None of them work, and a day forward instead          |
+| `/vote/:id/done`   | What you answered, with the standings underneath      |
 
 Every route requires a signed-in user. OIDC is the only way to sign in, there is no
 login view, and the application collects no credentials.

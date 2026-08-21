@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
@@ -48,42 +49,42 @@ public final class Sample {
      * The Q3 offsite: five candidate days, six answers, standings of 6 / 4 / 3 / 2 / 1,
      * and Jonas holding out so a nudge has a name.
      */
-    public static String offsite(PollService service, Clock clock) {
+    public static UUID offsite(PollService service, Clock clock) {
         var monday = mondayAfterNext(LocalDate.now(clock));
         var days = List.of(monday, monday.plusDays(1), monday.plusDays(4),
                 monday.plusDays(8), monday.plusDays(9));
 
-        var slug = service.create("Q3 team offsite", ADA, TEAM);
-        service.replaceCandidateDays(slug, days);
-        service.send(slug);
-        service.castVote(slug, ADA, Set.of(days.get(2), days.get(3)));
-        service.castVote(slug, MIRO, Set.of(days.get(0), days.get(2)));
-        service.castVote(slug, SARA, Set.of(days.get(0), days.get(2), days.get(3)));
-        service.castVote(slug, TOM, Set.of(days.get(1), days.get(2), days.get(3), days.get(4)));
-        service.castVote(slug, PRIYA, Set.of(days.get(2), days.get(3)));
-        service.castVote(slug, LENA, Set.of(days.get(0), days.get(1), days.get(2)));
-        return slug;
+        var id = service.create("Q3 team offsite", ADA, TEAM);
+        service.replaceCandidateDays(id, days);
+        service.send(id);
+        service.castVote(id, ADA, Set.of(days.get(2), days.get(3)));
+        service.castVote(id, MIRO, Set.of(days.get(0), days.get(2)));
+        service.castVote(id, SARA, Set.of(days.get(0), days.get(2), days.get(3)));
+        service.castVote(id, TOM, Set.of(days.get(1), days.get(2), days.get(3), days.get(4)));
+        service.castVote(id, PRIYA, Set.of(days.get(2), days.get(3)));
+        service.castVote(id, LENA, Set.of(days.get(0), days.get(1), days.get(2)));
+        return id;
     }
 
     /** A poll nobody has answered yet, organized by somebody other than Ada. */
-    public static String unanswered(PollService service, Clock clock) {
+    public static UUID unanswered(PollService service, Clock clock) {
         var monday = mondayAfterNext(LocalDate.now(clock)).plusWeeks(3);
-        var slug = service.create("Design review week", MIRO, TEAM);
-        service.replaceCandidateDays(slug,
+        var id = service.create("Design review week", MIRO, TEAM);
+        service.replaceCandidateDays(id,
                 List.of(monday, monday.plusDays(1), monday.plusDays(2), monday.plusDays(4)));
-        service.send(slug);
-        return slug;
+        service.send(id);
+        return id;
     }
 
     /** A poll already decided, so the settled list has something in it. */
-    public static String settled(PollService service, Clock clock) {
+    public static UUID settled(PollService service, Clock clock) {
         var day = mondayAfterNext(LocalDate.now(clock)).plusWeeks(1);
-        var slug = service.create("Sprint 14 retro", ADA, TEAM);
-        service.replaceCandidateDays(slug, List.of(day));
-        service.send(slug);
-        TEAM.forEach(person -> service.castVote(slug, person, Set.of(day)));
-        service.lock(slug, day);
-        return slug;
+        var id = service.create("Sprint 14 retro", ADA, TEAM);
+        service.replaceCandidateDays(id, List.of(day));
+        service.send(id);
+        TEAM.forEach(person -> service.castVote(id, person, Set.of(day)));
+        service.lock(id, day);
+        return id;
     }
 
     /** Next week rather than this one, so every candidate day is still ahead. */

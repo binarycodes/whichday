@@ -38,7 +38,7 @@ import io.binarycodes.whichday.poll.ui.share.VotingLink;
  * the first answer lands.
  */
 @PermitAll
-@Route("poll/:slug")
+@Route("poll/:id")
 public class ResultsView extends PollScreen {
 
     private static final int VISIBLE_WAITING = 4;
@@ -237,17 +237,17 @@ public class ResultsView extends PollScreen {
     }
 
     private void copyLink(Poll poll) {
-        VotingLink.copyToClipboard(this, poll.slug());
+        VotingLink.copyToClipboard(this, poll.id());
         Notification.show(getTranslation("share.copied"));
     }
 
     private void accept(Ballot ballot) {
-        ballot.proposedDays().forEach(day -> presenter.acceptProposal(slug(), day));
+        ballot.proposedDays().forEach(day -> presenter.acceptProposal(id(), day));
         render();
     }
 
     private void lock(DayTally leader) {
-        presenter.lock(slug(), leader.day());
+        presenter.lock(id(), leader.day());
         goTo(LockedView.class);
     }
 

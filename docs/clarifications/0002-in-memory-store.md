@@ -17,7 +17,7 @@ rather than a window into the store — the same guarantee `CODING_CONVENTIONS.m
 
 - State is lost on restart, and `spring-boot-devtools` restarts on every recompile —
   [`../issues/0001-polls-are-lost-on-restart.md`](../issues/0001-polls-are-lost-on-restart.md).
-- No `owner_id` scoping (§10): any signed-in person can read any poll by its slug —
+- No `owner_id` scoping (§10): any signed-in person can read any poll by its link —
   [`../issues/0002-any-signed-in-user-can-read-any-poll.md`](../issues/0002-any-signed-in-user-can-read-any-poll.md).
 - Nothing is transactional. `replaceCandidateDays` drops votes for withdrawn days
   as one synchronized step, which is the only place where a partial update would

@@ -29,7 +29,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * cannot push it around.
  */
 @PermitAll
-@Route("poll/:slug/days")
+@Route("poll/:id/days")
 public class CandidateDaysView extends PollScreen {
 
     private final Set<LocalDate> chosen = new LinkedHashSet<>();
@@ -75,7 +75,7 @@ public class CandidateDaysView extends PollScreen {
      */
     private HintBar alternativesToggle(Poll poll) {
         var allowed = new Checkbox(poll.alternativesAllowed());
-        allowed.addValueChangeListener(event -> presenter.allowAlternatives(slug(), event.getValue()));
+        allowed.addValueChangeListener(event -> presenter.allowAlternatives(id(), event.getValue()));
         allowed.setAriaLabel(getTranslation("days.allowAlternatives"));
         return new HintBar(VaadinIcon.CALENDAR, getTranslation("days.allowAlternatives"))
                 .outlined()
@@ -97,7 +97,7 @@ public class CandidateDaysView extends PollScreen {
     }
 
     private void clear() {
-        presenter.chooseDays(slug(), Set.of());
+        presenter.chooseDays(id(), Set.of());
         render();
     }
 
@@ -106,7 +106,7 @@ public class CandidateDaysView extends PollScreen {
             Notification.show(getTranslation("days.needOne"));
             return;
         }
-        presenter.chooseDays(slug(), Set.copyOf(chosen));
+        presenter.chooseDays(id(), Set.copyOf(chosen));
         goTo(ShareView.class);
     }
 

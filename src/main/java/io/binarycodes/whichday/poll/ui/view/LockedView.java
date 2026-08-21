@@ -24,7 +24,7 @@ import io.binarycodes.whichday.poll.ui.share.MailLink;
  * over — the design's argument that a settled date should look settled.
  */
 @PermitAll
-@Route("poll/:slug/locked")
+@Route("poll/:id/locked")
 public class LockedView extends PollScreen {
 
     public LockedView(PollPresenter presenter) {

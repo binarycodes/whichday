@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import io.binarycodes.whichday.people.domain.Person;
 
@@ -18,7 +19,7 @@ import io.binarycodes.whichday.people.domain.Person;
  */
 class StoredPoll {
 
-    private final String slug;
+    private final UUID id;
     private final Person organizer;
     private final List<Person> invited = new ArrayList<>();
     private final Map<String, StoredBallot> ballots = new LinkedHashMap<>();
@@ -30,15 +31,15 @@ class StoredPoll {
     private Instant openedAt;
     private boolean alternativesAllowed = true;
 
-    StoredPoll(String slug, String title, Person organizer, List<Person> invited) {
-        this.slug = slug;
+    StoredPoll(UUID id, String title, Person organizer, List<Person> invited) {
+        this.id = id;
         this.title = title;
         this.organizer = organizer;
         invited.forEach(this::invite);
     }
 
-    String slug() {
-        return slug;
+    UUID id() {
+        return id;
     }
 
     String title() {

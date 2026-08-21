@@ -26,7 +26,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * impossible to express.
  */
 @PermitAll
-@Route("vote/:slug")
+@Route("vote/:id")
 public class BallotView extends PollScreen {
 
     private final Set<LocalDate> chosen = new LinkedHashSet<>();
@@ -119,7 +119,7 @@ public class BallotView extends PollScreen {
             Notification.show(getTranslation("ballot.needOne"));
             return;
         }
-        presenter.vote(slug(), Set.copyOf(chosen));
+        presenter.vote(id(), Set.copyOf(chosen));
         Notification.show(getTranslation("ballot.submitted"));
         // The organizer came from the standings and wants them back; everybody else
         // wants the receipt for the answer they just gave.

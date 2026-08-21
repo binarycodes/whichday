@@ -1,6 +1,7 @@
 package io.binarycodes.whichday.poll.domain;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import io.binarycodes.whichday.people.domain.Person;
 
@@ -13,7 +14,7 @@ import io.binarycodes.whichday.people.domain.Person;
  * @param firstCandidateDay  the earliest day on the table, so that a poll with no
  *                           leader is still anchored in a month
  */
-public record PollSummary(String slug,
+public record PollSummary(UUID id,
                           String title,
                           Person askedBy,
                           LocalDate headlineDay,

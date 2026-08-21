@@ -26,12 +26,12 @@ public final class CalendarInvite {
 
     /** Every day still on the table, so a voter can see the options against their week. */
     public static DownloadHandler forCandidateDays(Poll poll) {
-        return download(poll.slug() + "-options.ics", calendar(poll, poll.candidateDays(), true));
+        return download(poll.id() + "-options.ics", calendar(poll, poll.candidateDays(), true));
     }
 
     /** The one day the team landed on. */
     public static DownloadHandler forLockedDay(Poll poll) {
-        return download(poll.slug() + ".ics", calendar(poll, List.of(poll.lockedDay()), false));
+        return download(poll.id() + ".ics", calendar(poll, List.of(poll.lockedDay()), false));
     }
 
     private static DownloadHandler download(String fileName, String content) {
@@ -52,7 +52,7 @@ public final class CalendarInvite {
 
     private static void appendEvent(StringBuilder body, Poll poll, LocalDate day, int index, boolean tentative) {
         body.append("BEGIN:VEVENT").append(LINE_END)
-                .append("UID:").append(poll.slug()).append('-').append(index).append("@whichday").append(LINE_END)
+                .append("UID:").append(poll.id()).append('-').append(index).append("@whichday").append(LINE_END)
                 .append("DTSTART;VALUE=DATE:").append(DATE.format(day)).append(LINE_END)
                 .append("DTEND;VALUE=DATE:").append(DATE.format(day.plusDays(1))).append(LINE_END)
                 .append("SUMMARY:").append(escape(poll.title())).append(LINE_END)

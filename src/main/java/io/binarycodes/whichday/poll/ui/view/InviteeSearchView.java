@@ -308,8 +308,8 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
     }
 
     private void chooseDays() {
-        var slug = presenter.createFromDraft();
-        getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("slug", slug)));
+        var id = presenter.createFromDraft();
+        getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("id", id.toString())));
     }
 
     @Override

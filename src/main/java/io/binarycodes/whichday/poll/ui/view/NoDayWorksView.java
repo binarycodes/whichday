@@ -34,7 +34,7 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * put forward stay a suggestion until the organizer accepts one.
  */
 @PermitAll
-@Route("vote/:slug/none")
+@Route("vote/:id/none")
 public class NoDayWorksView extends PollScreen {
 
     /**
@@ -192,8 +192,8 @@ public class NoDayWorksView extends PollScreen {
     private void send() {
         // Nothing can have been proposed when the poll does not take alternatives,
         // but reading the flag here keeps that true of the write as well as the view.
-        presenter.declineAll(slug(),
-                presenter.poll(slug()).map(Poll::alternativesAllowed).orElse(false)
+        presenter.declineAll(id(),
+                presenter.poll(id()).map(Poll::alternativesAllowed).orElse(false)
                         ? List.copyOf(proposed)
                         : List.of(),
                 note.getValue());

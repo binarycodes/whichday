@@ -20,7 +20,7 @@ public final class MailLink {
 
     public static String invitation(Component owner, Poll poll) {
         return mailto(owner.getTranslation("mail.invite.subject", poll.title()),
-                owner.getTranslation("mail.invite.body", poll.title(), VotingLink.absolute(poll.slug())));
+                owner.getTranslation("mail.invite.body", poll.title(), VotingLink.absolute(poll.id())));
     }
 
     public static String announcement(Component owner, Poll poll, String lockedDate) {

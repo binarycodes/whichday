@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -71,7 +72,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Autowired
     private ApplicationContext context;
 
-    private String offsite;
+    private UUID offsite;
 
     @BeforeEach
     void signIn() {
@@ -92,19 +93,19 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("lists a draft on its own, between the live polls and the settled ones")
     void draftsHaveTheirOwnSection() {
-        var slug = draftPoll("Roadmap workshop");
+        var id = draftPoll("Roadmap workshop");
 
         UI.getCurrent().navigate(PollsView.class);
         var screen = textOf(currentView());
 
         assertThat(screen).contains("Drafts", "Roadmap workshop", "No days chosen yet");
-        assertThat(presenter().openPolls()).extracting(PollSummary::slug).doesNotContain(slug);
+        assertThat(presenter().openPolls()).extracting(PollSummary::id).doesNotContain(id);
     }
 
     @Test
     @DisplayName("a draft is edited from the list, or deleted after it asks")
     void editingAndDeletingADraft() {
-        var slug = draftPoll("Roadmap workshop");
+        var id = draftPoll("Roadmap workshop");
         UI.getCurrent().navigate(PollsView.class);
 
         click("Edit");
@@ -114,11 +115,11 @@ class PollJourneyTest extends SpringBrowserlessTest {
         click("Delete");
 
         assertThat(textOf(currentView())).contains("Delete this draft?");
-        assertThat(presenter().poll(slug)).isPresent();
+        assertThat(presenter().poll(id)).isPresent();
 
         click("Delete");
 
-        assertThat(presenter().poll(slug)).isEmpty();
+        assertThat(presenter().poll(id)).isEmpty();
         assertThat(textOf(currentView())).doesNotContain("Roadmap workshop");
     }
 
@@ -234,34 +235,34 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("lets the organizer answer their own poll, and comes back to the counts")
     void theOrganizerCanVote() {
-        var slug = openPoll("Roadmap workshop");
-        navigateToPoll(ResultsView.class, slug);
+        var id = openPoll("Roadmap workshop");
+        navigateToPoll(ResultsView.class, id);
 
         assertThat(textOf(currentView())).contains("You haven't picked your days yet.");
 
         click("Pick mine");
         assertThat(currentView()).isInstanceOf(BallotView.class);
 
-        ballotField().setValue(Set.copyOf(presenter().poll(slug).orElseThrow().candidateDays()));
+        ballotField().setValue(Set.copyOf(presenter().poll(id).orElseThrow().candidateDays()));
         click("Submit my days");
 
         assertThat(currentView()).isInstanceOf(ResultsView.class);
-        assertThat(presenter().ballotOf(slug)).isPresent();
+        assertThat(presenter().ballotOf(id)).isPresent();
     }
 
     @Test
     @DisplayName("never offers the organizer a nudge to themselves")
     void theOrganizerIsNeverNudged() {
-        var slug = openPoll("Roadmap workshop");
-        var day = presenter().poll(slug).orElseThrow().candidateDays().getFirst();
+        var id = openPoll("Roadmap workshop");
+        var day = presenter().poll(id).orElseThrow().candidateDays().getFirst();
         StubIdentity.signIn(Sample.MIRO);
-        presenter().vote(slug, Set.of(day));
+        presenter().vote(id, Set.of(day));
         StubIdentity.signIn(Sample.ADA);
 
-        navigateToPoll(ResultsView.class, slug);
+        navigateToPoll(ResultsView.class, id);
         var screen = textOf(currentView());
 
-        assertThat(presenter().poll(slug).orElseThrow().awaiting()).containsExactly(Sample.ADA);
+        assertThat(presenter().poll(id).orElseThrow().awaiting()).containsExactly(Sample.ADA);
         assertThat(screen).doesNotContain("Send a nudge?").contains("You haven't picked your days yet.");
     }
 
@@ -359,8 +360,8 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("draws whole weeks, and only as many as the month needs")
     void theCalendarGridIsAlwaysWholeWeeks() {
-        var slug = draftPoll("Roadmap workshop");
-        navigateToPoll(CandidateDaysView.class, slug);
+        var id = draftPoll("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, id);
         var calendar = calendarField();
 
         for (var month : List.of(YearMonth.of(2026, 8), YearMonth.of(2026, 11),
@@ -383,32 +384,32 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("choosing days on the calendar and sending opens the poll")
     void choosingDaysAndSending() {
-        var slug = draftPoll("Roadmap workshop");
-        navigateToPoll(CandidateDaysView.class, slug);
+        var id = draftPoll("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, id);
         var monday = Sample.mondayAfterNext(presenter().today());
 
         calendarField().setValue(Set.of(monday));
         click("Send to the team");
 
         assertThat(currentView()).isInstanceOf(ShareView.class);
-        assertThat(presenter().poll(slug).orElseThrow().candidateDays()).containsExactly(monday);
+        assertThat(presenter().poll(id).orElseThrow().candidateDays()).containsExactly(monday);
 
-        click("Send " + presenter().poll(slug).orElseThrow().inviteCount() + " invites");
+        click("Send " + presenter().poll(id).orElseThrow().inviteCount() + " invites");
 
-        assertThat(presenter().poll(slug).orElseThrow().state()).isEqualTo(PollState.OPEN);
+        assertThat(presenter().poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
         assertThat(currentView()).isInstanceOf(ResultsView.class);
     }
 
     @Test
     @DisplayName("refuses to send a poll with nothing on the table")
     void sendingAnEmptyPoll() {
-        var slug = draftPoll("Roadmap workshop");
-        navigateToPoll(CandidateDaysView.class, slug);
+        var id = draftPoll("Roadmap workshop");
+        navigateToPoll(CandidateDaysView.class, id);
 
         click("Send to the team");
 
         assertThat(currentView()).isInstanceOf(CandidateDaysView.class);
-        assertThat(presenter().poll(slug).orElseThrow().candidateDays()).isEmpty();
+        assertThat(presenter().poll(id).orElseThrow().candidateDays()).isEmpty();
     }
 
     @Test
@@ -577,9 +578,9 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("shows a poll nobody has answered as an empty grid, not as an error")
     void unansweredPoll() {
-        var slug = Sample.unanswered(context.getBean(PollService.class), clock());
+        var id = Sample.unanswered(context.getBean(PollService.class), clock());
 
-        navigateToPoll(ResultsView.class, slug);
+        navigateToPoll(ResultsView.class, id);
 
         assertThat(textOf(currentView())).contains("0 of 7", "Waiting on");
     }
@@ -587,7 +588,15 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("sends a link nobody recognises to the not-found screen")
     void unknownPoll() {
-        navigateToPoll(ResultsView.class, "no-such-poll");
+        navigateToPoll(ResultsView.class, UUID.randomUUID());
+
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+    }
+
+    @Test
+    @DisplayName("sends a link that is not even an id to the not-found screen")
+    void malformedPollId() {
+        UI.getCurrent().navigate(ResultsView.class, new RouteParameters("id", "no-such-poll"));
 
         assertThat(currentView()).isInstanceOf(NotFoundView.class);
     }
@@ -595,12 +604,12 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("carries a new poll from its name through to the share screen")
     void createAndShare() {
-        var slug = draftPoll("Roadmap workshop");
-        presenter().chooseDays(slug, Set.of(Sample.mondayAfterNext(presenter().today())));
+        var id = draftPoll("Roadmap workshop");
+        presenter().chooseDays(id, Set.of(Sample.mondayAfterNext(presenter().today())));
 
-        navigateToPoll(ShareView.class, slug);
+        navigateToPoll(ShareView.class, id);
 
-        assertThat(textOf(currentView())).contains("Voting link", "Invited", "vote/" + slug);
+        assertThat(textOf(currentView())).contains("Voting link", "Invited", "vote/" + id);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -644,18 +653,18 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
     // ---- Building the polls a test needs ----
 
-    private String draftPoll(String title) {
+    private UUID draftPoll(String title) {
         presenter().draft().reset();
         presenter().draft().rename(title);
         presenter().draft().invite(Sample.MIRO);
         return presenter().createFromDraft();
     }
 
-    private String openPoll(String title) {
-        var slug = draftPoll(title);
-        presenter().chooseDays(slug, Set.of(Sample.mondayAfterNext(presenter().today())));
-        presenter().send(slug);
-        return slug;
+    private UUID openPoll(String title) {
+        var id = draftPoll(title);
+        presenter().chooseDays(id, Set.of(Sample.mondayAfterNext(presenter().today())));
+        presenter().send(id);
+        return id;
     }
 
     // ---- Reaching into the screen ----
@@ -782,8 +791,8 @@ class PollJourneyTest extends SpringBrowserlessTest {
         return context.getBean(PollPresenter.class);
     }
 
-    private void navigateToPoll(Class<? extends Component> view, String slug) {
-        UI.getCurrent().navigate(view, new RouteParameters("slug", slug));
+    private void navigateToPoll(Class<? extends Component> view, UUID id) {
+        UI.getCurrent().navigate(view, new RouteParameters("id", id.toString()));
     }
 
     private Component currentView() {

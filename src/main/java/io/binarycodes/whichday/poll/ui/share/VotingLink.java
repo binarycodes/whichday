@@ -1,6 +1,7 @@
 package io.binarycodes.whichday.poll.ui.share;
 
 import java.net.URI;
+import java.util.UUID;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.server.VaadinRequest;
@@ -24,13 +25,13 @@ public final class VotingLink {
     }
 
     /** The absolute URL, for the clipboard and for anything leaving the application. */
-    public static String absolute(String slug) {
-        return origin() + path(slug);
+    public static String absolute(UUID id) {
+        return origin() + path(id);
     }
 
     /** The same link without its scheme, which is how the design shows it on screen. */
-    public static String display(String slug) {
-        var absolute = absolute(slug);
+    public static String display(UUID id) {
+        var absolute = absolute(id);
         var separator = absolute.indexOf(SCHEME_SEPARATOR);
         return separator < 0 ? absolute : absolute.substring(separator + SCHEME_SEPARATOR.length());
     }
@@ -40,14 +41,14 @@ public final class VotingLink {
      * is the one place a share reaches for the client. A browser that refuses
      * permission is left alone rather than told twice.
      */
-    public static void copyToClipboard(Component owner, String slug) {
+    public static void copyToClipboard(Component owner, UUID id) {
         owner.getUI().ifPresent(ui -> ui.getPage().executeJs(
                 "if (navigator.clipboard) { navigator.clipboard.writeText($0).catch(() => {}); }",
-                absolute(slug)));
+                absolute(id)));
     }
 
-    private static String path(String slug) {
-        return VOTE_PATH + slug;
+    private static String path(UUID id) {
+        return VOTE_PATH + id;
     }
 
     private static String origin() {

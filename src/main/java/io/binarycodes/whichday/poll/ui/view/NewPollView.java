@@ -129,8 +129,8 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
             Notification.show(getTranslation("invitees.needOne"));
             return;
         }
-        var slug = presenter.createFromDraft();
-        getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("slug", slug)));
+        var id = presenter.createFromDraft();
+        getUI().ifPresent(ui -> ui.navigate(CandidateDaysView.class, new RouteParameters("id", id.toString())));
     }
 
     private boolean titleIsMissing() {

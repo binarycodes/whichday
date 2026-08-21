@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +34,7 @@ class PollPresenterTest {
     private PollService polls;
     private PollPresenter presenter;
     private Person signedIn;
-    private String offsite;
+    private UUID offsite;
 
     @BeforeEach
     void setUp() {
@@ -96,14 +97,14 @@ class PollPresenterTest {
     @Test
     @DisplayName("carries a new poll from a name to a sent poll")
     void createChooseSend() {
-        var slug = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
+        var id = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
         var monday = Sample.mondayAfterNext(LocalDate.now(clock));
 
-        presenter.chooseDays(slug, Set.of(monday));
-        assertThat(presenter.poll(slug).orElseThrow().state()).isEqualTo(PollState.DRAFT);
+        presenter.chooseDays(id, Set.of(monday));
+        assertThat(presenter.poll(id).orElseThrow().state()).isEqualTo(PollState.DRAFT);
 
-        presenter.send(slug);
-        var poll = presenter.poll(slug).orElseThrow();
+        presenter.send(id);
+        var poll = presenter.poll(id).orElseThrow();
 
         assertThat(poll.state()).isEqualTo(PollState.OPEN);
         assertThat(poll.organizer()).isEqualTo(Sample.ADA);
@@ -114,18 +115,18 @@ class PollPresenterTest {
     @Test
     @DisplayName("leads with the organizer, then keeps the order people were added in")
     void theOrganizerLeadsTheInvitedList() {
-        var slug = draftPoll("Roadmap workshop", List.of(Sample.LENA, Sample.MIRO));
+        var id = draftPoll("Roadmap workshop", List.of(Sample.LENA, Sample.MIRO));
 
-        assertThat(presenter.poll(slug).orElseThrow().invited())
+        assertThat(presenter.poll(id).orElseThrow().invited())
                 .containsExactly(Sample.ADA, Sample.LENA, Sample.MIRO);
     }
 
     @Test
     @DisplayName("counts the organizer once even if their own draft named them")
     void theOrganizerIsNeverCountedTwice() {
-        var slug = draftPoll("Roadmap workshop", List.of(Sample.ADA, Sample.ADA));
+        var id = draftPoll("Roadmap workshop", List.of(Sample.ADA, Sample.ADA));
 
-        assertThat(presenter.poll(slug).orElseThrow().invited()).containsExactly(Sample.ADA);
+        assertThat(presenter.poll(id).orElseThrow().invited()).containsExactly(Sample.ADA);
     }
 
     @Test
@@ -133,9 +134,9 @@ class PollPresenterTest {
     void invitesAnOutsider() {
         var outsider = presenter.inviteeFor("lena.ohlsson@studiofern.se");
 
-        var slug = draftPoll("Roadmap workshop", List.of(outsider));
+        var id = draftPoll("Roadmap workshop", List.of(outsider));
 
-        assertThat(presenter.poll(slug).orElseThrow().invited()).containsExactly(Sample.ADA, outsider);
+        assertThat(presenter.poll(id).orElseThrow().invited()).containsExactly(Sample.ADA, outsider);
         assertThat(presenter.hasAccount("lena.ohlsson@studiofern.se")).isFalse();
     }
 
@@ -165,19 +166,19 @@ class PollPresenterTest {
 
         presenter.lock(offsite, leader);
 
-        assertThat(presenter.openPolls()).extracting(PollSummary::slug).doesNotContain(offsite);
-        assertThat(presenter.settledPolls()).extracting(PollSummary::slug).contains(offsite);
+        assertThat(presenter.openPolls()).extracting(PollSummary::id).doesNotContain(offsite);
+        assertThat(presenter.settledPolls()).extracting(PollSummary::id).contains(offsite);
         assertThat(presenter.poll(offsite).orElseThrow().lockedDay()).isEqualTo(leader);
     }
 
     @Test
     @DisplayName("lists the signed-in person's own drafts and deletes them")
     void drafts() {
-        var slug = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
+        var id = draftPoll("Roadmap workshop", List.of(Sample.MIRO));
 
-        assertThat(presenter.draftPolls()).extracting(PollSummary::slug).containsExactly(slug);
+        assertThat(presenter.draftPolls()).extracting(PollSummary::id).containsExactly(id);
 
-        presenter.deleteDraft(slug);
+        presenter.deleteDraft(id);
 
         assertThat(presenter.draftPolls()).isEmpty();
     }
@@ -193,11 +194,13 @@ class PollPresenterTest {
     @Test
     @DisplayName("has no ballot to report for a poll that is not there")
     void unknownPoll() {
-        assertThat(presenter.poll("nope")).isEmpty();
-        assertThat(presenter.ballotOf("nope")).isEmpty();
+        var nobodys = UUID.randomUUID();
+
+        assertThat(presenter.poll(nobodys)).isEmpty();
+        assertThat(presenter.ballotOf(nobodys)).isEmpty();
     }
 
-    private String draftPoll(String title, List<Person> invitees) {
+    private UUID draftPoll(String title, List<Person> invitees) {
         presenter.draft().reset();
         presenter.draft().rename(title);
         invitees.forEach(presenter.draft()::invite);
