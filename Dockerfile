@@ -5,7 +5,7 @@ ARG JAVA_VERSION="21"
 # platform and does the arm64 pass under QEMU emulation for no gain. Only the
 # runtime layers below need to be per-architecture. Requires BuildKit, which both
 # `docker buildx bake` and a modern `docker build` use.
-FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/maven:3.9-eclipse-temurin-${JAVA_VERSION} AS build
 # .git is excluded from the build context (.dockerignore), so the deployed commit
 # can't be read here — the caller passes it in (CI uses github.sha).
 ARG GIT_SHA
@@ -21,7 +21,7 @@ RUN mvn --batch-mode --no-transfer-progress \
         -Dbuild.commit=${GIT_SHA} -DskipTests clean package
 
 
-FROM eclipse-temurin:${JAVA_VERSION}-jre-alpine
+FROM docker.io/library/eclipse-temurin:${JAVA_VERSION}-jre-alpine
 
 ARG APP_NAME
 ARG APP_VERSION
@@ -38,14 +38,7 @@ COPY --from=build --chown=demo:demo /app/target/${APP_NAME}-${APP_VERSION}.jar /
 
 # The database is a file the application writes, and /app belongs to root while the
 # application runs as demo — so the one directory it writes to is created and handed
-# over here, before USER drops the privilege to do it. It has to happen before VOLUME
-# too: a build step writing to a declared volume's path is discarded, and this is the
-# step that lets a fresh named volume come out owned by demo with nothing for the
-# operator to chown.
-#
-# VOLUME so the database cannot land in the image layer whatever the operator does. A
-# forgotten mount then costs them a dangling anonymous volume to find rather than the
-# data itself, which is the trade every database image makes.
+# over here, before USER drops the privilege to do it.
 ENV WHICHDAY_DATA_DIR=/app/data
 RUN mkdir -p "$WHICHDAY_DATA_DIR" && chown demo:demo "$WHICHDAY_DATA_DIR"
 VOLUME /app/data
