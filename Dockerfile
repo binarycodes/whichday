@@ -38,11 +38,17 @@ COPY --from=build --chown=demo:demo /app/target/${APP_NAME}-${APP_VERSION}.jar /
 
 # The database is a file the application writes, and /app belongs to root while the
 # application runs as demo — so the one directory it writes to is created and handed
-# over here, before USER drops the privilege to do it. No VOLUME: a declared one turns
-# a forgotten -v into an anonymous volume that the next `docker run` will not reuse,
-# so the data ends up "safe" somewhere nobody can find. Mounting it is the operator's
-# to do, and the README says so.
-RUN mkdir -p /app/data && chown demo:demo /app/data
+# over here, before USER drops the privilege to do it. It has to happen before VOLUME
+# too: a build step writing to a declared volume's path is discarded, and this is the
+# step that lets a fresh named volume come out owned by demo with nothing for the
+# operator to chown.
+#
+# VOLUME so the database cannot land in the image layer whatever the operator does. A
+# forgotten mount then costs them a dangling anonymous volume to find rather than the
+# data itself, which is the trade every database image makes.
+ENV WHICHDAY_DATA_DIR=/app/data
+RUN mkdir -p "$WHICHDAY_DATA_DIR" && chown demo:demo "$WHICHDAY_DATA_DIR"
+VOLUME /app/data
 
 USER demo:demo
 EXPOSE 8080

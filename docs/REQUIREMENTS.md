@@ -484,6 +484,17 @@ instead of hiding from it.
   enforces that, which is why the README says it out loud. It is also what makes coarse
   locking honest: there is exactly one writer.
 - **The file is the backup unit.** Copy `whichday.mv.db` while the app is stopped.
+- **The data directory is a declared volume**, so docker and podman cannot write the
+  database into the container's own filesystem even when nobody mounts anything. This
+  reverses an earlier choice to declare none, whose reasoning was that a forgotten `-v`
+  becomes an anonymous volume nobody can find. True — but weighed against the wrong
+  alternative: declaring none means a forgotten mount *destroys* the data on
+  `docker rm`, where an anonymous one only misplaces it and leaves it for
+  `docker volume ls` to find. It is also the shape `postgres` and every image like it
+  ships, so it is what an operator already expects. Two cases it does not cover:
+  `docker run --rm`, which deletes anonymous volumes, and Kubernetes, which ignores
+  `VOLUME` outright. Only a startup check would catch those, and that is the cost to
+  weigh if either is ever documented here.
 - **`synchronized` came off every service method.** A monitor inside a transactional
   proxy is acquired after the transaction opens and released before it commits, so it
   reads like a guarantee and is not one. Writers take a `PESSIMISTIC_WRITE` row lock on

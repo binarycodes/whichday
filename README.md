@@ -14,10 +14,12 @@ It is one container with its database inside it, and nothing else to bring up.
 - Images are tagged with the project's Maven version as well as `latest`.
 - The app listens on port **8080**. Override it with `PORT`: `-e PORT=9090 -p 9090:9090`.
 - Polls, ballots and accounts live in one database file, `whichday.mv.db`, in the
-  directory **`WHICHDAY_DATA_DIR`** names. It defaults to `./data`, which is
-  `/app/data` in the container.
-- **Mount a volume at that directory** and the data survives a restart; without one it
-  goes when the container does.
+  directory the image calls `/app/data`. `WHICHDAY_DATA_DIR` moves it.
+- **Mount a volume there.** The image declares `/app/data` a volume, so the database
+  never lands in the container's own filesystem — but forget the mount and it goes to an
+  anonymous volume instead, which the next `docker run` will not reuse and
+  `docker run --rm` deletes outright. Recoverable from `docker volume ls`, and not where
+  you want it.
 - **Run one container, not two.** The database is a file, and only the process holding
   it can open it — a second container on the same volume will not start.
 - Signing in needs an OIDC client: `WHICHDAY_OIDC_ISSUER_URI`,
@@ -36,7 +38,6 @@ services:
     volumes:
       - whichday-data:/app/data
     environment:
-      - WHICHDAY_DATA_DIR=/app/data
       - WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
       - WHICHDAY_OIDC_CLIENT_ID=change-me
       - WHICHDAY_OIDC_CLIENT_SECRET=change-me
@@ -71,7 +72,6 @@ ContainerName=whichday
 Image=docker.io/binarycodes/whichday:latest
 PublishPort=8080:8080
 Volume=whichday-data:/app/data
-Environment=WHICHDAY_DATA_DIR=/app/data
 Environment=WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
 Environment=WHICHDAY_OIDC_CLIENT_ID=change-me
 Environment=WHICHDAY_OIDC_CLIENT_SECRET=change-me
