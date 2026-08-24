@@ -13,10 +13,12 @@ It is one container with its database inside it, and nothing else to bring up.
 
 - Images are tagged with the project's Maven version as well as `latest`.
 - The app listens on port **8080**. Override it with `PORT`: `-e PORT=9090 -p 9090:9090`.
-- Polls, ballots and accounts live in an embedded database at
-  `/app/data/whichday.mv.db`. **Mount a volume at `/app/data`** and they survive a
-  restart; without one they go when the container does. `WHICHDAY_DATA_DIR` moves the
-  directory.
+- Polls, ballots and accounts live in one database file, `whichday.mv.db`, in the
+  directory **`WHICHDAY_DATA_DIR`** names. It defaults to `./data`, which is
+  `/app/data` in the container.
+- **Mount a volume at that directory** and the data survives a restart; without one it
+  goes when the container does. Point `WHICHDAY_DATA_DIR` somewhere else and that path
+  has to exist and be writable by uid 10001 — the image only prepares the default.
 - **Run one container, not two.** The database is a file, and only the process holding
   it can open it — a second container on the same volume will not start.
 - Signing in needs an OIDC client: `WHICHDAY_OIDC_ISSUER_URI`,
@@ -154,9 +156,9 @@ way to add somebody afterwards
 
 ## Where the polls live
 
-In an embedded H2 database — one file under `./data` locally, `/app/data` in the
-container. Flyway owns the schema, `ddl-auto=validate` refuses to start if the entities
-and the migrations disagree, and nothing seeds it.
+In an embedded H2 database — one file in the directory `WHICHDAY_DATA_DIR` names.
+Flyway owns the schema, `ddl-auto=validate` refuses to start if the entities and the
+migrations disagree, and nothing seeds it.
 
 A poll row names people by email address; the one place a name lives is the `account`
 table, written when somebody signs in. So an invitee who signs up later shows their
