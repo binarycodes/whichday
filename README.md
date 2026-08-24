@@ -17,8 +17,7 @@ It is one container with its database inside it, and nothing else to bring up.
   directory **`WHICHDAY_DATA_DIR`** names. It defaults to `./data`, which is
   `/app/data` in the container.
 - **Mount a volume at that directory** and the data survives a restart; without one it
-  goes when the container does. Point `WHICHDAY_DATA_DIR` somewhere else and that path
-  has to exist and be writable by uid 10001 — the image only prepares the default.
+  goes when the container does.
 - **Run one container, not two.** The database is a file, and only the process holding
   it can open it — a second container on the same volume will not start.
 - Signing in needs an OIDC client: `WHICHDAY_OIDC_ISSUER_URI`,
@@ -37,6 +36,7 @@ services:
     volumes:
       - whichday-data:/app/data
     environment:
+      - WHICHDAY_DATA_DIR=/app/data
       - WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
       - WHICHDAY_OIDC_CLIENT_ID=change-me
       - WHICHDAY_OIDC_CLIENT_SECRET=change-me
@@ -47,8 +47,13 @@ volumes:
   whichday-data:
 ```
 
-A named volume as above picks up the right ownership on its own; a bind mount has to
-be writable by uid 10001, the user inside the image.
+The left side of the mount is yours — the named volume above, or any host path. The
+right side has to be whatever `WHICHDAY_DATA_DIR` says.
+
+A named volume at the image's own `/app/data` is the case that needs nothing else: a
+fresh one is seeded from that directory, ownership included. Anywhere else — a bind
+mount, or a volume at a path the image never created — you make writable by uid 10001
+yourself, which is the user inside the image.
 
 ### Podman Quadlet (systemd)
 
@@ -66,6 +71,7 @@ ContainerName=whichday
 Image=docker.io/binarycodes/whichday:latest
 PublishPort=8080:8080
 Volume=whichday-data:/app/data
+Environment=WHICHDAY_DATA_DIR=/app/data
 Environment=WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
 Environment=WHICHDAY_OIDC_CLIENT_ID=change-me
 Environment=WHICHDAY_OIDC_CLIENT_SECRET=change-me
