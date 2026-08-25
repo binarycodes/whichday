@@ -1,0 +1,50 @@
+# Who Whichday asks who you are. Signing in is the only way in and OIDC is the only
+# way to sign in, so this is the whole development stack: the polls live in an H2 file
+# the application opens itself, and there is nothing else to bring up.
+#
+# The application fetches the issuer's discovery document at startup and will not
+# start without it, so this comes up first or not at all.
+#
+# Started empty. The realm, its client and its people are created afterwards by
+# whichday-dev-keycloak-init.
+[Unit]
+Description=Whichday development Keycloak
+
+[Container]
+ContainerName=whichday-dev-keycloak
+Image=quay.io/keycloak/keycloak:26.4
+Network=whichday-dev.network
+# The alias, not the container name, is what keycloak-init's KC_URL asks for.
+NetworkAlias=keycloak
+# 8082, because Keycloak's own default is Whichday's and 8081 — the obvious next one
+# — is where a sibling project's Keycloak already sits on this machine. The management
+# port is not published: only the healthcheck below reaches it, from inside the
+# container.
+PublishPort=8082:8080
+Volume=@ENV_DIR@/keycloak/HealthCheck.java:/tmp/HealthCheck.java:ro,z
+
+Environment=KC_BOOTSTRAP_ADMIN_USERNAME=admin
+Environment=KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+# The readiness endpoint lives on the management port, and only when asked for.
+Environment=KC_HEALTH_ENABLED=true
+
+Exec=start-dev
+
+# This image carries no curl and no wget, but it does carry a JVM — so the probe is a
+# single Java source file. It asks /health/ready rather than testing whether a port is
+# open, because Keycloak binds its ports long before it can answer, and the init unit
+# depends on this being true rather than merely started.
+HealthCmd=java /tmp/HealthCheck.java http://localhost:9000/health/ready
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=30
+Notify=healthy
+
+[Service]
+Restart=always
+
+# So `systemctl --user enable` is available to anyone who wants the stack back after a
+# reboot. Deliberately not enabled by `./run.sh env up`, which starts the units and
+# leaves that choice alone.
+[Install]
+WantedBy=default.target

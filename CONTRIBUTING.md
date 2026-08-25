@@ -18,22 +18,35 @@ git config core.hooksPath .githooks
 
 ## Run it locally
 
-Login is required in development as well, so it needs an OIDC client before it will
-start:
+Login is required in development as well, so an identity provider has to be up before
+the app will start. There is one in `environment/dev` — a Keycloak with a realm, a
+client and two people already in it — and `application.properties` defaults to exactly
+that, so nothing needs configuring:
+
+```bash
+./run.sh env up
+./run.sh run
+```
+
+Open <http://localhost:8080> and it redirects you to Keycloak. Sign in as **`ada` /
+`ada`**; `miro` / `miro` is the second person, which is who you invite. See
+[`environment/dev/README.md`](environment/dev/README.md) for the realm, the admin
+console and how to add a third.
+
+To point at a provider of your own instead, set all three — the defaults are a
+laptop's and none of them belongs anywhere else:
 
 ```bash
 export WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
 export WHICHDAY_OIDC_CLIENT_ID=...
 export WHICHDAY_OIDC_CLIENT_SECRET=...
-./run.sh run
 ```
+
+Register `http://localhost:8080/login/oauth2/code/oidc` with that client.
 
 The database appears at `./data/whichday.mv.db` on first start and survives every
 restart, devtools included. `./run.sh resetdb` deletes it and the app creates an empty
 one next time. The tests never touch it — they run against an in-memory database.
-
-Open <http://localhost:8080> and it redirects you to the provider. Register
-`http://localhost:8080/login/oauth2/code/oidc` with the client.
 
 ## Tasks
 
@@ -41,6 +54,7 @@ Open <http://localhost:8080> and it redirects you to the provider. Register
 
 | Task      | What it does                                                     |
 | --------- | ---------------------------------------------------------------- |
+| `env`     | The development Keycloak: `up` (default), `down`, `logs`, `reset` |
 | `run`     | Start the app in dev mode                                        |
 | `test`    | Unit and browserless tests, with the JaCoCo gate                 |
 | `verify`  | The same against a production build                              |
@@ -48,7 +62,7 @@ Open <http://localhost:8080> and it redirects you to the provider. Register
 | `deps`    | Pre-download dependencies and build plugins, so a later task needs no network |
 | `resetdb` | Delete the local database                                        |
 
-`run` needs the OIDC variables above; the tests do not. `./run.sh` pins JDK 21, and
+`run` needs `env up` first; the tests need neither. `./run.sh` pins JDK 21, and
 every build carries the commit SHA — the enforcer plugin rejects one that does not. CI
 runs `mvn verify` on every push and publishes the image from `main`.
 
