@@ -30,7 +30,7 @@
   white-space: nowrap;
 }
 
-.action-copy {
+.action-share {
   --vaadin-button-height: 2.375rem;
   --vaadin-button-font-size: 0.875rem;
   width: auto;

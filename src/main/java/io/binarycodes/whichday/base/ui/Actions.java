@@ -26,7 +26,16 @@ public final class Actions {
 
     /** The step forward: accent paint, full width. */
     public static Button primary(String label, ComponentEventListener<ClickEvent<Button>> onClick) {
-        return styled(new Button(label, onClick), "action", "action-primary");
+        return listening(primary(label), onClick);
+    }
+
+    /**
+     * The same button with no listener of ours, for a click the browser handles
+     * itself — sharing a link needs the gesture, and a round trip has already spent
+     * it ({@link io.binarycodes.whichday.poll.ui.share.VotingLink#shareFrom}).
+     */
+    public static Button primary(String label) {
+        return styled(new Button(label), "action", "action-primary");
     }
 
     /**
@@ -38,7 +47,12 @@ public final class Actions {
     }
 
     public static Button outline(String label, ComponentEventListener<ClickEvent<Button>> onClick) {
-        return styled(new Button(label, onClick), "action", "action-outline");
+        return listening(outline(label), onClick);
+    }
+
+    /** The same button with no listener of ours, for the reason {@link #primary(String)} gives. */
+    public static Button outline(String label) {
+        return styled(new Button(label), "action", "action-outline");
     }
 
     /** A small bordered button sitting inside a hint row — nudge, accept a proposal. */
@@ -57,6 +71,11 @@ public final class Actions {
         var button = tertiary(new Button(new Icon(glyph), onClick));
         button.setAriaLabel(ariaLabel);
         return styled(button, "action-icon");
+    }
+
+    private static Button listening(Button button, ComponentEventListener<ClickEvent<Button>> onClick) {
+        button.addClickListener(onClick);
+        return button;
     }
 
     private static Button tertiary(Button button) {

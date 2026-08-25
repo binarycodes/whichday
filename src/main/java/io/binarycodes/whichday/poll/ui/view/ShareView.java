@@ -125,10 +125,11 @@ public class ShareView extends PollScreen {
         var text = new Div(label, url);
         text.addClassName("link-text");
 
-        var copy = Actions.primary(getTranslation("share.copy"), ignored -> copyLink(poll));
-        copy.addClassName("action-copy");
+        var share = Actions.primary(getTranslation("share.share"));
+        share.addClassName("action-share");
+        VotingLink.shareFrom(share, poll);
 
-        var card = new Div(text, copy);
+        var card = new Div(text, share);
         card.addClassNames("link-card", "push-xl");
         return card;
     }
@@ -171,11 +172,6 @@ public class ShareView extends PollScreen {
             rows.add(row);
         }
         return new Div(header, rows);
-    }
-
-    private void copyLink(Poll poll) {
-        VotingLink.copyToClipboard(this, poll.id());
-        Notification.show(getTranslation("share.copied"));
     }
 
     private void send() {

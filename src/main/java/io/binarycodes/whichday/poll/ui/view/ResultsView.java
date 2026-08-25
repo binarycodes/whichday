@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -88,7 +89,7 @@ public class ResultsView extends PollScreen {
         body(ownAnswer(poll));
 
         var reminder = new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder"));
-        footer(reminder, Actions.outline(getTranslation("results.copyLink"), ignored -> copyLink(poll)));
+        footer(reminder, shareLink(poll));
     }
 
     private void buildStandings(Poll poll) {
@@ -248,9 +249,14 @@ public class ResultsView extends PollScreen {
         return days == 1 ? getTranslation("time.days.one") : getTranslation("time.days.many", days);
     }
 
-    private void copyLink(Poll poll) {
-        VotingLink.copyToClipboard(this, poll.id());
-        Notification.show(getTranslation("share.copied"));
+    /**
+     * The same link the share screen hands out, for an organizer who is back here
+     * because somebody never got it.
+     */
+    private Button shareLink(Poll poll) {
+        var button = Actions.outline(getTranslation("results.shareLink"));
+        VotingLink.shareFrom(button, poll);
+        return button;
     }
 
     private void accept(Ballot ballot) {
