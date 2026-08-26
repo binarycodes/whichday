@@ -2,6 +2,7 @@ package io.binarycodes.whichday.poll.service;
 
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.binarycodes.whichday.base.config.AccessMode;
+import io.binarycodes.whichday.base.config.Retention;
 import io.binarycodes.whichday.people.domain.EmailAddress;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.PersonLookup;
@@ -73,13 +75,16 @@ public class PollService {
     private final PollRepository polls;
     private final PersonLookup people;
     private final AccessMode access;
+    private final Retention retention;
     private final SecureRandom codes = new SecureRandom();
 
-    public PollService(Clock clock, PollRepository polls, PersonLookup people, AccessMode access) {
+    public PollService(Clock clock, PollRepository polls, PersonLookup people, AccessMode access,
+                       Retention retention) {
         this.clock = clock;
         this.polls = polls;
         this.people = people;
         this.access = access;
+        this.retention = retention;
     }
 
     /**
@@ -251,6 +256,93 @@ public class PollService {
             throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
         }
         polls.delete(stored);
+    }
+
+    /**
+     * Throws away every poll a retention window has passed: a few days after it ended,
+     * and unconditionally once it reaches its maximum age. Deleting a poll deletes
+     * everything about it — the ballots, the invitations, the days and the answers —
+     * so afterwards a link somebody saved reads exactly as a link to a poll that never
+     * existed. That is the whole of what the screens have to do about it.
+     *
+     * <p>It takes no viewer because there is nobody to check: it is the one write here
+     * that no person asked for, so §10b's question of who may do what has no subject.
+     * The windows are the authority instead, and they are a deployment's to set.
+     *
+     * <p>Public deliberately, and not a candidate for tidying: Spring's proxy ignores
+     * {@code @Transactional} on a method that is not public, and this one has to
+     * override the read-only default the class carries — see {@link #record}, which
+     * documents the same trap from the other side.
+     *
+     * <p>No row lock of its own, and it does not need one. Every poll the ended window
+     * reaches is in a state {@link #requireEditable} and {@link #requireOpen} already
+     * refuse every writer. The maximum age can take one somebody is still answering —
+     * that is the ceiling doing what it is for — and the delete's own lock is what
+     * settles the race: either the answer commits and the poll goes afterwards, or the
+     * poll goes and the answer's locked read finds nothing, which is the same refusal a
+     * link nobody issued gets.
+     *
+     * <p>A set rather than two lists, because a poll both windows reach is one poll. The
+     * two queries run in one transaction, so the row they share comes back as the same
+     * managed instance and identity is enough to hold it once.
+     *
+     * @return how many polls were deleted, for the caller to say so
+     */
+    @Transactional
+    public int deleteExpiredPolls() {
+        var today = LocalDate.now(clock);
+        var doomed = new LinkedHashSet<StoredPoll>();
+        retention.afterPollEnds().cutoff(today).ifPresent(cutoff -> doomed.addAll(endedBefore(cutoff)));
+        retention.maximumAge().cutoff(clock)
+                .ifPresent(cutoff -> doomed.addAll(polls.findByCreatedAtBefore(cutoff)));
+        polls.deleteAll(doomed);
+        return doomed.size();
+    }
+
+    /**
+     * Polls that were over before the cutoff. The query narrows on the dates and this
+     * decides what the dates mean, so what counts as over stays {@link #stateOf}'s
+     * answer rather than becoming a second copy of it in JPQL.
+     *
+     * <p>The anchor is the later of the two days a poll can end on. A poll settled for a
+     * day after it stopped taking answers has not happened yet, and deleting it on its
+     * closing date would take away the answer the team comes back to it for.
+     */
+    private List<StoredPoll> endedBefore(LocalDate cutoff) {
+        return polls.findEndedBefore(cutoff).stream()
+                .filter(this::isOver)
+                .filter(stored -> endedOn(stored).isBefore(cutoff))
+                .toList();
+    }
+
+    private boolean isOver(StoredPoll stored) {
+        var state = stateOf(stored);
+        return state == PollState.CLOSED || state == PollState.LOCKED;
+    }
+
+    /** Only ever asked of a poll {@link #isOver} has already vouched for, so it has a day. */
+    private static LocalDate endedOn(StoredPoll stored) {
+        return Stream.of(stored.closesOn(), stored.lockedDay())
+                .filter(Objects::nonNull)
+                .max(LocalDate::compareTo)
+                .orElseThrow();
+    }
+
+    /**
+     * Every address any poll refers to, in any of the three ways one can: as the person
+     * who called it, as somebody invited, or as somebody who answered. What the retention
+     * sweep needs to know before it drops an account, since a name that is still on a
+     * poll is a name that poll still has to show.
+     *
+     * <p>Whole columns rather than a join against the {@code account} table: the two are
+     * deliberately not joined anywhere (§10 — an invitee may have no account at all), and
+     * this keeps that true of the sweep as well.
+     */
+    public Set<String> addressesOnAnyPoll() {
+        var addresses = new LinkedHashSet<>(polls.organizerAddresses());
+        addresses.addAll(polls.inviteeAddresses());
+        addresses.addAll(polls.voterAddresses());
+        return addresses;
     }
 
     /**

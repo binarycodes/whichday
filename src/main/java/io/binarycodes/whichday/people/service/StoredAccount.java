@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.people.service;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -26,12 +28,21 @@ class StoredAccount {
     @Column(name = "name", nullable = false)
     private String name;
 
+    /**
+     * First seen, and never rewritten — {@code remember} runs on every read of who is
+     * looking, and a column that moved with it would keep an anonymous session's row
+     * alive for as long as somebody left the tab open. The retention sweep reads this.
+     */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
     protected StoredAccount() {
     }
 
-    StoredAccount(String email, String name) {
+    StoredAccount(String email, String name, Instant createdAt) {
         this.email = email;
         this.name = name;
+        this.createdAt = createdAt;
     }
 
     String email() {
@@ -40,6 +51,10 @@ class StoredAccount {
 
     String name() {
         return name;
+    }
+
+    Instant createdAt() {
+        return createdAt;
     }
 
     void rename(String newName) {

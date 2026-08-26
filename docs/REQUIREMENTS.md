@@ -96,9 +96,9 @@ authenticated. It is the one place a name lives — a poll stores nothing but ad
 wherever a name belongs, including on other people's ballots. What the table holds in
 this mode is a session's chosen name, and nothing reads it beyond rendering: the invitee
 search is its only other reader and that screen is not part of this mode. The rows are
-written when somebody says who they are rather than when they do anything, so they
-accumulate with visitors and nothing removes them —
-[`issues/0019-anonymous-names-accumulate-forever.md`](issues/0019-anonymous-names-accumulate-forever.md).
+written when somebody says who they are rather than when they do anything, so a visitor
+who typed a name and closed the tab leaves one behind. Those are swept: a minted name no
+poll refers to any more is dropped at the same maximum age a poll has (§9).
 
 **Identity does not outlive the session.** Close the tab and you are a new person. That
 is the cost of having no accounts, and the admin code is what buys the organizer a way
@@ -496,6 +496,11 @@ writing method in `PollService` goes through `requireEditable`, which admits onl
 `DRAFT` and `OPEN`; answers are refused separately by `requireOpen`, which says so in
 the voter's own terms rather than the organizer's.
 
+Final is not the same as permanent. A poll that has ended is deleted a few days later,
+and every poll is deleted at its maximum age whatever state it is in — §9 records both
+windows. So the last thing that happens to a poll is that it stops existing, and a link
+to it then reads as a link to a poll that never did.
+
 That means **the organizer has to settle on a day before the poll closes.** The default
 closing date is the last day on the table, so the window is the whole life of the poll,
 and a date locked in after the days have gone would be a decision about days nobody can
@@ -523,8 +528,9 @@ no way to act on it.
 day, whether there are candidate days, the closing date and the clock. A stored column
 would be wrong from the moment the clock crossed the closing date with nobody writing
 to the row, and the thing that would fix that is a scheduled sweep
-([issue 0005](issues/0005-closing-happens-on-read.md)). Adding the column later is a
-migration and a backfill; removing one that lied for a month is not.
+([issue 0005](issues/0005-closing-happens-on-read.md)) — which now has somewhere to live,
+since retention brought one (§9). Adding the column later is a migration and a backfill;
+removing one that lied for a month is not.
 
 Seeding is the one path around the guard: `PollService.record` is package-private and
 only `castVote` and the test fixtures reach it, to build polls that were decided before
@@ -673,6 +679,82 @@ instead of hiding from it.
 - Flyway warns at startup that H2 2.4.240 is newer than the version it was verified
   against. Both versions are Boot's managed ones, so the pairing is Boot's rather than
   ours.
+
+### What is kept, and for how long
+
+Nothing is kept forever. A sweep runs on a fixed delay and deletes polls that either of
+two retention windows has passed, both set once by a deployment and both counted in whole
+days like every other span here:
+
+- **`WHICHDAY_RETENTION_AFTER_POLL_ENDS`, five days by default.** Measured from the day
+  the poll ended, and it reaches only the two final states, `CLOSED` and `LOCKED`.
+- **`WHICHDAY_RETENTION_DAYS`, ninety days by default.** Measured from `created_at`, and
+  it reaches **every** poll there is — a draft nobody sent, a poll still collecting
+  answers, a settled one whose day has not come. Nothing survives it. It governs the
+  anonymous names below by the same number, since they are the other thing here that
+  accumulates on its own.
+
+Either is `never` to switch that window off, which is what a deployment that wants to
+keep everything sets. A window nobody can parse is a startup failure quoting the variable
+and the value, for the same reason `WHICHDAY_ACCESS_MODE` is (§1): there is no safe
+guess — one reading deletes what somebody meant to keep and the other keeps what they
+meant to have gone.
+
+**The second window exists because the first cannot reach everything.** A draft has no
+date to have ended on, and an open poll's closing date is at most the last day on the
+table, which can be months out. Without a rule measured from creation there are rows no
+rule reaches, in a store that is one file nothing else prunes (§9). The consequence is
+deliberate and worth naming: a poll created in September with candidate days in March is
+deleted in December, while people are still answering it. The ceiling is a ceiling.
+
+**A poll that has ended is dated by the later of its two dates** — its closing date, or
+the day locked in. A poll settled for a day after it stopped taking answers has not
+happened yet, and its closing date can be five days gone while the team is still waiting
+on the date they came back to the poll to find. Anchoring on the closing date alone would
+delete the answer before the meeting.
+
+**Deleting a poll deletes everything about it.** The ballots, the invitations, the
+candidate days and the counter-proposals all go, by the `on delete cascade` `V1` already
+declares. Afterwards a link somebody saved reads exactly as a link nobody issued: the
+not-found screen, the same words either way, because `PollScreen` forwards there on a
+poll it cannot read and `poll()` cannot read one that is not there. That is the whole of
+what retention asked of the views — none of them changed, and `NotFoundView`'s "The link
+may have expired" became true rather than aspirational.
+
+**The names go too, but only the minted ones, and only when nothing refers to them.**
+The same maximum age drops an `account` row whose address was minted for an anonymous
+session (`@whichday.anonymous`) once no poll refers to it as an organizer, an invitee or a
+voter. Three conditions, each earning its place:
+
+- **Minted only.** An address a provider vouched for belongs to somebody who can come back
+  and be recognised. A minted one belonged to a session that no longer exists, and nothing
+  will ever match it again.
+- **Referred to by nothing.** A name is the account table's alone (§10), so dropping a row
+  a live poll still mentions would render that person as their own minted address on
+  everybody else's screen. `PollService.addressesOnAnyPoll` is what the sweep asks, and it
+  asks in whole columns rather than by joining `account` — those two are deliberately not
+  joined anywhere.
+- **Old enough.** The age is what makes it safe rather than merely tidy: a session that has
+  just typed a name has written its row and referred to nothing yet, so unreferenced does
+  not mean abandoned until no session could still be holding it.
+
+The order in `RetentionSweep` follows from that: the polls go first, so a name whose last
+mention was on a poll deleted this run is already unreferenced when the accounts are looked
+at. A voter's name therefore outlives their poll by no sweeps at all, and an idle visitor's
+by ninety days.
+
+**Who may run it: nobody.** `deleteExpiredPolls` and `forgetExpiredAnonymous` take no
+viewer, because there is no viewer to check — it is the one write in `PollService` that no person asked for, and the
+windows are the authority instead. It is also the first thing in the application that
+happens because time passed rather than because somebody looked, which is the trigger
+[issue 0005](issues/0005-closing-happens-on-read.md) has been waiting for.
+
+A fixed delay rather than a nightly cron: a cron at three in the morning is skipped
+outright by a machine asleep at three, there is nothing about deleting rows that wants a
+particular hour, and a fixed delay always runs shortly after start-up — which is when a
+deployment that has been down for a week needs it most. The sweep is off under the `test`
+profile, because one Spring context serves the whole suite and a scheduled delete would
+race whatever test is running; `PollRetentionTest` calls it directly.
 
 ---
 

@@ -1,17 +1,21 @@
 package io.binarycodes.whichday.people.service;
 
+import java.time.Clock;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.binarycodes.whichday.base.config.Retention;
+import io.binarycodes.whichday.people.domain.AnonymousAddress;
 import io.binarycodes.whichday.people.domain.EmailAddress;
 import io.binarycodes.whichday.people.domain.Person;
 
@@ -37,9 +41,13 @@ public class AccountDirectory implements PersonLookup {
     private static final int MAXIMUM_MATCHES = 5;
 
     private final AccountRepository accounts;
+    private final Clock clock;
+    private final Retention retention;
 
-    public AccountDirectory(AccountRepository accounts) {
+    public AccountDirectory(AccountRepository accounts, Clock clock, Retention retention) {
         this.accounts = accounts;
+        this.clock = clock;
+        this.retention = retention;
     }
 
     /**
@@ -53,11 +61,48 @@ public class AccountDirectory implements PersonLookup {
         var email = EmailAddress.normalise(person.email());
         var stored = accounts.findById(email);
         if (stored.isEmpty()) {
-            accounts.save(new StoredAccount(email, person.name()));
+            accounts.save(new StoredAccount(email, person.name(), clock.instant()));
             return;
         }
         stored.filter(account -> !account.name().equals(person.name()))
                 .ifPresent(account -> account.rename(person.name()));
+    }
+
+    /**
+     * Drops the names minted for anonymous sessions that nothing refers to any more, once
+     * they have reached the same maximum age a poll has ({@code WHICHDAY_RETENTION_DAYS}).
+     * Only those: an address a provider vouched for belongs to somebody who can come back
+     * and be recognised, where a minted one belonged to a session that no longer exists.
+     *
+     * <p>Still referred to means still needed, whichever of the three ways it is — the
+     * organizer of a poll, somebody invited, somebody who answered. A name is the account
+     * table's alone, so deleting a row a live poll still mentions would leave that person
+     * rendered as their own minted address on everybody else's screen.
+     *
+     * <p>The age is what makes it safe rather than merely tidy. A session that has just
+     * said who it is has written its row and referred to nothing yet, so an unreferenced
+     * row is not the same as an abandoned one until enough time has passed that no session
+     * could still be holding it.
+     *
+     * <p>Loaded and filtered in Java, which is the same shape {@link #matching} is
+     * criticised for and defensible here for the reason that one is not: this runs once a
+     * sweep rather than once a keystroke.
+     *
+     * @param stillInUse every address any poll refers to
+     * @return how many names were dropped
+     */
+    @Transactional
+    public int forgetExpiredAnonymous(Set<String> stillInUse) {
+        var cutoff = retention.maximumAge().cutoff(clock);
+        if (cutoff.isEmpty()) {
+            return 0;
+        }
+        var abandoned = accounts
+                .findByEmailEndingWithAndCreatedAtBefore(AnonymousAddress.DOMAIN, cutoff.get()).stream()
+                .filter(account -> !stillInUse.contains(account.email()))
+                .toList();
+        accounts.deleteAll(abandoned);
+        return abandoned.size();
     }
 
     /**

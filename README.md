@@ -48,6 +48,14 @@ It is one container with its database inside it, and nothing else to bring up.
   you want it.
 - **Run one container, not two.** The database is a file, and only the process holding
   it can open it — a second container on the same volume will not start.
+- **Polls do not stay forever.** A poll is deleted five days after it ends
+  (`WHICHDAY_RETENTION_AFTER_POLL_ENDS`), and no poll survives 90 days from the day it
+  was made (`WHICHDAY_RETENTION_DAYS`) — whatever state it is in, a draft nobody sent
+  and a poll still collecting answers included. Deleting a poll deletes the answers with
+  it and cannot be undone, so a saved link then reads as a link to a poll that never
+  existed. Both are whole days, and either is `never` to switch that window off.
+  `WHICHDAY_RETENTION_DAYS` also drops the names anonymous visitors typed, once no poll
+  refers to them any more.
 - `WHICHDAY_ACCESS_MODE` is `anonymous` or `login`, and defaults to `anonymous`.
   Anything else is a startup failure naming both.
 - **`login` mode needs an OIDC client**: `WHICHDAY_OIDC_ISSUER_URI`,
@@ -74,6 +82,8 @@ services:
       - WHICHDAY_OIDC_CLIENT_ID=change-me
       - WHICHDAY_OIDC_CLIENT_SECRET=change-me
       - FORWARD_HEADERS_STRATEGY=native
+      - WHICHDAY_RETENTION_AFTER_POLL_ENDS=5
+      - WHICHDAY_RETENTION_DAYS=90
     restart: unless-stopped
 
 volumes:
@@ -86,6 +96,8 @@ dropped — it is the default, and it configures nothing:
 ```yaml
     environment:
       - FORWARD_HEADERS_STRATEGY=native
+      - WHICHDAY_RETENTION_AFTER_POLL_ENDS=5
+      - WHICHDAY_RETENTION_DAYS=90
 ```
 
 The left side of the mount is yours — the named volume above, or any host path. The
@@ -117,6 +129,8 @@ Environment=WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
 Environment=WHICHDAY_OIDC_CLIENT_ID=change-me
 Environment=WHICHDAY_OIDC_CLIENT_SECRET=change-me
 Environment=FORWARD_HEADERS_STRATEGY=native
+Environment=WHICHDAY_RETENTION_AFTER_POLL_ENDS=5
+Environment=WHICHDAY_RETENTION_DAYS=90
 AutoUpdate=registry
 
 [Service]
@@ -139,8 +153,8 @@ systemctl start whichday.service
 `AutoUpdate=registry` is safe here because systemd stops the old container before
 starting the new one, and only one process at a time may hold the database file.
 
-Anonymous mode drops the same four lines here, leaving `FORWARD_HEADERS_STRATEGY` as
-the only `Environment=` the unit needs.
+Anonymous mode drops the same four lines here, leaving `FORWARD_HEADERS_STRATEGY` and
+the two retention lines as the only `Environment=` the unit needs.
 
 ### Behind a proxy
 
@@ -218,6 +232,16 @@ migrations disagree, and nothing seeds it.
 A poll row names people by email address; the one place a name lives is the `account`
 table, written when somebody signs in. So an invitee who signs up later shows their
 real name on polls that predate their account.
+
+Nothing stays forever. A sweep runs daily and deletes a poll once either retention
+window has passed it — five days after it ended, or 90 days after it was created,
+whichever comes first. It takes the ballots, the invitations, the candidate days and the
+proposals with it.
+
+The same 90 days drop the names typed into anonymous mode's who-are-you screen, once no
+poll refers to them any more — so a visitor who typed a name and closed the tab leaves
+nothing behind. An address a provider vouched for is never dropped: it belongs to somebody
+who can sign in again and be recognised.
 
 It is H2 rather than PostgreSQL on purpose:
 [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) says why.

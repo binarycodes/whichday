@@ -93,6 +93,7 @@ file.
 - **Readers go through `require`; writers go through `requireForUpdate`**, which takes a row lock held until the transaction commits. That pairing replaced a `synchronized` on every method: a monitor inside a transactional proxy is released before the commit, so it reads like a guarantee and is not one.
 - `spring.jpa.open-in-view=false`. A screen holds a record and never an entity, so a lazy read outside a transaction is a bug, and this is what makes it fail loudly instead of hiding until the next thing moves.
 - A path-like setting names the directory, not the whole URL: `WHICHDAY_DATA_DIR`, so moving the database file cannot drop `MODE=PostgreSQL` on the way past.
+- **Nothing is stored forever.** Two retention windows delete a poll — a few days after it ends, and unconditionally at its maximum age — and `docs/REQUIREMENTS.md` §9 is the record. A new table that hangs off `poll` needs `on delete cascade` or the sweep leaves its rows behind; one that does not needs a rule of its own, because the only reason the sweep reaches anything is that a poll is the root of it.
 
 ## 10a. Security headers
 
