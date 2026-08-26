@@ -1,5 +1,6 @@
 package io.binarycodes.whichday.people.ui.view;
 
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -16,6 +17,7 @@ import io.binarycodes.whichday.base.ui.IdentityGuard;
 import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
+import io.binarycodes.whichday.people.ui.AdminCodeField;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
@@ -26,6 +28,10 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  *
  * <p>The name is the whole of identity here. The address behind it is minted, never
  * typed: an address anybody could type is an address anybody could type twice.
+ *
+ * <p>The code is behind a checkbox and asked for a box at a time — see
+ * {@link AdminCodeField}. It answers a question almost nobody arriving here is being asked,
+ * so it stays out of the way until somebody says it is theirs to answer.
  *
  * <p>Login mode has a provider for this and reaches the screen through no path of its
  * own, so it is turned away at the door rather than left to render a form that would
@@ -42,11 +48,14 @@ public class IdentityView extends Screen implements BeforeEnterObserver, HasDyna
     private final PollPresenter presenter;
     private final ViewerSession session;
     private final TextField name = new TextField();
-    private final TextField code = new TextField();
+    private final Checkbox coming = new Checkbox();
+    private final AdminCodeField code = new AdminCodeField(CODE_LENGTH);
+    private final Div codeGroup = new Div();
 
     public IdentityView(PollPresenter presenter, ViewerSession session) {
         this.presenter = presenter;
         this.session = session;
+        coming.addValueChangeListener(event -> revealCode(event.getValue()));
     }
 
     @Override
@@ -93,22 +102,36 @@ public class IdentityView extends Screen implements BeforeEnterObserver, HasDyna
     }
 
     /**
-     * Optional, and the hint says why: somebody arriving on a link has no code and
-     * needs none, and an empty field that looks required is a field people invent an
-     * answer for.
+     * Behind a checkbox, because almost nobody who reaches this screen has a code: arriving
+     * on a shared link is the ordinary way in, and a code field standing open is one people
+     * either invent an answer for or stop to wonder about. The checkbox says who it is for
+     * in the words the hint used to, so the question is asked once instead of twice.
+     *
+     * <p>Unchecking it clears what was typed. A code that is no longer on screen must not
+     * still be travelling with the name.
      */
     private Div codeField() {
-        code.setPlaceholder(getTranslation("identity.code.placeholder"));
-        code.setMaxLength(CODE_LENGTH);
-        code.setAllowedCharPattern("[0-9]");
-        code.setWidthFull();
+        coming.setLabel(getTranslation("identity.code.toggle"));
 
         var hint = Typography.meta(getTranslation("identity.code.hint"));
         hint.addClassName("meta-faint");
+        codeGroup.removeAll();
+        codeGroup.add(Typography.fieldLabel(getTranslation("identity.code")), code, hint);
+        codeGroup.addClassName("stack-xs");
+        codeGroup.setVisible(coming.getValue());
 
-        var group = new Div(Typography.fieldLabel(getTranslation("identity.code")), code, hint);
-        group.addClassName("stack-xs");
+        var group = new Div(coming, codeGroup);
+        group.addClassName("stack-s");
         return group;
+    }
+
+    private void revealCode(boolean wanted) {
+        codeGroup.setVisible(wanted);
+        if (wanted) {
+            code.focusFirst();
+        } else {
+            code.clear();
+        }
     }
 
     private void identify() {
@@ -116,7 +139,13 @@ public class IdentityView extends Screen implements BeforeEnterObserver, HasDyna
             Toast.show(getTranslation("identity.name.required"));
             return;
         }
-        session.identify(name.getValue(), code.getValue());
+        // Six digits or none. Somebody who ticked the box and typed four has mistyped their
+        // code, and letting that through would refuse them the poll without saying why.
+        if (coming.getValue() && !code.isComplete()) {
+            Toast.show(getTranslation("identity.code.required"));
+            return;
+        }
+        session.identify(name.getValue(), code.value());
         getUI().ifPresent(ui -> IdentityGuard.take()
                 .ifPresentOrElse(ui::navigate, () -> ui.navigate(Home.viewFor(presenter))));
     }

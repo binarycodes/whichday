@@ -22,6 +22,7 @@ import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.HasText;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
 
@@ -31,6 +32,7 @@ import io.binarycodes.whichday.TestClock;
 import io.binarycodes.whichday.TestDatabase;
 import io.binarycodes.whichday.base.config.AccessMode;
 import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.people.ui.AdminCodeField;
 import io.binarycodes.whichday.people.ui.PersonAvatar;
 import io.binarycodes.whichday.people.ui.presenter.AnonymousViewerSession;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
@@ -79,7 +81,65 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
 
         assertThat(currentView()).isInstanceOf(IdentityView.class);
         assertThat(textOf(currentView())).contains(translation("identity.headline"),
-                translation("identity.name"), translation("identity.code"));
+                translation("identity.name"));
+        // Drawn, but not shown: almost nobody arriving here has a code to type.
+        assertThat(codeCheckbox().getLabel()).isEqualTo(translation("identity.code.toggle"));
+        assertThat(codeGroup().isVisible()).isFalse();
+    }
+
+    /**
+     * The code is the organizer's way back in, and it is the only thing on this screen that
+     * most people should never have to think about — so it waits behind the checkbox. A code
+     * that arrives on the clipboard in one piece is spread across the boxes rather than
+     * truncated to the first digit, which is the whole reason six boxes are bearable.
+     */
+    @Test
+    @DisplayName("reveals the code boxes when asked, and spreads a pasted code across them")
+    void theCodeIsBehindTheCheckbox() {
+        var organizer = visitor("Ada", "");
+        var poll = pollCalledBy(organizer, "Q3 offsite");
+        var code = organizer.adminCode(poll).orElseThrow();
+        var day = pollOf(poll, organizer).candidateDays().getFirst();
+
+        navigateTo(ResultsView.class, poll);
+        assertThat(currentView()).isInstanceOf(IdentityView.class);
+
+        type(0, "Miro");
+        tickTheCodeBox();
+        assertThat(codeGroup().isVisible()).isTrue();
+
+        // What a paste looks like from the server's side: the whole code in one box.
+        codeBoxes().getLast().setValue(code);
+        assertThat(codeBoxes()).extracting(TextField::getValue)
+                .containsExactly(code.substring(0, 1), code.substring(1, 2), code.substring(2, 3),
+                        code.substring(3, 4), code.substring(4, 5), code.substring(5, 6));
+
+        click("Continue");
+
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+        presenter().lock(poll, day);
+        assertThat(pollOf(poll, organizer).lockedDay()).isEqualTo(day);
+    }
+
+    /** Typing a digit moves to the next box, so six keystrokes fill it without a tab. */
+    @Test
+    @DisplayName("takes the code a digit at a time, and refuses a half-typed one")
+    void aHalfTypedCodeIsRefused() {
+        UI.getCurrent().navigate(PollsView.class);
+        type(0, "Miro");
+        tickTheCodeBox();
+
+        codeBoxes().get(0).setValue("4");
+        codeBoxes().get(1).setValue("8");
+        click("Continue");
+
+        // Still at the front door: four digits short of a code is a typo, not a shorter code.
+        assertThat(currentView()).isInstanceOf(IdentityView.class);
+
+        codeBoxes().get(2).setValue("3920");
+        click("Continue");
+
+        assertThat(currentView()).isInstanceOf(NewPollView.class);
     }
 
     /**
@@ -391,9 +451,16 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
         return presenter().poll(id).orElseThrow();
     }
 
+    private Poll pollOf(UUID id, PollPresenter reader) {
+        return reader.poll(id).orElseThrow();
+    }
+
     // ---- Reaching into the screen ----
 
-    /** The who-are-you screen's two fields, in the order it draws them: name, then code. */
+    /**
+     * The who-are-you screen's plain fields in the order it draws them, which now means the
+     * name and then the code's six boxes — {@link #codeBoxes} is the way to those.
+     */
     private void type(int index, String value) {
         componentsOf(currentView())
                 .filter(TextField.class::isInstance)
@@ -412,6 +479,36 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
                 .orElseThrow(() -> new AssertionError("No button labelled " + label + " on "
                         + currentView().getClass().getSimpleName()));
         ComponentUtil.fireEvent(button, new ClickEvent<>(button));
+    }
+
+    /** The checkbox that says the visitor called a poll and wants to change it. */
+    private Checkbox codeCheckbox() {
+        return componentsOf(currentView())
+                .filter(Checkbox.class::isInstance)
+                .map(Checkbox.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No checkbox on the who-are-you screen"));
+    }
+
+    private void tickTheCodeBox() {
+        codeCheckbox().setValue(true);
+    }
+
+    /** The block the code sits in, label and hint included — what the checkbox reveals. */
+    private Component codeGroup() {
+        return componentsOf(currentView())
+                .filter(candidate -> candidate.getChildren().anyMatch(AdminCodeField.class::isInstance))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No code block on the who-are-you screen"));
+    }
+
+    private List<TextField> codeBoxes() {
+        return componentsOf(currentView())
+                .filter(AdminCodeField.class::isInstance)
+                .flatMap(Component::getChildren)
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .toList();
     }
 
     private void navigateTo(Class<? extends Component> view, UUID id) {

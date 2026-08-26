@@ -1,0 +1,25 @@
+/* Anonymous mode's front door: the name, and the admin code as a box per digit. */
+
+/* Six boxes on one row, sharing the width evenly. min-width: 0 is what lets them
+   shrink below the input's intrinsic width on a narrow phone instead of overflowing
+   the screen. */
+.code-boxes {
+  display: flex;
+  gap: var(--vaadin-gap-xs);
+}
+
+.code-boxes .code-box {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Vaadin slots the real input from the light DOM, so it is reachable from here — which
+   is the only way to centre the value, there being no custom property for it. A digit
+   per box wants to sit in the middle of its box; left-aligned, six boxes read as six
+   fields somebody forgot to fill. */
+.code-boxes .code-box input {
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: var(--aura-font-weight-semibold);
+  padding-inline: 0;
+}
