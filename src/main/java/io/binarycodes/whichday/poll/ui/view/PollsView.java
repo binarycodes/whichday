@@ -9,7 +9,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.HasDynamicTitle;
@@ -18,11 +17,14 @@ import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.AppHeader;
+import io.binarycodes.whichday.base.ui.Home;
 import io.binarycodes.whichday.base.ui.Chip;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.Screen;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
+import io.binarycodes.whichday.people.ui.AccountLabels;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.ui.component.DraftRow;
 import io.binarycodes.whichday.poll.ui.component.PollRow;
@@ -46,9 +48,19 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
      * Built on navigation rather than in the constructor: Vaadin reuses a view instance
      * when the route it is asked for is the one already showing, so a constructor-only
      * build leaves whatever it drew the first time.
+     *
+     * <p>Anonymous mode has nothing to put here — no account, no invitations, nothing
+     * that outlives the session — so this route hands straight over to the one screen
+     * that is home there. It stays registered rather than being unregistered so that
+     * every existing way home keeps working, and so that "/" means something in both
+     * modes.
      */
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        if (presenter.anonymous()) {
+            event.forwardTo(Home.viewFor(presenter));
+            return;
+        }
         render();
     }
 
@@ -57,6 +69,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
         clearFooter();
 
         body(new AppHeader(getTranslation("app.name"), presenter.viewer(),
+                AccountLabels.of(this, presenter.viewer(), presenter.anonymous()),
                 presenter::signOut, this::render));
 
         var headline = Typography.displayMedium(headlineText());
@@ -182,7 +195,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
 
     private void deleteDraft(PollSummary draft) {
         presenter.deleteDraft(draft.id());
-        Notification.show(getTranslation("polls.draft.deleted", draft.title()));
+        Toast.show(getTranslation("polls.draft.deleted", draft.title()));
         render();
     }
 

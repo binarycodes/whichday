@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,17 +18,17 @@ import org.springframework.test.context.ActiveProfiles;
 import io.binarycodes.whichday.Application;
 
 /**
- * What the filter chain lets through, over a real servlet container.
+ * The same questions {@link LoginSecurityConfigTest} asks, put to the chain that has no
+ * provider behind it. There is nowhere to send anybody, so nothing redirects.
  *
- * <p>A browserless test cannot see any of this: it bypasses the servlet filter chain
- * entirely, so a route that redirects to the provider and a stylesheet that does the
- * same both look fine from there. The JDK's own client rather than a Spring one,
- * because it is here to follow no redirects and read two headers.
+ * <p>The stylesheet cases look redundant next to the login ones and are not: anonymous
+ * mode permits everything through a different configurer, and a chain that served the
+ * routes but not the partials would render the application unstyled just as surely.
  */
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@DisplayName("What the filter chain serves")
-class SecurityConfigTest {
+@ActiveProfiles({"anonymous", "test"})
+@DisplayName("What the anonymous filter chain serves")
+class AnonymousSecurityConfigTest {
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
@@ -37,13 +38,20 @@ class SecurityConfigTest {
     private int port;
 
     @Test
-    @DisplayName("sends an unauthenticated visitor to the provider")
-    void loginIsRequired() {
-        var response = get("/");
+    @DisplayName("lets a visitor with no session straight in")
+    void nobodyIsTurnedAway() {
+        assertThat(get("/").statusCode()).isEqualTo(200);
+    }
 
-        assertThat(response.statusCode()).isEqualTo(302);
-        assertThat(response.headers().firstValue("location")).get().asString()
-                .endsWith("/oauth2/authorization/oidc");
+    /**
+     * The link a poll is shared by. It is the case worth stating on its own: a mode
+     * whose whole bargain is that a link works has to serve the link's own path to
+     * somebody who has never been here.
+     */
+    @Test
+    @DisplayName("serves a voting link to somebody who has never been here")
+    void theSharedLinkOpens() {
+        assertThat(get("/vote/" + UUID.randomUUID()).statusCode()).isEqualTo(200);
     }
 
     /**

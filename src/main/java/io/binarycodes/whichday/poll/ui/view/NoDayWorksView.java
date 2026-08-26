@@ -12,7 +12,6 @@ import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -21,6 +20,8 @@ import com.vaadin.flow.router.Route;
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.HintBar;
+import io.binarycodes.whichday.base.ui.Home;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -69,7 +70,7 @@ public class NoDayWorksView extends PollScreen {
 
         body(new TopBar(poll.title())
                 .withBack(getTranslation("nav.back"), () -> goTo(BallotView.class))
-                .withHome(getTranslation("nav.home"), this::goHome));
+                .withHome(Home.labelFor(this, presenter), this::goHome));
 
         var headline = Typography.displaySmall(getTranslation("none.headline",
                 Counts.days(this, poll.candidateDays().size())));
@@ -197,7 +198,7 @@ public class NoDayWorksView extends PollScreen {
                         ? List.copyOf(proposed)
                         : List.of(),
                 note.getValue());
-        Notification.show(getTranslation("none.sent"));
+        Toast.show(getTranslation("none.sent"));
         goTo(ReceiptView.class);
     }
 

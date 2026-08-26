@@ -136,6 +136,15 @@
   opacity: 0.8;
 }
 
+/* The people coming, named rather than shown. The accent fills this whole screen, so
+   the chips borrow the badge's treatment — a wash of the page's own text colour — where
+   an outline meant for a pale background would all but disappear. */
+.locked-names .chip {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--color-accent-contrast) 18%, transparent);
+  color: inherit;
+}
+
 .locked-screen .action-primary {
   --vaadin-button-background: var(--color-accent-contrast);
   --vaadin-button-text-color: var(--color-accent);

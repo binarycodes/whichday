@@ -1,5 +1,8 @@
 package io.binarycodes.whichday.people.ui.presenter;
 
+import java.util.Optional;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
@@ -14,6 +17,7 @@ import io.binarycodes.whichday.people.service.AccountDirectory;
  * else: the provider decides, and every screen asks here.
  */
 @Component
+@ConditionalOnProperty(name = "whichday.access.mode", havingValue = "login")
 public class AuthenticatedViewerSession implements ViewerSession {
 
     private final AuthenticationContext authentication;
@@ -40,6 +44,25 @@ public class AuthenticatedViewerSession implements ViewerSession {
     @Override
     public void signOut() {
         authentication.logout();
+    }
+
+    /**
+     * Always. Nothing reaches a screen in this mode without a token behind it, so
+     * there is never a moment where somebody is here but unnamed.
+     */
+    @Override
+    public boolean isIdentified() {
+        return true;
+    }
+
+    @Override
+    public Optional<String> adminCode() {
+        return Optional.empty();
+    }
+
+    @Override
+    public void identify(String name, String adminCode) {
+        throw new UnsupportedOperationException("The provider decides who you are here");
     }
 
     /**

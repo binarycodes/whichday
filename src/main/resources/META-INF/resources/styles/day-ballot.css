@@ -76,6 +76,19 @@
   color: var(--color-ink-tertiary);
 }
 
+/* Names instead of faces on a day row; .name-chips in screen.css carries the layout. */
+.day-row-voters {
+  margin-top: var(--vaadin-gap-s);
+}
+
+/* A chosen row is filled with the accent, so the chip borrows the row's own text
+   colour rather than the page's — which would leave it unreadable on the fill. */
+.day-row[aria-pressed="true"] .day-row-voters .chip {
+  border-color: currentcolor;
+  color: inherit;
+  opacity: 0.85;
+}
+
 /* The check is empty until the day is chosen, so it reads as a target rather
    than as a decoration. */
 .day-row-check {

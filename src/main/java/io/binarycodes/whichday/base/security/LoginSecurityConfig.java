@@ -2,24 +2,28 @@ package io.binarycodes.whichday.base.security;
 
 import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.header.HeaderWriterFilter;
 
 /**
- * Signing in is the only way in, and OIDC is the only way to sign in.
+ * Login mode: signing in is the only way in, and OIDC is the only way to sign in.
  *
  * <p>There is no login view: {@code oauth2LoginPage} points at the registration, so
  * an unauthenticated request redirects to the provider rather than to a form of ours.
  * The application collects no credentials and never sees one.
+ *
+ * <p>The other mode is {@link AnonymousSecurityConfig}, and only one of the two is
+ * ever in the context. The gate is the property rather than {@code @Profile} so that
+ * a test composing profiles cannot end up with both chains or neither.
  */
 @Configuration
-public class SecurityConfig {
+@ConditionalOnProperty(name = "whichday.access.mode", havingValue = "login")
+public class LoginSecurityConfig {
 
     private static final String REGISTRATION_ID = "oidc";
 
@@ -35,11 +39,13 @@ public class SecurityConfig {
     private static final String AUTHORIZATION_ENDPOINT = "/oauth2/authorization/" + REGISTRATION_ID;
 
     private static final String MISCONFIGURED = """
-            Signing in is the only way into Whichday, and it is not configured: %s.
+            WHICHDAY_ACCESS_MODE is "login", so signing in is the only way into
+            Whichday — and it is not configured: %s.
 
             Set WHICHDAY_OIDC_CLIENT_ID and WHICHDAY_OIDC_CLIENT_SECRET from an OAuth
             client whose redirect URI is <base-url>/login/oauth2/code/oidc, and
-            WHICHDAY_OIDC_ISSUER_URI if the provider is not the default.""";
+            WHICHDAY_OIDC_ISSUER_URI if the provider is not the default. A deployment
+            that wants no provider at all wants WHICHDAY_ACCESS_MODE=anonymous.""";
 
     /**
      * A logout that only drops our own session leaves the provider's intact, and the
@@ -67,8 +73,9 @@ public class SecurityConfig {
      * properties file binds as the literal string, so the application starts, fetches
      * the provider's discovery document, and redirects to a real authorization endpoint
      * carrying a client id of "${WHICHDAY_OIDC_CLIENT_ID}". The first person to try
-     * signing in meets the provider's error page. Signing in is the only way into this
-     * application, so a missing client is a startup failure and not a surprise later.
+     * signing in meets the provider's error page. A deployment that asked for login
+     * mode gets a startup failure rather than that surprise later; one that wants no
+     * provider at all asks for anonymous mode instead.
      */
     private static void requireCredentials(ClientRegistrationRepository registrations) {
         var registration = registrations.findByRegistrationId(REGISTRATION_ID);
@@ -84,23 +91,5 @@ public class SecurityConfig {
     /** Blank, absent, or an environment variable nobody set. */
     private static boolean isUnset(String value) {
         return value == null || value.isBlank() || value.contains("${");
-    }
-
-    /**
-     * Spring Security writes its headers as the response commits, and the response
-     * Vaadin renders a page into never commits that way — so the application's own
-     * routes would come out with no headers at all while static resources got the
-     * full set. Verify a header change by curling a route, never only a static file
-     * (CODING_CONVENTIONS.md §10a).
-     */
-    @Bean
-    ObjectPostProcessor<HeaderWriterFilter> headersWrittenEagerly() {
-        return new ObjectPostProcessor<>() {
-            @Override
-            public <O extends HeaderWriterFilter> O postProcess(O filter) {
-                filter.setShouldWriteHeadersEagerly(true);
-                return filter;
-            }
-        };
     }
 }

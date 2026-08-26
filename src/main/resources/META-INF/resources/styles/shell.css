@@ -47,3 +47,27 @@ html {
   margin-top: auto;
   padding: var(--vaadin-padding-xl) 0;
 }
+
+/* What the application says back. Pinned to the top over the header band rather than
+   bottom-left, where Vaadin puts it and where every screen's primary action lives — a
+   message about a button should not be sitting on top of it.
+
+   The card paints itself in its own shadow root, so the look belongs to ::part(overlay);
+   styling the host as well is what put a second card around the first. The host only
+   caps the width, so the toast lines up with the app column instead of floating across
+   a desktop. */
+vaadin-notification-card.toast {
+  width: calc(100vw - 2 * var(--screen-inset));
+  max-width: calc(var(--screen-max-width) - var(--screen-inset));
+  margin: 0;
+}
+
+vaadin-notification-card.toast::part(overlay) {
+  padding: var(--vaadin-padding-m) var(--vaadin-padding-l);
+  border-radius: var(--vaadin-radius-l);
+  background: var(--color-surface-sunken);
+  box-shadow: var(--aura-shadow-s);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  line-height: 1.3;
+}

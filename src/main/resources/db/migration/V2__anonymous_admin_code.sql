@@ -1,0 +1,11 @@
+-- The six digits that let somebody change a poll they did not create.
+--
+-- Only anonymous deployments write one (WHICHDAY_ACCESS_MODE=anonymous): there is no
+-- provider there, so a session that closed its tab has no way back to being the
+-- organizer, and this is it. Login-mode polls leave it null — the address on the poll
+-- is the whole of the answer there.
+--
+-- Nullable and not unique on purpose. The code is only ever compared with the poll
+-- whose link the caller already holds, never looked up across the table, so two polls
+-- sharing six digits means nothing.
+alter table poll add column admin_code varchar(6);

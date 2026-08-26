@@ -6,6 +6,12 @@
       "runtimeExecutable": "./run.sh",
       "runtimeArgs": ["preview"],
       "port": 8080
+    },
+    {
+      "name": "whichday-login",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["WHICHDAY_ACCESS_MODE=login", "./run.sh", "preview"],
+      "port": 8080
     }
   ]
 }

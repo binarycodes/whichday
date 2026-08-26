@@ -16,7 +16,9 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 
 import io.binarycodes.whichday.base.ui.DateText;
+import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.AvatarStack;
+import io.binarycodes.whichday.people.ui.NameChips;
 import io.binarycodes.whichday.poll.domain.DayTally;
 
 /**
@@ -29,6 +31,12 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
     /** Above this many voters the row shows a count instead of faces. */
     private static final int FACE_LIMIT = 3;
 
+    /**
+     * Names are wider than faces but they wrap, so a row holds more of them before it
+     * has to give up and count. Past this the tail becomes "+37 more".
+     */
+    private static final int NAME_LIMIT = 6;
+
     private final Div rows = new Div();
     private final Map<LocalDate, NativeButton> rowsByDay = new HashMap<>();
     private final Set<LocalDate> selection = new LinkedHashSet<>();
@@ -36,6 +44,7 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
 
     private List<DayTally> tallies = List.of();
     private NoteText noteText = (tally, leading) -> "";
+    private boolean namesRatherThanFaces;
 
     /** How a row describes the votes already on a day; the view owns the wording. */
     public interface NoteText {
@@ -51,6 +60,23 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
     public void setNoteText(NoteText noteText) {
         this.noteText = noteText;
         render();
+    }
+
+    /**
+     * Name the voters instead of showing their faces.
+     *
+     * <p>An avatar is initials, and initials only identify anybody when the names
+     * behind them were settled in advance. Where a voter types their own name minutes
+     * before answering, one letter is as likely to be a stranger's as a colleague's —
+     * so the name goes on the row in full.
+     *
+     * <p>An opt-in the caller makes rather than something read from the mode here: this
+     * component is told what to draw, and never learns why.
+     */
+    public DayBallot withVoterNames() {
+        this.namesRatherThanFaces = true;
+        render();
+        return this;
     }
 
     public void setTallies(List<DayTally> tallies) {
@@ -118,15 +144,46 @@ public class DayBallot extends CustomField<Set<LocalDate>> {
      * The day in front always gets words, because "most popular" is the point of it.
      */
     private Component supportOf(DayTally tally) {
+        if (namesRatherThanFaces) {
+            return namedSupportOf(tally);
+        }
         var voters = tally.voters();
         if (!voters.isEmpty() && !tally.isLeading() && voters.size() <= FACE_LIMIT) {
-            var stack = new AvatarStack(FACE_LIMIT);
-            stack.addClassName("push-s");
-            return stack.show(voters);
+            return facesOf(voters);
         }
+        return noteOf(tally);
+    }
+
+    /**
+     * Names wrap, so a row can carry them whatever the count — there is no size at
+     * which it has to fall back to a number the way the faces do. The day in front
+     * keeps its words as well, because "most popular" is the reason to look at it and
+     * a row of names does not say that.
+     */
+    private Component namedSupportOf(DayTally tally) {
+        var voters = tally.voters();
+        if (voters.isEmpty()) {
+            return noteOf(tally);
+        }
+        return tally.isLeading() ? new Div(noteOf(tally), namesOf(voters)) : namesOf(voters);
+    }
+
+    private Component facesOf(List<Person> voters) {
+        var stack = new AvatarStack(FACE_LIMIT);
+        stack.addClassName("push-s");
+        return stack.show(voters);
+    }
+
+    private Div noteOf(DayTally tally) {
         var note = new Div(new Span(noteText.describe(tally, tally.isLeading())));
         note.addClassName("day-row-note");
         return note;
+    }
+
+    private Div namesOf(List<Person> voters) {
+        var row = NameChips.of(this, voters, NAME_LIMIT);
+        row.addClassName("day-row-voters");
+        return row;
     }
 
     private Span checkMark() {

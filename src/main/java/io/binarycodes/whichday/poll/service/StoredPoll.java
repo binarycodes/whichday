@@ -76,6 +76,14 @@ class StoredPoll implements Persistable<UUID> {
     private boolean alternativesAllowed = true;
 
     /**
+     * What lets somebody who is not the organizer change this poll anyway. Written
+     * only in anonymous mode, where a session that closed its tab has no other way
+     * back; null on every login-mode poll.
+     */
+    @Column(name = "admin_code", length = 6)
+    private String adminCode;
+
+    /**
      * Sorted rather than insertion-ordered: every write already sorts, so this is the
      * order the days were in anyway, and it no longer depends on what order the rows
      * come back in.
@@ -143,6 +151,14 @@ class StoredPoll implements Persistable<UUID> {
 
     String organizerEmail() {
         return organizerEmail;
+    }
+
+    String adminCode() {
+        return adminCode;
+    }
+
+    void useAdminCode(String code) {
+        this.adminCode = code;
     }
 
     List<String> inviteeEmails() {

@@ -22,6 +22,7 @@ import io.binarycodes.whichday.TestDatabase;
 import io.binarycodes.whichday.WhichdayTest;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.poll.domain.Caller;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
@@ -91,20 +92,71 @@ class PollServiceTest {
         assertThat(poll.awaitingOthers(Sample.ADA)).isEmpty();
     }
 
+    /**
+     * The order breaks by date so the list is stable. The rank does not: two days on
+     * the same count are the same rank, because their bars are the same length and
+     * painting one darker claims an order that is not there.
+     */
     @Test
-    @DisplayName("ranks by count and breaks a tie by date")
+    @DisplayName("orders by count and breaks a tie by date, but ranks tied days alike")
     void ranking() {
         var monday = Sample.mondayAfterNext(LocalDate.now(clock));
         var friday = monday.plusDays(4);
         var id = service.create("Tie break", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(id, Sample.ADA, List.of(friday, monday));
-        service.send(id, Sample.ADA);
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(friday, monday));
+        service.send(id, Caller.of(Sample.ADA));
         service.castVote(id, Sample.ADA, Set.of(monday, friday));
 
         var tallies = poll(id).orElseThrow().tallies();
 
         assertThat(tallies).extracting(DayTally::day).containsExactly(monday, friday);
-        assertThat(tallies).extracting(DayTally::rank).containsExactly(1, 2);
+        assertThat(tallies).extracting(DayTally::rank).containsExactly(1, 1);
+    }
+
+    /**
+     * A shared top is not a result. The application used to hand the earliest of the
+     * tied days rank 1, call it the most popular on every ballot, and offer it as the
+     * only day that could be locked — so the other tied days were unreachable.
+     */
+    @Test
+    @DisplayName("names no leader when the highest count is shared")
+    void aTieHasNoLeader() {
+        var monday = Sample.mondayAfterNext(LocalDate.now(clock));
+        var tuesday = monday.plusDays(1);
+        var friday = monday.plusDays(4);
+        var id = service.create("Tie break", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(monday, tuesday, friday));
+        service.send(id, Caller.of(Sample.ADA));
+        service.castVote(id, Sample.ADA, Set.of(monday, tuesday, friday));
+        service.castVote(id, Sample.MIRO, Set.of(monday, tuesday, friday));
+
+        var poll = poll(id).orElseThrow();
+
+        assertThat(poll.leader()).isEmpty();
+        assertThat(poll.tallies()).noneMatch(DayTally::isLeading);
+        assertThat(poll.tiedAtTheTop()).extracting(DayTally::day)
+                .containsExactly(monday, tuesday, friday);
+
+        // One more vote settles it, and the leader is the day that actually won.
+        service.castVote(id, Sample.SARA, Set.of(tuesday));
+
+        var settled = poll(id).orElseThrow();
+        assertThat(settled.leader()).get().extracting(DayTally::day).isEqualTo(tuesday);
+        assertThat(settled.tiedAtTheTop()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("is not a tie when nobody has voted at all")
+    void nobodyVotingIsNotATie() {
+        var monday = Sample.mondayAfterNext(LocalDate.now(clock));
+        var id = service.create("Nothing yet", Sample.ADA, Sample.TEAM);
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(monday, monday.plusDays(1)));
+        service.send(id, Caller.of(Sample.ADA));
+
+        var poll = poll(id).orElseThrow();
+
+        assertThat(poll.leader()).isEmpty();
+        assertThat(poll.tiedAtTheTop()).isEmpty();
     }
 
     @Test
@@ -121,7 +173,7 @@ class PollServiceTest {
     void withdrawingADayDropsItsVotes() {
         var remaining = poll(offsite).orElseThrow().candidateDays().stream().skip(1).toList();
 
-        service.replaceCandidateDays(offsite, Sample.ADA, remaining);
+        service.replaceCandidateDays(offsite, Caller.of(Sample.ADA), remaining);
         var updated = poll(offsite).orElseThrow();
 
         assertThat(updated.candidateDays()).isEqualTo(remaining);
@@ -165,7 +217,7 @@ class PollServiceTest {
 
         assertThat(poll(offsite).orElseThrow().candidateDays()).doesNotContain(proposed);
 
-        service.acceptProposal(offsite, Sample.ADA, proposed);
+        service.acceptProposal(offsite, Caller.of(Sample.ADA), proposed);
 
         assertThat(poll(offsite).orElseThrow().candidateDays()).contains(proposed);
     }
@@ -175,7 +227,7 @@ class PollServiceTest {
     void alternativesAreTheOrganizersChoice() {
         assertThat(poll(offsite).orElseThrow().alternativesAllowed()).isTrue();
 
-        service.allowAlternatives(offsite, Sample.ADA, false);
+        service.allowAlternatives(offsite, Caller.of(Sample.ADA), false);
 
         assertThat(poll(offsite).orElseThrow().alternativesAllowed()).isFalse();
     }
@@ -183,7 +235,7 @@ class PollServiceTest {
     @Test
     @DisplayName("still lets somebody say none of the days work when alternatives are off")
     void decliningSurvivesAlternativesBeingOff() {
-        service.allowAlternatives(offsite, Sample.ADA, false);
+        service.allowAlternatives(offsite, Caller.of(Sample.ADA), false);
 
         service.decline(offsite, Sample.JONAS, List.of(), "Away that week");
         var poll = poll(offsite).orElseThrow();
@@ -200,7 +252,7 @@ class PollServiceTest {
     void locking() {
         var leader = poll(offsite).orElseThrow().leader().orElseThrow().day();
 
-        service.lock(offsite, Sample.ADA, leader);
+        service.lock(offsite, Caller.of(Sample.ADA), leader);
 
         assertThat(poll(offsite).orElseThrow().state()).isEqualTo(PollState.LOCKED);
         assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(offsite);
@@ -211,11 +263,11 @@ class PollServiceTest {
     @DisplayName("a new poll is a draft until it is sent, and then it is stamped")
     void sendingOpensThePoll() {
         var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(id, Sample.ADA, List.of(LocalDate.of(2026, 9, 7)));
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(LocalDate.of(2026, 9, 7)));
 
         assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.DRAFT);
 
-        service.send(id, Sample.ADA);
+        service.send(id, Caller.of(Sample.ADA));
         var sent = poll(id).orElseThrow();
 
         assertThat(sent.state()).isEqualTo(PollState.OPEN);
@@ -226,11 +278,11 @@ class PollServiceTest {
     @DisplayName("sending twice keeps the original closing date")
     void sendingIsIdempotent() {
         var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(id, Sample.ADA, List.of(LocalDate.of(2026, 9, 7)));
-        service.send(id, Sample.ADA);
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(LocalDate.of(2026, 9, 7)));
+        service.send(id, Caller.of(Sample.ADA));
         var first = poll(id).orElseThrow().closesOn();
 
-        service.send(id, Sample.ADA);
+        service.send(id, Caller.of(Sample.ADA));
 
         assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(first);
     }
@@ -287,15 +339,15 @@ class PollServiceTest {
         var last = LocalDate.now(clock).plusWeeks(2);
         var id = openPoll(Sample.TEAM, LocalDate.now(clock).plusWeeks(1), last);
 
-        service.closeOn(id, Sample.ADA, last.minusDays(4));
+        service.closeOn(id, Caller.of(Sample.ADA), last.minusDays(4));
         assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(last.minusDays(4));
 
         // Never past the last day on the table.
-        service.closeOn(id, Sample.ADA, last.plusDays(3));
+        service.closeOn(id, Caller.of(Sample.ADA), last.plusDays(3));
         assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(last);
 
         // Never in the past.
-        service.closeOn(id, Sample.ADA, LocalDate.now(clock).minusWeeks(1));
+        service.closeOn(id, Caller.of(Sample.ADA), LocalDate.now(clock).minusWeeks(1));
         assertThat(poll(id).orElseThrow().closesOn()).isEqualTo(LocalDate.now(clock).plusDays(1));
 
         assertThat(service.latestClosingDay(id)).contains(last);
@@ -308,11 +360,11 @@ class PollServiceTest {
 
         assertThat(service.plannedClosing(id)).isEmpty();
 
-        service.replaceCandidateDays(id, Sample.ADA, List.of(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 9)));
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(LocalDate.of(2026, 9, 7), LocalDate.of(2026, 9, 9)));
 
         assertThat(service.plannedClosing(id)).contains(LocalDate.of(2026, 9, 9));
 
-        service.send(id, Sample.ADA);
+        service.send(id, Caller.of(Sample.ADA));
 
         assertThat(service.plannedClosing(id)).contains(poll(id).orElseThrow().closesOn());
     }
@@ -351,7 +403,7 @@ class PollServiceTest {
     @DisplayName("refuses an answer to a poll that was never sent")
     void refusesAnswersBeforeSending() {
         var id = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
-        service.replaceCandidateDays(id, Sample.ADA, List.of(LocalDate.of(2026, 9, 7)));
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(LocalDate.of(2026, 9, 7)));
 
         assertThatThrownBy(() -> service.castVote(id, Sample.JONAS, Set.of(LocalDate.of(2026, 9, 7))))
                 .isInstanceOf(PollClosedException.class);
@@ -381,10 +433,10 @@ class PollServiceTest {
     void deletingDrafts() {
         var draft = service.create("Roadmap workshop", Sample.ADA, Sample.TEAM);
 
-        service.deleteDraft(draft, Sample.ADA);
+        service.deleteDraft(draft, Caller.of(Sample.ADA));
 
         assertThat(poll(draft)).isEmpty();
-        assertThatThrownBy(() -> service.deleteDraft(offsite, Sample.ADA))
+        assertThatThrownBy(() -> service.deleteDraft(offsite, Caller.of(Sample.ADA)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot be discarded");
         assertThat(poll(offsite)).isPresent();
@@ -457,7 +509,7 @@ class PollServiceTest {
         var nobodys = UUID.randomUUID();
 
         assertThat(poll(nobodys)).isEmpty();
-        assertThatThrownBy(() -> service.lock(nobodys, Sample.ADA, LocalDate.of(2026, 9, 7)))
+        assertThatThrownBy(() -> service.lock(nobodys, Caller.of(Sample.ADA), LocalDate.of(2026, 9, 7)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(nobodys.toString());
     }
@@ -501,8 +553,8 @@ class PollServiceTest {
         Sample.settled(service, clock);
         // Organized by Miro, not by the openPoll helper, which would make Ada the organizer.
         var theirs = service.create("Theirs alone", Sample.MIRO, List.of(Sample.MIRO, Sample.JONAS));
-        service.replaceCandidateDays(theirs, Sample.MIRO, List.of(LocalDate.now(clock).plusWeeks(2)));
-        service.send(theirs, Sample.MIRO);
+        service.replaceCandidateDays(theirs, Caller.of(Sample.MIRO), List.of(LocalDate.now(clock).plusWeeks(2)));
+        service.send(theirs, Caller.of(Sample.MIRO));
 
         assertThat(service.openPolls(Sample.ADA)).extracting(PollSummary::id).doesNotContain(theirs);
         assertThat(service.openPolls(Sample.MIRO)).extracting(PollSummary::id).contains(theirs);
@@ -533,8 +585,8 @@ class PollServiceTest {
         assertThat(service.draftPolls(Sample.MIRO)).isEmpty();
 
         // Sending it is what makes it everybody's to see.
-        service.replaceCandidateDays(draft, Sample.ADA, List.of(Sample.mondayAfterNext(LocalDate.now(clock))));
-        service.send(draft, Sample.ADA);
+        service.replaceCandidateDays(draft, Caller.of(Sample.ADA), List.of(Sample.mondayAfterNext(LocalDate.now(clock))));
+        service.send(draft, Caller.of(Sample.ADA));
         assertThat(service.poll(draft, Sample.MIRO)).isPresent();
     }
 
@@ -548,21 +600,21 @@ class PollServiceTest {
         clock.advanceDays(ChronoUnit.DAYS.between(LocalDate.now(clock), before.closesOn()) + 1);
         assertThat(poll(id).orElseThrow().state()).isEqualTo(PollState.CLOSED);
 
-        assertThatThrownBy(() -> service.replaceCandidateDays(id, Sample.ADA, List.of(day.plusWeeks(4))))
+        assertThatThrownBy(() -> service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(day.plusWeeks(4))))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.closeOn(id, Sample.ADA, day.plusWeeks(4)))
+        assertThatThrownBy(() -> service.closeOn(id, Caller.of(Sample.ADA), day.plusWeeks(4)))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.acceptProposal(id, Sample.ADA, day.plusWeeks(4)))
+        assertThatThrownBy(() -> service.acceptProposal(id, Caller.of(Sample.ADA), day.plusWeeks(4)))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.allowAlternatives(id, Sample.ADA, false))
+        assertThatThrownBy(() -> service.allowAlternatives(id, Caller.of(Sample.ADA), false))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.addInvitee(id, Sample.ADA, Sample.TANVI))
+        assertThatThrownBy(() -> service.addInvitee(id, Caller.of(Sample.ADA), Sample.TANVI))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.lock(id, Sample.ADA, day))
+        assertThatThrownBy(() -> service.lock(id, Caller.of(Sample.ADA), day))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.send(id, Sample.ADA))
+        assertThatThrownBy(() -> service.send(id, Caller.of(Sample.ADA)))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.deleteDraft(id, Sample.ADA))
+        assertThatThrownBy(() -> service.deleteDraft(id, Caller.of(Sample.ADA)))
                 .isInstanceOf(PollNotEditableException.class);
         // Answers were already refused, and say so in the voter's own terms.
         assertThatThrownBy(() -> service.castVote(id, Sample.SARA, Set.of(day)))
@@ -586,13 +638,13 @@ class PollServiceTest {
         assertThat(settled.state()).isEqualTo(PollState.LOCKED);
         var other = settled.lockedDay().plusWeeks(3);
 
-        assertThatThrownBy(() -> service.replaceCandidateDays(id, Sample.ADA, List.of(other)))
+        assertThatThrownBy(() -> service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(other)))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.lock(id, Sample.ADA, other))
+        assertThatThrownBy(() -> service.lock(id, Caller.of(Sample.ADA), other))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.addInvitee(id, Sample.ADA, Sample.TANVI))
+        assertThatThrownBy(() -> service.addInvitee(id, Caller.of(Sample.ADA), Sample.TANVI))
                 .isInstanceOf(PollNotEditableException.class);
-        assertThatThrownBy(() -> service.closeOn(id, Sample.ADA, other))
+        assertThatThrownBy(() -> service.closeOn(id, Caller.of(Sample.ADA), other))
                 .isInstanceOf(PollNotEditableException.class);
 
         var after = poll(id).orElseThrow();
@@ -627,21 +679,21 @@ class PollServiceTest {
         var draft = service.create("Ada's draft", Sample.ADA, Sample.TEAM);
 
         // Miro is on this poll and can see all of it. None of it is his to change.
-        assertThatThrownBy(() -> service.lock(offsite, Sample.MIRO, day))
+        assertThatThrownBy(() -> service.lock(offsite, Caller.of(Sample.MIRO), day))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.acceptProposal(offsite, Sample.MIRO, day.plusDays(20)))
+        assertThatThrownBy(() -> service.acceptProposal(offsite, Caller.of(Sample.MIRO), day.plusDays(20)))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.replaceCandidateDays(offsite, Sample.MIRO, List.of(day)))
+        assertThatThrownBy(() -> service.replaceCandidateDays(offsite, Caller.of(Sample.MIRO), List.of(day)))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.closeOn(offsite, Sample.MIRO, day))
+        assertThatThrownBy(() -> service.closeOn(offsite, Caller.of(Sample.MIRO), day))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.allowAlternatives(offsite, Sample.MIRO, false))
+        assertThatThrownBy(() -> service.allowAlternatives(offsite, Caller.of(Sample.MIRO), false))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.addInvitee(offsite, Sample.MIRO, Sample.TANVI))
+        assertThatThrownBy(() -> service.addInvitee(offsite, Caller.of(Sample.MIRO), Sample.TANVI))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.send(draft, Sample.MIRO))
+        assertThatThrownBy(() -> service.send(draft, Caller.of(Sample.MIRO)))
                 .isInstanceOf(NotTheOrganizerException.class);
-        assertThatThrownBy(() -> service.deleteDraft(draft, Sample.MIRO))
+        assertThatThrownBy(() -> service.deleteDraft(draft, Caller.of(Sample.MIRO)))
                 .isInstanceOf(NotTheOrganizerException.class);
 
         // Nothing moved.
@@ -659,8 +711,8 @@ class PollServiceTest {
     void refusalsSayDifferentAmounts() {
         var day = poll(offsite).orElseThrow().candidateDays().getFirst();
 
-        var invitee = catchThrowable(() -> service.lock(offsite, Sample.MIRO, day));
-        var stranger = catchThrowable(() -> service.lock(offsite, Sample.TANVI, day));
+        var invitee = catchThrowable(() -> service.lock(offsite, Caller.of(Sample.MIRO), day));
+        var stranger = catchThrowable(() -> service.lock(offsite, Caller.of(Sample.TANVI), day));
 
         // Miro can see the poll, so there is nothing left to withhold — only to refuse.
         assertThat(invitee).isInstanceOf(NotTheOrganizerException.class)
@@ -677,11 +729,11 @@ class PollServiceTest {
         var draft = service.create("Ada's own", Sample.ADA, Sample.TEAM);
         var day = Sample.mondayAfterNext(LocalDate.now(clock));
 
-        service.replaceCandidateDays(draft, Sample.ADA, List.of(day));
-        service.allowAlternatives(draft, Sample.ADA, false);
-        service.addInvitee(draft, Sample.ADA, Sample.TANVI);
-        service.send(draft, Sample.ADA);
-        service.lock(draft, Sample.ADA, day);
+        service.replaceCandidateDays(draft, Caller.of(Sample.ADA), List.of(day));
+        service.allowAlternatives(draft, Caller.of(Sample.ADA), false);
+        service.addInvitee(draft, Caller.of(Sample.ADA), Sample.TANVI);
+        service.send(draft, Caller.of(Sample.ADA));
+        service.lock(draft, Caller.of(Sample.ADA), day);
 
         var settled = poll(draft).orElseThrow();
         assertThat(settled.state()).isEqualTo(PollState.LOCKED);
@@ -700,8 +752,8 @@ class PollServiceTest {
 
     private UUID openPoll(List<Person> invited, LocalDate... days) {
         var id = service.create("Poll " + days[0], Sample.ADA, invited);
-        service.replaceCandidateDays(id, Sample.ADA, List.of(days));
-        service.send(id, Sample.ADA);
+        service.replaceCandidateDays(id, Caller.of(Sample.ADA), List.of(days));
+        service.send(id, Caller.of(Sample.ADA));
         return id;
     }
 }

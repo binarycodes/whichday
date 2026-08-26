@@ -1,7 +1,9 @@
 package io.binarycodes.whichday.poll.service;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -11,16 +13,17 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.binarycodes.whichday.base.config.AccessMode;
 import io.binarycodes.whichday.people.domain.EmailAddress;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.PersonLookup;
 import io.binarycodes.whichday.poll.domain.Ballot;
+import io.binarycodes.whichday.poll.domain.Caller;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
@@ -43,6 +46,13 @@ import io.binarycodes.whichday.poll.domain.PollSummary;
  * <p>Who may do what is decided here rather than by which button a screen draws:
  * reading needs an invitation, answering needs an invitation, and editing, settling or
  * discarding the poll needs to be the person who called it.
+ *
+ * <p>That is login mode. Anonymous mode has no invitations to check, so the link is
+ * what stands in for one: anybody holding a poll's id may read it and answer it, a
+ * voter joins the invitee list as they answer so that every count and stack downstream
+ * keeps working, and changing the poll needs either the organizer's own session or the
+ * six digits {@link Caller} carries. Three branches, all of them here, all of them
+ * marked — nothing else in the application knows there are two modes of access.
  */
 @Service
 @Transactional(readOnly = true)
@@ -51,14 +61,25 @@ public class PollService {
     /** Whole days only, so a closing date rather than a closing moment. */
     private static final int MINIMUM_VOTING_DAYS = 1;
 
+    /**
+     * Six digits, leading zeros kept. Short enough to read down a phone line, which is
+     * the point of it — and no shorter than that, because it is the only thing between
+     * a stranger with the link and the poll's days.
+     */
+    private static final int ADMIN_CODE_BOUND = 1_000_000;
+    private static final String ADMIN_CODE_SHAPE = "%06d";
+
     private final Clock clock;
     private final PollRepository polls;
     private final PersonLookup people;
+    private final AccessMode access;
+    private final SecureRandom codes = new SecureRandom();
 
-    public PollService(Clock clock, PollRepository polls, PersonLookup people) {
+    public PollService(Clock clock, PollRepository polls, PersonLookup people, AccessMode access) {
         this.clock = clock;
         this.polls = polls;
         this.people = people;
+        this.access = access;
     }
 
     /**
@@ -70,19 +91,31 @@ public class PollService {
     public UUID create(String title, Person organizer, List<Person> invited) {
         var id = UUID.randomUUID();
         var invitees = invited.stream().map(PollService::addressOf).distinct().toList();
-        polls.save(new StoredPoll(id, title, addressOf(organizer), invitees, clock.instant()));
+        var stored = new StoredPoll(id, title, addressOf(organizer), invitees, clock.instant());
+        if (access.isAnonymous()) {
+            stored.useAdminCode(ADMIN_CODE_SHAPE.formatted(codes.nextInt(ADMIN_CODE_BOUND)));
+        }
+        polls.save(stored);
         return id;
     }
 
+    /**
+     * The code to keep, for the one screen that shows it. Empty in login mode, where no
+     * poll has one.
+     */
+    public Optional<String> adminCodeOf(UUID id) {
+        return Optional.ofNullable(require(id).adminCode());
+    }
+
     @Transactional
-    public void replaceCandidateDays(UUID id, Person organizer, Collection<LocalDate> days) {
+    public void replaceCandidateDays(UUID id, Caller organizer, Collection<LocalDate> days) {
         requireEditable(requireOrganizer(id, organizer))
                 .replaceCandidateDays(days.stream().sorted().toList());
     }
 
     /** Sending the poll out is what opens it; until then it has no closing date. */
     @Transactional
-    public void send(UUID id, Person organizer) {
+    public void send(UUID id, Caller organizer) {
         var stored = requireEditable(requireOrganizer(id, organizer));
         if (stored.closesOn() == null) {
             stored.closeOn(defaultClosingDayFor(stored), clock.instant());
@@ -95,7 +128,7 @@ public class PollService {
      * never past the last day on the table.
      */
     @Transactional
-    public void closeOn(UUID id, Person organizer, LocalDate day) {
+    public void closeOn(UUID id, Caller organizer, LocalDate day) {
         var stored = requireEditable(requireOrganizer(id, organizer));
         stored.closeOn(clampClosingDay(stored, day), clock.instant());
     }
@@ -151,7 +184,7 @@ public class PollService {
     }
 
     @Transactional
-    public void acceptProposal(UUID id, Person organizer, LocalDate day) {
+    public void acceptProposal(UUID id, Caller organizer, LocalDate day) {
         var stored = requireEditable(requireOrganizer(id, organizer));
         var days = new LinkedHashSet<>(stored.candidateDays());
         days.add(day);
@@ -163,7 +196,7 @@ public class PollService {
      * that has passed closes the poll to this as much as to anything else.
      */
     @Transactional
-    public void lock(UUID id, Person organizer, LocalDate day) {
+    public void lock(UUID id, Caller organizer, LocalDate day) {
         requireEditable(requireOrganizer(id, organizer)).lock(day);
     }
 
@@ -175,10 +208,15 @@ public class PollService {
      * <p>A draft is the organizer's alone, the same rule {@link #draftPolls} applies.
      * The state is not a column, so this is the one predicate the query cannot carry:
      * {@code stateOf} decides it, here, rather than being restated in JPQL.
+     *
+     * <p>Anonymous mode has no invitee list to be on, so the id is the whole of the
+     * question — holding the link is what being invited means there. A draft stays the
+     * organizer's alone either way: it has been shown to nobody, so nobody has a link.
      */
     public Optional<Poll> poll(UUID id, Person viewer) {
         var email = addressOf(viewer);
-        return polls.findVisibleById(id, email)
+        var found = access.isAnonymous() ? polls.findById(id) : polls.findVisibleById(id, email);
+        return found
                 .filter(stored -> stateOf(stored) != PollState.DRAFT
                         || stored.organizerEmail().equals(email))
                 .map(this::snapshot);
@@ -207,7 +245,7 @@ public class PollService {
      * and people waiting on it, and discarding one is a decision this does not make.
      */
     @Transactional
-    public void deleteDraft(UUID id, Person organizer) {
+    public void deleteDraft(UUID id, Caller organizer) {
         var stored = requireEditable(requireOrganizer(id, organizer));
         if (stateOf(stored) != PollState.DRAFT) {
             throw new IllegalStateException("Poll " + id + " has been sent and cannot be discarded");
@@ -245,13 +283,13 @@ public class PollService {
      * needs either way — only the ask to add to the table.
      */
     @Transactional
-    public void allowAlternatives(UUID id, Person organizer, boolean allowed) {
+    public void allowAlternatives(UUID id, Caller organizer, boolean allowed) {
         requireEditable(requireOrganizer(id, organizer)).allowAlternatives(allowed);
     }
 
     /** Somebody the organizer thought of after sending it out. */
     @Transactional
-    public void addInvitee(UUID id, Person organizer, Person invitee) {
+    public void addInvitee(UUID id, Caller organizer, Person invitee) {
         requireEditable(requireOrganizer(id, organizer)).invite(addressOf(invitee));
     }
 
@@ -304,8 +342,31 @@ public class PollService {
     }
 
     /**
-     * Ranked by vote count, and by date where two days tie — a stable order matters
-     * because the rank is what the bars are painted from.
+     * Ordered by vote count, and by date where two days tie — a stable order matters
+     * because the screens draw the list in it.
+     *
+     * <p>The rank is a competition rank, so days on the same count share one and their
+     * bars are painted alike. It used to be the position in the list, which gave the
+     * earlier of two tied days the leader's dark bar and the words that go with it.
+     *
+     * <p>And a day only <em>leads</em> when it is alone at the top. Three days on four
+     * votes each are three days nobody has chosen between; calling the earliest of them
+     * the most popular is the application inventing a result, and offering only that one
+     * to be locked left the other two unreachable.
+     */
+    /**
+     * Ordered by vote count, and by date where two days tie — a stable order matters
+     * because the screens draw the list in it.
+     *
+     * <p>The rank is a competition rank (1, 1, 1, 4), so days on the same count share
+     * one and their bars are painted alike. It used to be the position in the list,
+     * which handed the earlier of two tied days the leader's dark bar and the words
+     * that go with it.
+     *
+     * <p>And a day only <em>leads</em> when it is alone at the top. Three days on four
+     * votes each are three days nobody has chosen between; naming the earliest of them
+     * the most popular is the application inventing a result, and offering only that
+     * one to be locked left the other two unreachable.
      */
     private List<DayTally> tallies(StoredPoll stored, Map<String, Person> named) {
         record Counted(LocalDate day, List<Person> voters) {
@@ -316,12 +377,26 @@ public class PollService {
                         .thenComparing(Counted::day))
                 .toList();
         var inviteCount = stored.inviteeEmails().size();
-        return IntStream.range(0, counted.size())
-                .mapToObj(index -> new DayTally(counted.get(index).day(),
-                        counted.get(index).voters(),
-                        index + 1,
-                        inviteCount))
-                .toList();
+        var topCount = counted.isEmpty() ? 0 : counted.getFirst().voters().size();
+        var aloneAtTheTop = topCount > 0
+                && counted.stream().filter(entry -> entry.voters().size() == topCount).count() == 1;
+
+        var tallies = new ArrayList<DayTally>(counted.size());
+        var rank = 0;
+        var previousCount = -1;
+        for (var index = 0; index < counted.size(); index++) {
+            var votes = counted.get(index).voters().size();
+            if (votes != previousCount) {
+                rank = index + 1;
+                previousCount = votes;
+            }
+            tallies.add(new DayTally(counted.get(index).day(),
+                    counted.get(index).voters(),
+                    rank,
+                    inviteCount,
+                    aloneAtTheTop && votes == topCount));
+        }
+        return List.copyOf(tallies);
     }
 
     private List<Person> votersFor(StoredPoll stored, Map<String, Person> named, LocalDate day) {
@@ -456,13 +531,23 @@ public class PollService {
      * cannot post one — and it throws the same {@code IllegalArgumentException} an
      * unknown id throws, because a person who was not invited should not be able to
      * learn from the difference that the poll is real.
+     *
+     * <p>Anonymous mode invites nobody, so answering is what puts a voter on the list
+     * rather than the other way round. Adding them is not a formality: the tallies, the
+     * avatar stacks and {@code Poll.awaiting} all read the invitee list, so a ballot
+     * from somebody who is not on it would be counted nowhere.
      */
     private StoredPoll requireInvited(UUID id, Person voter) {
         var stored = requireForUpdate(id);
-        if (!stored.inviteeEmails().contains(addressOf(voter))) {
-            throw unknown(id);
+        var email = addressOf(voter);
+        if (stored.inviteeEmails().contains(email)) {
+            return stored;
         }
-        return stored;
+        if (access.isAnonymous()) {
+            stored.invite(email);
+            return stored;
+        }
+        throw unknown(id);
     }
 
     /**
@@ -474,17 +559,31 @@ public class PollService {
      * refused by name, because they can already see it and there is nothing left to
      * withhold. Anybody else is told the poll does not exist — the refusal itself must
      * not be what reveals that it does.
+     *
+     * <p>The admin code is the fourth answer, and only anonymous mode has one. It is
+     * checked against this poll's own code rather than looked up, so knowing six digits
+     * is worth nothing without the link they go with. Login-mode polls have no code, and
+     * the null check is what stops an absent one from matching an absent one.
+     *
+     * <p>Anonymous mode has only two answers, because the reason for the third is gone:
+     * anybody who reached this call is holding the link, and the link already showed
+     * them the poll. Withholding its existence from somebody looking at it would only
+     * make the refusal read as a bug.
      */
-    private StoredPoll requireOrganizer(UUID id, Person asking) {
+    private StoredPoll requireOrganizer(UUID id, Caller asking) {
         var stored = requireForUpdate(id);
-        var email = addressOf(asking);
-        if (stored.organizerEmail().equals(email)) {
+        var email = addressOf(asking.person());
+        if (stored.organizerEmail().equals(email) || carriesAdminCode(stored, asking)) {
             return stored;
         }
-        if (!stored.inviteeEmails().contains(email)) {
+        if (!access.isAnonymous() && !stored.inviteeEmails().contains(email)) {
             throw unknown(id);
         }
         throw new NotTheOrganizerException(id, email);
+    }
+
+    private static boolean carriesAdminCode(StoredPoll stored, Caller asking) {
+        return stored.adminCode() != null && asking.adminCode().filter(stored.adminCode()::equals).isPresent();
     }
 
     private StoredPoll require(UUID id) {

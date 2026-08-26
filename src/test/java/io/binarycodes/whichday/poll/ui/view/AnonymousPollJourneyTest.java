@@ -1,0 +1,434 @@
+package io.binarycodes.whichday.poll.ui.view;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+
+import com.vaadin.browserless.SpringBrowserlessTest;
+import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.ComponentUtil;
+import com.vaadin.flow.component.HasText;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.RouteParameters;
+
+import io.binarycodes.whichday.AnonymousWhichdayTest;
+import io.binarycodes.whichday.Sample;
+import io.binarycodes.whichday.TestClock;
+import io.binarycodes.whichday.TestDatabase;
+import io.binarycodes.whichday.base.config.AccessMode;
+import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.people.ui.PersonAvatar;
+import io.binarycodes.whichday.people.ui.presenter.AnonymousViewerSession;
+import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
+import io.binarycodes.whichday.people.ui.view.IdentityView;
+import io.binarycodes.whichday.poll.domain.Poll;
+import io.binarycodes.whichday.poll.service.InviteeSearch;
+import io.binarycodes.whichday.poll.service.NotTheOrganizerException;
+import io.binarycodes.whichday.poll.service.PollService;
+import io.binarycodes.whichday.poll.ui.component.DayBallot;
+import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
+
+/**
+ * The same journey with no provider behind it: a name typed on the way in, a link that
+ * works for somebody who has never been here, and six digits standing where the
+ * organizer's account would have stood.
+ *
+ * <p>Nothing signs anybody in — that is the point — so the who-are-you screen is the
+ * fixture. The browserless base class gives one {@code VaadinSession} per method, and
+ * an identity belongs to a session: naming the same one twice corrects a name rather
+ * than becoming somebody else. So a second visitor is a second session, built by hand
+ * with a presenter of its own — which is what {@link #visitor} is.
+ */
+@AnonymousWhichdayTest
+@DisplayName("Walking the poll with nobody signed in")
+class AnonymousPollJourneyTest extends SpringBrowserlessTest {
+
+    @Autowired
+    private ApplicationContext context;
+
+    @Autowired
+    private TestClock clock;
+
+    @Autowired
+    private TestDatabase database;
+
+    @BeforeEach
+    void empty() {
+        database.empty();
+        clock.reset();
+    }
+
+    @Test
+    @DisplayName("asks who is asking before it shows anything at all")
+    void theFrontDoor() {
+        UI.getCurrent().navigate(PollsView.class);
+
+        assertThat(currentView()).isInstanceOf(IdentityView.class);
+        assertThat(textOf(currentView())).contains(translation("identity.headline"),
+                translation("identity.name"), translation("identity.code"));
+    }
+
+    /**
+     * The link is the whole bargain of this mode, so the detour through the front door
+     * has to give it back. A guard that dropped the destination would turn every shared
+     * link into a trip to the create screen.
+     */
+    @Test
+    @DisplayName("keeps the shared link across the detour and lands on the ballot")
+    void theSharedLinkSurvivesTheDetour() {
+        var poll = pollCalledBy(visitor("Ada", ""), "Q3 offsite");
+
+        UI.getCurrent().navigate(BallotView.class, new RouteParameters("id", poll.toString()));
+        assertThat(currentView()).isInstanceOf(IdentityView.class);
+
+        type(0, "Miro");
+        click("Continue");
+
+        assertThat(currentView()).isInstanceOf(BallotView.class);
+        assertThat(textOf(currentView())).contains("Q3 offsite");
+    }
+
+    @Test
+    @DisplayName("has no polls list: home is where a poll starts")
+    void thereIsNoList() {
+        identifyAs("Ada", "");
+
+        UI.getCurrent().navigate(PollsView.class);
+
+        assertThat(currentView()).isInstanceOf(NewPollView.class);
+    }
+
+    @Test
+    @DisplayName("asks for a name and days, and nobody to invite")
+    void creatingAsksForNoInvitees() {
+        identifyAs("Ada", "");
+        UI.getCurrent().navigate(NewPollView.class);
+
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains("Event name", "Anyone with the link can answer");
+        assertThat(screen).doesNotContain("Who decides with you");
+    }
+
+    @Test
+    @DisplayName("shows the admin code on the share screen, and nowhere else")
+    void theShareScreenHandsOverTheCode() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+
+        navigateTo(ShareView.class, poll);
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains("Admin code", "Write it down");
+        assertThat(screen).doesNotContain("Invited", "Message");
+        assertThat(presenter().adminCode(poll)).get().asString().matches("\\d{6}");
+
+        navigateTo(ResultsView.class, poll);
+        assertThat(textOf(currentView())).doesNotContain("Admin code");
+    }
+
+    /**
+     * An anonymous poll starts empty — the organizer included. Membership is having
+     * answered, because nothing else could say who is on it, and the service adds each
+     * voter as they answer so that every count, stack and tally downstream reads a
+     * ballot that would otherwise belong to nobody.
+     */
+    @Test
+    @DisplayName("starts with nobody on it and adds each voter as they answer")
+    void answeringJoinsThePoll() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var day = onlyDayOf(poll);
+        assertThat(pollOf(poll).inviteCount()).isZero();
+
+        visitor("Miro", "").vote(poll, Set.of(day));
+
+        var answered = pollOf(poll);
+        assertThat(answered.inviteCount()).isEqualTo(1);
+        assertThat(answered.answerCount()).isEqualTo(1);
+        assertThat(answered.awaiting()).isEmpty();
+        assertThat(answered.ballots()).singleElement()
+                .satisfies(ballot -> assertThat(ballot.voter().displayName()).isEqualTo("Miro"));
+    }
+
+    /**
+     * Nobody can say who has not voted when nobody was asked, so the screen does not
+     * guess. "Everyone but Ada" is a claim about an invitee list that does not exist.
+     */
+    @Test
+    @DisplayName("never says who is missing, because nobody knows who was asked")
+    void nobodyIsWaitedOn() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        visitor("Miro", "").vote(poll, Set.of(onlyDayOf(poll)));
+
+        navigateTo(ResultsView.class, poll);
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains("Q3 offsite");
+        assertThat(screen).doesNotContain("Waiting on", "WAITING ON", "Everyone");
+    }
+
+    @Test
+    @DisplayName("refuses to settle the poll for somebody without the code, and allows it with")
+    void theCodeIsWhatSettlesIt() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var code = presenter().adminCode(poll).orElseThrow();
+        var day = onlyDayOf(poll);
+
+        var withoutTheCode = visitor("Miro", "");
+        withoutTheCode.vote(poll, Set.of(day));
+        assertThatThrownBy(() -> withoutTheCode.lock(poll, day))
+                .isInstanceOf(NotTheOrganizerException.class);
+
+        var withTheCode = visitor("Miro", code);
+
+        withTheCode.lock(poll, day);
+        assertThat(pollOf(poll).lockedDay()).isEqualTo(day);
+    }
+
+    /**
+     * Six digits are worth nothing on their own. Checking the code against the poll the
+     * caller already holds the link to is what keeps them worth nothing.
+     */
+    @Test
+    @DisplayName("takes six digits that belong to another poll for nothing")
+    void aCodeIsOnlyGoodForItsOwnPoll() {
+        var mine = pollCalledBy("Ada", "Q3 offsite");
+        var code = presenter().adminCode(mine).orElseThrow();
+
+        var miro = visitor("Miro", "");
+        var theirs = pollCalledBy(miro, "Design review");
+
+        var tanvi = visitor("Tanvi", code);
+        var day = onlyDayOf(theirs);
+        assertThatThrownBy(() -> tanvi.lock(theirs, day))
+                .isInstanceOf(NotTheOrganizerException.class);
+    }
+
+    /**
+     * The standings header stacked avatars, and an initial identifies nobody here for
+     * the same reason it identifies nobody on the ballot.
+     */
+    @Test
+    @DisplayName("names the people who answered on the standings, rather than stacking initials")
+    void theStandingsNameWhoAnswered() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        visitor("Rob Nieminen", "").vote(poll, Set.of(onlyDayOf(poll)));
+
+        navigateTo(ResultsView.class, poll);
+
+        assertThat(textOf(currentView())).contains("Rob");
+        assertThat(componentsOf(currentView()).filter(PersonAvatar.class::isInstance)).isEmpty();
+    }
+
+    /**
+     * The last screen, and the one anybody keeps — so it is the worst place of the three
+     * to show a letter that identifies nobody.
+     */
+    @Test
+    @DisplayName("names who is coming on the locked screen, rather than stacking initials")
+    void theLockedScreenNamesWhoIsComing() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var day = onlyDayOf(poll);
+        visitor("Rob Nieminen", "").vote(poll, Set.of(day));
+        presenter().lock(poll, day);
+
+        navigateTo(LockedView.class, poll);
+
+        assertThat(textOf(currentView())).contains("Rob");
+        assertThat(componentsOf(currentView()).filter(PersonAvatar.class::isInstance)).isEmpty();
+    }
+
+    /**
+     * Every one of these promises a message, and there is nobody to send one to: no
+     * addresses, no invitee list, no account. Offering them would be the screen writing
+     * a cheque the deployment cannot cash.
+     */
+    @Test
+    @DisplayName("offers no reminder, no nudge and nobody to tell")
+    void nothingPromisesAMessage() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var day = onlyDayOf(poll);
+
+        navigateTo(ResultsView.class, poll);
+        assertThat(textOf(currentView())).doesNotContain("reminder", "nudge", "Nudge");
+
+        visitor("Miro", "").vote(poll, Set.of(day));
+        navigateTo(ResultsView.class, poll);
+        assertThat(textOf(currentView())).doesNotContain("reminder", "nudge", "Nudge");
+
+        presenter().lock(poll, day);
+        navigateTo(LockedView.class, poll);
+        var locked = textOf(currentView());
+        assertThat(locked).contains("Add to calendar");
+        assertThat(locked).doesNotContain("Tell the team");
+    }
+
+    /**
+     * An avatar is initials, and a name typed minutes ago makes initials meaningless —
+     * two people who both called themselves something with an R are the same letter.
+     * So the ballot names its voters here and shows faces in login mode, which
+     * {@code PollJourneyTest.theBallotShowsFaces} is the other half of.
+     */
+    @Test
+    @DisplayName("names the people who voted for a day rather than showing initials")
+    void theBallotNamesItsVoters() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var day = onlyDayOf(poll);
+        visitor("Rob Nieminen", "").vote(poll, Set.of(day));
+
+        navigateTo(BallotView.class, poll);
+
+        // The field, not the screen: the header carries the viewer's own avatar either way.
+        assertThat(textOf(ballotField())).contains("Rob");
+        assertThat(componentsOf(ballotField()).filter(PersonAvatar.class::isInstance)).isEmpty();
+    }
+
+    /** Past six the tail is a count, so a popular day cannot push the row off the screen. */
+    @Test
+    @DisplayName("names six people and counts the rest")
+    void theBallotCountsTheTail() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var day = onlyDayOf(poll);
+        List.of("Rob", "Ab", "Ajaj", "Akekek", "Djdjd", "Ekeke", "Djj", "Nils")
+                .forEach(name -> visitor(name, "").vote(poll, Set.of(day)));
+
+        navigateTo(BallotView.class, poll);
+        var field = textOf(ballotField());
+
+        assertThat(field).contains("Rob", "Ab", "Ajaj", "Akekek", "Djdjd", "Ekeke");
+        assertThat(field).doesNotContain("Djj", "Nils");
+        assertThat(field).contains("+2 more");
+    }
+
+    /**
+     * The link is the credential, so a visitor who was never invited still reads the
+     * poll. In login mode this same call answers empty, and that difference is the
+     * whole of what anonymous mode trades away.
+     */
+    @Test
+    @DisplayName("shows the poll to somebody who was never put on it")
+    void theLinkIsTheCredential() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+
+        assertThat(visitor("Tanvi", "").poll(poll)).isPresent();
+    }
+
+    // ---- Building what a test needs ----
+
+    /** Names this browser's session, the way the who-are-you screen does. */
+    private void identifyAs(String name, String adminCode) {
+        context.getBean(ViewerSession.class).identify(name, adminCode);
+    }
+
+    /**
+     * Somebody else entirely: their own session, their own minted address, their own
+     * presenter. Hand-built because an identity belongs to a Vaadin session and the
+     * test only has one of those.
+     */
+    private PollPresenter visitor(String name, String adminCode) {
+        var session = new AnonymousViewerSession(clock, context.getBean(AccountDirectory.class));
+        session.identify(name, adminCode);
+        return new PollPresenter(context.getBean(PollService.class),
+                context.getBean(InviteeSearch.class), session, clock, AccessMode.ANONYMOUS);
+    }
+
+    /** A sent poll with one day on the table, called by somebody with that name. */
+    private UUID pollCalledBy(String organizer, String title) {
+        identifyAs(organizer, "");
+        return pollCalledBy(presenter(), title);
+    }
+
+    private UUID pollCalledBy(PollPresenter organizer, String title) {
+        organizer.draft().reset();
+        organizer.draft().rename(title);
+        var id = organizer.createFromDraft();
+        organizer.chooseDays(id, Set.of(Sample.mondayAfterNext(organizer.today())));
+        organizer.send(id);
+        return id;
+    }
+
+    private LocalDate onlyDayOf(UUID id) {
+        return pollOf(id).candidateDays().getFirst();
+    }
+
+    private Poll pollOf(UUID id) {
+        return presenter().poll(id).orElseThrow();
+    }
+
+    // ---- Reaching into the screen ----
+
+    /** The who-are-you screen's two fields, in the order it draws them: name, then code. */
+    private void type(int index, String value) {
+        componentsOf(currentView())
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .toList()
+                .get(index)
+                .setValue(value);
+    }
+
+    private void click(String label) {
+        var button = componentsOf(currentView())
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(candidate -> label.equals(candidate.getText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No button labelled " + label + " on "
+                        + currentView().getClass().getSimpleName()));
+        ComponentUtil.fireEvent(button, new ClickEvent<>(button));
+    }
+
+    private void navigateTo(Class<? extends Component> view, UUID id) {
+        UI.getCurrent().navigate(view, new RouteParameters("id", id.toString()));
+    }
+
+    private PollPresenter presenter() {
+        return context.getBean(PollPresenter.class);
+    }
+
+    private String translation(String key, Object... arguments) {
+        return UI.getCurrent().getTranslation(key, arguments);
+    }
+
+    private DayBallot ballotField() {
+        return componentsOf(currentView())
+                .filter(DayBallot.class::isInstance)
+                .map(DayBallot.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No ballot field on "
+                        + currentView().getClass().getSimpleName()));
+    }
+
+    private Component currentView() {
+        return (Component) UI.getCurrent().getInternals().getActiveRouterTargetsChain().getFirst();
+    }
+
+    private String textOf(Component root) {
+        return componentsOf(root)
+                .map(this::ownText)
+                .filter(text -> !text.isBlank())
+                .reduce("", (all, text) -> all + text + "\n");
+    }
+
+    private String ownText(Component component) {
+        var text = component instanceof HasText hasText ? hasText.getText() : "";
+        return text == null ? "" : text;
+    }
+
+    private Stream<Component> componentsOf(Component root) {
+        return Stream.concat(Stream.of(root), root.getChildren().flatMap(this::componentsOf));
+    }
+}

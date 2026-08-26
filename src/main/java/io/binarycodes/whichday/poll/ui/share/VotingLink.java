@@ -5,13 +5,13 @@ import java.util.UUID;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.clipboard.Clipboard;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.webshare.ShareContent;
 import com.vaadin.flow.component.webshare.WebShare;
 import com.vaadin.flow.component.webshare.WebShareSupport;
 import com.vaadin.flow.server.VaadinRequest;
 import com.vaadin.flow.server.VaadinServletRequest;
 
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.poll.domain.Poll;
 
 /**
@@ -75,8 +75,8 @@ public final class VotingLink {
             return;
         }
         Clipboard.onClick(button).writeText(absolute(poll.id()),
-                copied -> Notification.show(button.getTranslation("share.copied")),
-                failure -> Notification.show(button.getTranslation("share.copyFailed")));
+                copied -> Toast.show(button.getTranslation("share.copied")),
+                failure -> Toast.show(button.getTranslation("share.copyFailed")));
     }
 
     private static String path(UUID id) {

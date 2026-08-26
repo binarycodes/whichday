@@ -5,7 +5,6 @@ import jakarta.annotation.security.PermitAll;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -16,10 +15,13 @@ import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.AppHeader;
+import io.binarycodes.whichday.base.ui.Home;
 import io.binarycodes.whichday.base.ui.Screen;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.ui.AccountLabels;
 import io.binarycodes.whichday.people.ui.InviteeChips;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 
@@ -27,6 +29,10 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  * Where a poll starts: a name, who decides it, and one button through to the
  * calendar. Both fields write to the session's draft, so stepping out to search for
  * somebody and coming back loses nothing.
+ *
+ * <p>In anonymous mode it is the name and the button. There is no directory to search
+ * and no address to invite anybody at — the link is the invitation there — so the
+ * field that collects people is not drawn and not required.
  */
 @PermitAll
 @Route("new")
@@ -53,6 +59,7 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         clearFooter();
 
         body(new AppHeader(getTranslation("app.name"), presenter.viewer(),
+                AccountLabels.of(this, presenter.viewer(), presenter.anonymous()),
                 presenter::signOut, this::goHome));
 
         var headline = Typography.hero(getTranslation("create.headline"));
@@ -61,14 +68,18 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         lede.addClassName("push-l");
         body(headline, lede);
 
-        var fields = new Div(nameField(), inviteeField());
+        var fields = presenter.anonymous()
+                ? new Div(nameField())
+                : new Div(nameField(), inviteeField());
         fields.addClassNames("field-column", "push-2xl");
         body(fields);
 
         var next = Actions.primary(getTranslation("create.next"), ignored -> chooseDays());
         next.setIcon(new Icon(VaadinIcon.ARROW_RIGHT));
         next.setIconAfterText(true);
-        var footnote = Typography.meta(getTranslation("create.footnote"));
+        var footnote = Typography.meta(getTranslation(presenter.anonymous()
+                ? "create.footnote.anonymous"
+                : "create.footnote"));
         footnote.addClassNames("meta-faint", "meta-centred");
         footer(next, footnote);
     }
@@ -125,8 +136,8 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         if (titleIsMissing()) {
             return;
         }
-        if (presenter.draft().isEmpty()) {
-            Notification.show(getTranslation("invitees.needOne"));
+        if (!presenter.anonymous() && presenter.draft().isEmpty()) {
+            Toast.show(getTranslation("invitees.needOne"));
             return;
         }
         var id = presenter.createFromDraft();
@@ -137,12 +148,12 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         if (!presenter.draft().title().isBlank()) {
             return false;
         }
-        Notification.show(getTranslation("create.eventName.required"));
+        Toast.show(getTranslation("create.eventName.required"));
         return true;
     }
 
     private void goHome() {
-        getUI().ifPresent(ui -> ui.navigate(PollsView.class));
+        getUI().ifPresent(ui -> ui.navigate(Home.viewFor(presenter)));
     }
 
     @Override

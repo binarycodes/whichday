@@ -5,6 +5,32 @@ only, multi-select voting, and the day with the most votes wins.
 
 A mobile-first Vaadin application on the Aura theme.
 
+## Two ways in
+
+A deployment picks one, once, with `WHICHDAY_ACCESS_MODE`. It cannot be both, and it
+cannot be switched at runtime.
+
+| | `anonymous` (the default) | `login` |
+| --- | --- | --- |
+| Getting in | type a name on the way past | an OIDC provider you run |
+| Configuration | none | `WHICHDAY_OIDC_*`, and it will not start without them |
+| Seeing a poll | anybody holding its link | the organizer or somebody invited |
+| Answering one | anybody holding its link | the invitee, signed in at the address they were invited at |
+| Changing one | the session that called it, or anybody with its six-digit admin code | the organizer |
+| Home (`/`) | where a poll starts — there is no list | your polls, drafts and settled ones |
+| Invitations | none; the link is the invitation | typed in by address, searched by account |
+
+**Anonymous mode is Doodle's bargain, and it is worth reading twice.** Anybody who has
+the link can open the poll and answer it — that is the point of not having accounts.
+The organizer gets a six-digit code on the share screen, and it is the only way back to
+changing a poll once the browser tab is gone: identity lives in the session and nothing
+else. Nobody is emailed, nobody is reminded, and nothing knows who has not answered,
+because nothing knows who was asked.
+
+Choose `login` when the polls are a company's and it already has a provider. Choose
+`anonymous` when the point is that a group can pick a day without anybody signing up
+for anything.
+
 ## Run it (self-hosting)
 
 A prebuilt, multi-architecture image (`linux/amd64` + `linux/arm64`) is published to
@@ -22,10 +48,15 @@ It is one container with its database inside it, and nothing else to bring up.
   you want it.
 - **Run one container, not two.** The database is a file, and only the process holding
   it can open it — a second container on the same volume will not start.
-- Signing in needs an OIDC client: `WHICHDAY_OIDC_ISSUER_URI`,
-  `WHICHDAY_OIDC_CLIENT_ID` and `WHICHDAY_OIDC_CLIENT_SECRET`. The application refuses
-  to start without the id and the secret.
-- Behind a reverse proxy, see *Behind a proxy*.
+- `WHICHDAY_ACCESS_MODE` is `anonymous` or `login`, and defaults to `anonymous`.
+  Anything else is a startup failure naming both.
+- **`login` mode needs an OIDC client**: `WHICHDAY_OIDC_ISSUER_URI`,
+  `WHICHDAY_OIDC_CLIENT_ID` and `WHICHDAY_OIDC_CLIENT_SECRET`. It refuses to start
+  without the id and the secret, and it resolves the issuer as it starts — so an
+  unreachable provider is a container that will not come up. `anonymous` mode reads
+  none of the three, and does not need the provider to exist.
+- Behind a reverse proxy, see *Behind a proxy*. It matters for `login` mode and for
+  the share links both modes hand out.
 
 ### docker compose
 
@@ -38,6 +69,7 @@ services:
     volumes:
       - whichday-data:/app/data
     environment:
+      - WHICHDAY_ACCESS_MODE=login
       - WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
       - WHICHDAY_OIDC_CLIENT_ID=change-me
       - WHICHDAY_OIDC_CLIENT_SECRET=change-me
@@ -46,6 +78,14 @@ services:
 
 volumes:
   whichday-data:
+```
+
+Anonymous mode is the same file with the four `WHICHDAY_OIDC_*` and `ACCESS_MODE` lines
+dropped — it is the default, and it configures nothing:
+
+```yaml
+    environment:
+      - FORWARD_HEADERS_STRATEGY=native
 ```
 
 The left side of the mount is yours — the named volume above, or any host path. The
@@ -72,6 +112,7 @@ ContainerName=whichday
 Image=docker.io/binarycodes/whichday:latest
 PublishPort=8080:8080
 Volume=whichday-data:/app/data
+Environment=WHICHDAY_ACCESS_MODE=login
 Environment=WHICHDAY_OIDC_ISSUER_URI=https://accounts.example.com
 Environment=WHICHDAY_OIDC_CLIENT_ID=change-me
 Environment=WHICHDAY_OIDC_CLIENT_SECRET=change-me
@@ -98,6 +139,9 @@ systemctl start whichday.service
 `AutoUpdate=registry` is safe here because systemd stops the old container before
 starting the new one, and only one process at a time may hold the database file.
 
+Anonymous mode drops the same four lines here, leaving `FORWARD_HEADERS_STRATEGY` as
+the only `Environment=` the unit needs.
+
 ### Behind a proxy
 
 Anything that terminates TLS in front of this leaves the application seeing plain
@@ -110,20 +154,25 @@ and the redirect URI comes out as the address readers typed. It is off by defaul
 because those headers are spoofable with nothing in front, so set it when there is a
 proxy and only then.
 
-The redirect URI to register with your OIDC client is
+In `login` mode, the redirect URI to register with your OIDC client is
 `https://whichday.example.com/login/oauth2/code/oidc`: the path is fixed, the origin is
 whatever readers type.
 
 ## The screens
 
+Two of these are `login` mode's alone. In `anonymous` mode `/` is where a poll starts,
+`/new/invitees` leads back there, and `/who` stands in front of everything.
+
 | Route              | What it is                                            |
 | ------------------ | ----------------------------------------------------- |
-| `/`                | Your polls, your drafts, and the settled ones         |
+| `/`                | Your polls, your drafts, and the settled ones — `login` mode |
+| `/who`             | Your name, and an admin code if you have one — `anonymous` mode |
 | `/new`             | Name a poll and say who decides it                    |
-| `/new/invitees`    | Find people by email address                          |
+| `/new/invitees`    | Find people by email address — `login` mode           |
 | `/poll/:id/days`   | Put candidate days on the table                       |
 | `/poll/:id/share`  | The voting link, the invite list, the closing date    |
-| `/poll/:id`        | The standings, live, and the button that locks a date  |
+| `/poll/:id`        | The standings, live, and the way to settle them        |
+| `/poll/:id/settle` | Confirm the day, or pick between tied ones            |
 | `/poll/:id/locked` | The settled date                                      |
 | `/vote/:id`        | Tap every day that works                              |
 | `/vote/:id/none`   | None of them work, and a day forward instead          |

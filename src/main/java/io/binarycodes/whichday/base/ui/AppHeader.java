@@ -3,6 +3,7 @@ package io.binarycodes.whichday.base.ui;
 import com.vaadin.flow.component.html.Div;
 
 import io.binarycodes.whichday.people.domain.Person;
+import io.binarycodes.whichday.people.ui.AccountLabels;
 import io.binarycodes.whichday.people.ui.AccountMenu;
 
 /**
@@ -12,13 +13,14 @@ import io.binarycodes.whichday.people.ui.AccountMenu;
  */
 public class AppHeader extends Div {
 
-    public AppHeader(String wordmark, Person viewer, Runnable onSignOut, Runnable onHome) {
+    public AppHeader(String wordmark, Person viewer, AccountLabels labels,
+            Runnable onSignOut, Runnable onHome) {
         addClassName("app-header");
 
         // The wordmark is the way home on the screens that have no back chevron.
         var name = Actions.link(wordmark, ignored -> onHome.run());
         name.addClassNames("wordmark", Actions.HOME_CLASS);
 
-        add(name, new AccountMenu(viewer, onSignOut));
+        add(name, new AccountMenu(viewer, labels, onSignOut));
     }
 }

@@ -7,7 +7,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
@@ -17,6 +16,8 @@ import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.HintBar;
+import io.binarycodes.whichday.base.ui.Home;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.ui.PersonRow;
@@ -24,13 +25,17 @@ import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
-import io.binarycodes.whichday.poll.ui.share.CalendarInvite;
 import io.binarycodes.whichday.poll.ui.share.MailLink;
 import io.binarycodes.whichday.poll.ui.share.VotingLink;
 
 /**
  * One link, and the list of people who are owed it. Sending the invites is what
  * opens the poll, so this is the last screen before the counts start moving.
+ *
+ * <p>Anonymous mode has no list — the link is the invitation, and who follows it is
+ * not known until they answer — so what stands in its place is the admin code. It is
+ * shown here and nowhere else, because this is the one moment the person who called
+ * the poll is certainly looking.
  */
 @PermitAll
 @Route("poll/:id/share")
@@ -62,18 +67,22 @@ public class ShareView extends PollScreen {
     protected void build(Poll poll) {
         body(new TopBar(getTranslation("share.title"))
                 .withBack(getTranslation("nav.back"), () -> goTo(CandidateDaysView.class))
-                .withHome(getTranslation("nav.home"), this::goHome));
+                .withHome(Home.labelFor(this, presenter), this::goHome));
 
-        var headline = Typography.displayMedium(getTranslation("share.headline",
-                Counts.days(this, poll.candidateDays().size()), poll.inviteCount()));
+        var headline = Typography.displayMedium(presenter.anonymous()
+                ? getTranslation("share.headline.anonymous", Counts.days(this, poll.candidateDays().size()))
+                : getTranslation("share.headline",
+                        Counts.days(this, poll.candidateDays().size()), poll.inviteCount()));
         headline.addClassName("push-2xl");
         body(headline);
 
-        body(linkCard(poll), shareActions(poll), inviteList(poll));
+        body(linkCard(poll));
+        if (!presenter.anonymous()) {
+            body(messageAction(poll));
+        }
+        body(presenter.anonymous() ? adminCodeCard() : inviteList(poll));
 
-        footer(closingSection(poll), Actions.primary(poll.inviteCount() == 1
-                ? getTranslation("share.send.one")
-                : getTranslation("share.send.many", poll.inviteCount()), ignored -> send()));
+        footer(closingSection(poll), Actions.primary(sendLabel(poll), ignored -> send()));
     }
 
     /**
@@ -118,6 +127,36 @@ public class ShareView extends PollScreen {
         return section;
     }
 
+    private String sendLabel(Poll poll) {
+        if (presenter.anonymous()) {
+            return getTranslation("share.open");
+        }
+        return poll.inviteCount() == 1
+                ? getTranslation("share.send.one")
+                : getTranslation("share.send.many", poll.inviteCount());
+    }
+
+    /**
+     * The six digits, and the warning that goes with them. There is no second copy
+     * anywhere — no account to attach the poll to and no list to find it in — so a
+     * code nobody wrote down is a poll nobody can change again.
+     */
+    private Div adminCodeCard() {
+        var label = Typography.meta(getTranslation("share.code"));
+        var digits = new Span(presenter.adminCode(id()).orElse(""));
+        digits.addClassName("admin-code");
+        var text = new Div(label, digits);
+        text.addClassName("link-text");
+
+        var card = new Div(text);
+        card.addClassNames("link-card", "push-m");
+
+        var warning = new HintBar(VaadinIcon.KEY, getTranslation("share.code.keep"));
+        var section = new Div(card, warning);
+        section.addClassNames("stack-s", "push-2xl");
+        return section;
+    }
+
     private Div linkCard(Poll poll) {
         var label = Typography.meta(getTranslation("share.link"));
         var url = new Span(VotingLink.display(poll.id()));
@@ -134,17 +173,20 @@ public class ShareView extends PollScreen {
         return card;
     }
 
-    private Div shareActions(Poll poll) {
+    /**
+     * Login mode's alone: the copy tells the reader which address to sign in with, and
+     * anonymous mode has no address and no signing in.
+     *
+     * <p>There is no calendar file here. These are days on the table, not a date — an
+     * .ics of five maybes is five entries the reader has to go back and delete, and the
+     * settled day gets its own download on the locked screen where it means something.
+     */
+    private Div messageAction(Poll poll) {
         var message = new Anchor(MailLink.invitation(this, poll), "");
         message.add(new Icon(VaadinIcon.PAPERPLANE), new Span(getTranslation("share.message")));
         message.addClassNames("action", "action-quiet", "action-anchor");
 
-        var calendar = new Anchor(CalendarInvite.forCandidateDays(poll), "");
-        calendar.getElement().setAttribute("download", true);
-        calendar.add(new Icon(VaadinIcon.CALENDAR), new Span(getTranslation("share.calendar")));
-        calendar.addClassNames("action", "action-quiet", "action-anchor");
-
-        var row = new Div(message, calendar);
+        var row = new Div(message);
         row.addClassNames("action-row", "push-m");
         return row;
     }
@@ -176,7 +218,7 @@ public class ShareView extends PollScreen {
 
     private void send() {
         presenter.send(id());
-        Notification.show(getTranslation("share.sentAll"));
+        Toast.show(getTranslation(presenter.anonymous() ? "share.opened" : "share.sentAll"));
         goTo(ResultsView.class);
     }
 

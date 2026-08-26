@@ -1,26 +1,28 @@
 # Development environment
 
-The one service Whichday talks to while you are working on it. The polls live in an
-H2 file the application opens itself (`docs/REQUIREMENTS.md` §9), so there is no
-database to bring up — but signing in is the only way in and OIDC is the only way to
-sign in, so this is not optional either.
+The one service Whichday talks to while you are working on it, and **only in login
+mode**. The polls live in an H2 file the application opens itself
+(`docs/REQUIREMENTS.md` §9), so there is no database to bring up; anonymous mode — the
+default — has no provider either, so `./run.sh run` on its own needs none of this.
 
 ```bash
 ./run.sh env up
 ```
 
-Then start the app as usual; `application.properties` defaults to exactly this
-Keycloak, so no configuration is needed.
+Then start the app in login mode; `application-login.properties` defaults to exactly
+this Keycloak, so no configuration is needed beyond naming the mode.
 
 ```bash
-./run.sh run
+WHICHDAY_ACCESS_MODE=login ./run.sh run
 ```
 
 Open <http://localhost:8080> and sign in as **`ada` / `ada`**.
 
-The application fetches the issuer's discovery document at startup, so `./run.sh run`
-against a stopped stack fails immediately with a connection error rather than at the
-first sign-in. That is the right order to find out in.
+Login mode fetches the issuer's discovery document at startup, so it fails immediately
+with a connection error against a stopped stack rather than at the first sign-in. That
+is the right order to find out in — and it is why the OIDC keys live in the login
+profile's file rather than in `application.properties`, where anonymous mode would
+inherit them and try the same fetch for nothing.
 
 One task for the whole stack rather than one per service: which containers it brings
 up is the stack definition's decision, so a service added there needs no change to

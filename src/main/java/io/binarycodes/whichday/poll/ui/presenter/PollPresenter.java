@@ -14,9 +14,11 @@ import org.springframework.stereotype.Component;
 
 import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 
+import io.binarycodes.whichday.base.config.AccessMode;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
 import io.binarycodes.whichday.poll.domain.Ballot;
+import io.binarycodes.whichday.poll.domain.Caller;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.domain.AccountMatch;
@@ -36,17 +38,37 @@ public class PollPresenter {
     private final InviteeSearch invitees;
     private final ViewerSession session;
     private final Clock clock;
+    private final AccessMode access;
     private final PollDraft draft = new PollDraft();
 
-    public PollPresenter(PollService polls, InviteeSearch invitees, ViewerSession session, Clock clock) {
+    public PollPresenter(PollService polls, InviteeSearch invitees, ViewerSession session, Clock clock,
+            AccessMode access) {
         this.polls = polls;
         this.invitees = invitees;
         this.session = session;
         this.clock = clock;
+        this.access = access;
     }
 
     public Person viewer() {
         return session.viewer();
+    }
+
+    /**
+     * The viewer plus whatever they have to show for wanting to change a poll. Every
+     * organizer-gated call takes one, so the admin code reaches the service the same
+     * way the viewer does and no screen has to carry it.
+     */
+    private Caller caller() {
+        return Caller.of(session.viewer(), session.adminCode());
+    }
+
+    /**
+     * Which way this deployment lets people in. The screens ask because two of them
+     * have nothing to show in anonymous mode and one shows something extra.
+     */
+    public boolean anonymous() {
+        return access.isAnonymous();
     }
 
     public void signOut() {
@@ -75,7 +97,7 @@ public class PollPresenter {
     }
 
     public void deleteDraft(UUID id) {
-        polls.deleteDraft(id, viewer());
+        polls.deleteDraft(id, caller());
     }
 
     public List<PollSummary> settledPolls() {
@@ -123,8 +145,19 @@ public class PollPresenter {
      * The organizer leads the invited list, and the rest keep the order they were
      * added in — not directory order, which an outsider has no place in. Anybody who
      * managed to add the organizer to their own draft is not counted twice.
+     *
+     * <p>An anonymous poll starts with nobody on it, the organizer included. There is
+     * no list of who was asked in that mode — anybody with the link may answer — so the
+     * only honest membership is having answered, and the service adds each voter as
+     * they do. Seeding the organizer would put one person in a "waiting on" list that
+     * cannot know who else is missing.
      */
     public UUID createFromDraft() {
+        if (anonymous()) {
+            var id = polls.create(draft.title(), viewer(), List.of());
+            draft.reset();
+            return id;
+        }
         var everybody = new ArrayList<Person>();
         everybody.add(viewer());
         draft.invitees().stream()
@@ -146,23 +179,23 @@ public class PollPresenter {
     }
 
     public void closeOn(UUID id, LocalDate day) {
-        polls.closeOn(id, viewer(), day);
+        polls.closeOn(id, caller(), day);
     }
 
     public void allowAlternatives(UUID id, boolean allowed) {
-        polls.allowAlternatives(id, viewer(), allowed);
+        polls.allowAlternatives(id, caller(), allowed);
     }
 
     public void addInvitee(UUID id, Person person) {
-        polls.addInvitee(id, viewer(), person);
+        polls.addInvitee(id, caller(), person);
     }
 
     public void chooseDays(UUID id, Set<LocalDate> days) {
-        polls.replaceCandidateDays(id, viewer(), days);
+        polls.replaceCandidateDays(id, caller(), days);
     }
 
     public void send(UUID id) {
-        polls.send(id, viewer());
+        polls.send(id, caller());
     }
 
     public void vote(UUID id, Set<LocalDate> days) {
@@ -174,18 +207,35 @@ public class PollPresenter {
     }
 
     public void acceptProposal(UUID id, LocalDate day) {
-        polls.acceptProposal(id, viewer(), day);
+        polls.acceptProposal(id, caller(), day);
     }
 
     public void lock(UUID id, LocalDate day) {
-        polls.lock(id, viewer(), day);
+        polls.lock(id, caller(), day);
     }
 
     public Optional<Ballot> ballotOf(UUID id) {
         return poll(id).flatMap(poll -> poll.ballotOf(viewer()));
     }
 
+    /**
+     * Whether this viewer may change the poll — which is being the person who called
+     * it, or in anonymous mode holding its six digits. It mirrors what
+     * {@code PollService.requireOrganizer} decides, and mirroring is all it does: the
+     * screens hide what is not yours as a courtesy, and the service is the check.
+     */
     public boolean isOrganizer(Poll poll) {
-        return poll.organizer().equals(viewer());
+        return poll.organizer().equals(viewer()) || holdsAdminCodeFor(poll);
+    }
+
+    private boolean holdsAdminCodeFor(Poll poll) {
+        return session.adminCode()
+                .filter(code -> polls.adminCodeOf(poll.id()).filter(code::equals).isPresent())
+                .isPresent();
+    }
+
+    /** The six digits that get somebody back to this poll, for the screen that shows them. */
+    public Optional<String> adminCode(UUID id) {
+        return polls.adminCodeOf(id);
     }
 }

@@ -18,4 +18,15 @@ public final class Counts {
     public static String progress(Component owner, int answered, int invited) {
         return owner.getTranslation("count.progress", answered, invited);
     }
+
+    /**
+     * The same figure without a denominator, for a poll anybody with the link may
+     * answer. There is no invited list to be out of there — the number below the
+     * fraction would be whoever happened to have joined so far, which says nothing
+     * about how many answers are still coming.
+     */
+    public static String progress(Component owner, int answered, int invited, boolean anonymous) {
+        return anonymous ? owner.getTranslation("count.answered", answered)
+                : progress(owner, answered, invited);
+    }
 }
