@@ -753,6 +753,26 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(currentView()).isInstanceOf(NotFoundView.class);
     }
 
+    /**
+     * A link somebody saved, after retention deleted the poll it points at. Word for word
+     * the screen an id nobody issued gets — which is the whole of what the sweep asks of
+     * the views, and why it needed none of them changed.
+     */
+    @Test
+    @DisplayName("sends a link to a swept poll to the same screen as a link to no poll")
+    void sweptPoll() {
+        clock.advanceDays(40);
+        assertThat(context.getBean(PollService.class).deleteExpiredPolls()).isEqualTo(1);
+
+        navigateToPoll(ResultsView.class, offsite);
+        var swept = textOf(currentView());
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+
+        navigateToPoll(ResultsView.class, UUID.randomUUID());
+
+        assertThat(swept).isEqualTo(textOf(currentView()));
+    }
+
     @Test
     @DisplayName("signing in as somebody who was not invited is the same as no poll at all")
     void aStrangerCannotTellThePollExists() {

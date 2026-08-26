@@ -1,5 +1,6 @@
 package io.binarycodes.whichday.people.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,11 @@ interface AccountRepository extends JpaRepository<StoredAccount, String> {
      * answer twice.
      */
     List<StoredAccount> findAllByOrderByEmailAsc();
+
+    /**
+     * Accounts minted for a session that are old enough to be swept. Which of them are
+     * still spoken for is not a question this table can answer — a poll refers to an
+     * address, never to an account row — so the directory decides that part.
+     */
+    List<StoredAccount> findByEmailEndingWithAndCreatedAtBefore(String domain, Instant cutoff);
 }

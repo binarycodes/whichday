@@ -218,6 +218,29 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
     }
 
     /**
+     * Retention takes an anonymous poll like any other, and the six digits that let
+     * somebody change one are worth nothing once there is nothing left to change. The
+     * saved link lands where a link nobody issued lands.
+     */
+    @Test
+    @DisplayName("leaves a swept poll's code and link worth nothing")
+    void aSweptPollIsGoneForTheCodeHolderToo() {
+        var poll = pollCalledBy("Ada", "Q3 offsite");
+        var code = presenter().adminCode(poll).orElseThrow();
+        var day = onlyDayOf(poll);
+
+        clock.advanceDays(40);
+        assertThat(context.getBean(PollService.class).deleteExpiredPolls()).isEqualTo(1);
+
+        var holder = visitor("Miro", code);
+        assertThat(holder.poll(poll)).isEmpty();
+        assertThatThrownBy(() -> holder.lock(poll, day)).isInstanceOf(IllegalArgumentException.class);
+
+        navigateTo(ResultsView.class, poll);
+        assertThat(currentView()).isInstanceOf(NotFoundView.class);
+    }
+
+    /**
      * The standings header stacked avatars, and an initial identifies nobody here for
      * the same reason it identifies nobody on the ballot.
      */

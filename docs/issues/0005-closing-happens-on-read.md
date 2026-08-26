@@ -18,6 +18,14 @@ Anything that has to happen when voting ends needs a trigger rather than a
 comparison: telling the organizer the poll is theirs to settle, mailing the team the
 result, or auto-locking the leading day. There is nowhere to put any of that.
 
+## What has changed since
+
+The scheduling itself is no longer missing. Retention added `@EnableScheduling` and a
+sweep that runs on a fixed delay (`RetentionSweep`, `PollService.deleteExpiredPolls`), so
+there is now a place for anything that has to happen because time passed rather than
+because somebody looked. What is still missing is anything to *do* at the moment a poll
+closes, which is the half below.
+
 ## What fixing it looks like
 
 A scheduled sweep over open polls whose closing date has passed, doing whatever the

@@ -1,10 +1,7 @@
 package io.binarycodes.whichday.people.ui.presenter;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -13,6 +10,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 
+import io.binarycodes.whichday.people.domain.AnonymousAddress;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 
@@ -31,15 +29,6 @@ import io.binarycodes.whichday.people.service.AccountDirectory;
 @VaadinSessionScope
 @ConditionalOnProperty(name = "whichday.access.mode", havingValue = "anonymous")
 public class AnonymousViewerSession implements ViewerSession {
-
-    /**
-     * The domain the minted addresses sit under. Not a domain anybody can receive mail
-     * at, and not one anybody could register either — which is the point: an address
-     * here identifies a session and promises nothing else.
-     */
-    private static final String DOMAIN = "@whichday.anonymous";
-
-    private static final DateTimeFormatter MINTED_AT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
 
     private final Clock clock;
     private final AccountDirectory directory;
@@ -91,16 +80,8 @@ public class AnonymousViewerSession implements ViewerSession {
     @Override
     public void identify(String name, String adminCode) {
         this.adminCode = adminCode == null ? "" : adminCode.trim();
-        viewer = Person.signedIn(viewer == null ? mintedAddress() : viewer.email(), name);
+        viewer = Person.signedIn(
+                viewer == null ? AnonymousAddress.mintedAt(clock) : viewer.email(), name);
         directory.remember(viewer);
-    }
-
-    /**
-     * A UUID for uniqueness and the moment for legibility: an address that turns up in
-     * a database row or a log line says when the session behind it started, which is
-     * the only thing anybody can usefully know about it.
-     */
-    private String mintedAddress() {
-        return UUID.randomUUID() + "-" + MINTED_AT.format(LocalDateTime.now(clock)) + DOMAIN;
     }
 }

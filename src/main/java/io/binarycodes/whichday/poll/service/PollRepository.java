@@ -1,5 +1,7 @@
 package io.binarycodes.whichday.poll.service;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,6 +66,39 @@ interface PollRepository extends JpaRepository<StoredPoll, UUID> {
 
     @Query(VISIBLE_TO + " and poll.lockedDay is not null")
     List<StoredPoll> findSettledVisibleTo(@Param("email") String email, Sort sort);
+
+    /**
+     * Polls with a date behind them, for the retention sweep. Narrowed on the dates
+     * alone — which of these have actually ended, and which of a poll's two dates is
+     * the one that ended it, is {@code stateOf}'s to say rather than JPQL's.
+     *
+     * <p>No visibility arm, because a sweep has nobody to be visible to.
+     */
+    @Query("""
+           select poll from StoredPoll poll
+           where poll.closesOn < :cutoff or poll.lockedDay < :cutoff
+           """)
+    List<StoredPoll> findEndedBefore(@Param("cutoff") LocalDate cutoff);
+
+    /**
+     * Every poll made before an instant, whatever state it is in. The ceiling reaches
+     * drafts and open polls too, so this one carries no predicate but the age.
+     */
+    List<StoredPoll> findByCreatedAtBefore(Instant cutoff);
+
+    /**
+     * The three ways a poll refers to a person, for the sweep that drops accounts nothing
+     * refers to any more. Addresses rather than accounts, because a poll stores addresses
+     * and some of them never had an account behind them.
+     */
+    @Query("select poll.organizerEmail from StoredPoll poll")
+    List<String> organizerAddresses();
+
+    @Query("select invitee from StoredPoll poll join poll.inviteeEmails invitee")
+    List<String> inviteeAddresses();
+
+    @Query("select ballot.voterEmail from StoredBallot ballot")
+    List<String> voterAddresses();
 
     /** Drafts are the organizer's alone, so this needs no invitee arm. */
     List<StoredPoll> findByOrganizerEmailAndLockedDayIsNull(String organizerEmail, Sort sort);
