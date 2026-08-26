@@ -13,6 +13,7 @@ import io.binarycodes.whichday.base.ui.Chip;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.ui.AvatarStack;
+import io.binarycodes.whichday.people.ui.NameChips;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
@@ -26,6 +27,13 @@ import io.binarycodes.whichday.poll.ui.share.MailLink;
 @PermitAll
 @Route("poll/:id/locked")
 public class LockedView extends PollScreen {
+
+    /**
+     * How many of the people coming this screen names before the rest become a count.
+     * The same six the ballot rows use — there is room here, and this is the one screen
+     * anybody keeps.
+     */
+    private static final int NAMED_ANSWERS = 6;
 
     public LockedView(PollPresenter presenter) {
         super(presenter);
@@ -48,27 +56,49 @@ public class LockedView extends PollScreen {
         number.addClassName("locked-number");
         var month = new Div(new Span(DateText.monthFull(this, day) + " " + DateText.year(day)));
         month.addClassName("locked-month");
-        var summary = new Div(new Span(getTranslation("locked.summary",
-                poll.title(), yesCount(poll), poll.inviteCount())));
+        var summary = new Div(new Span(presenter.anonymous()
+                ? getTranslation("locked.summary.anonymous", poll.title(), yesCount(poll))
+                : getTranslation("locked.summary", poll.title(), yesCount(poll), poll.inviteCount())));
         summary.addClassName("locked-summary");
         var date = new Div(weekday, number, month, summary);
         date.addClassName("locked-date");
         body(date);
 
-        var stack = new AvatarStack().large().show(poll.answered());
-        stack.addClassName("push-3xl");
-        body(stack);
+        body(whoSaidYes(poll));
 
         var addToCalendar = new Anchor(CalendarInvite.forLockedDay(poll), "");
         addToCalendar.getElement().setAttribute("download", true);
         addToCalendar.add(new Icon(VaadinIcon.CALENDAR), new Span(getTranslation("locked.addToCalendar")));
         addToCalendar.addClassNames("action", "action-primary", "action-anchor");
 
+        // Telling the team is a mail to the addresses on the poll, and anonymous mode
+        // has none — the day itself is still the thing to take away, so the calendar
+        // file stays.
+        if (presenter.anonymous()) {
+            footer(addToCalendar);
+            return;
+        }
         var tell = new Anchor(MailLink.announcement(this, poll, DateText.full(this, day)), "");
         tell.add(new Span(getTranslation("locked.tellTeam")));
         tell.addClassNames("action", "action-outline", "action-anchor");
 
         footer(addToCalendar, tell);
+    }
+
+    /**
+     * Who is coming. Faces where an account's initials mean something, names where they
+     * do not — a visitor typed theirs minutes before answering, so "W" is as likely to
+     * be a stranger as the colleague you expected.
+     */
+    private Div whoSaidYes(Poll poll) {
+        if (presenter.anonymous()) {
+            var names = NameChips.of(this, poll.answered(), NAMED_ANSWERS);
+            names.addClassNames("locked-names", "push-3xl");
+            return names;
+        }
+        var stack = new AvatarStack().large().show(poll.answered());
+        stack.addClassName("push-3xl");
+        return stack;
     }
 
     /** How many said yes to the day that won, not how many answered at all. */

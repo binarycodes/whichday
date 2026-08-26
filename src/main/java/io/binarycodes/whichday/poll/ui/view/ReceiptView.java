@@ -86,7 +86,7 @@ public class ReceiptView extends PollScreen {
 
     private Div standingsHeader(Poll poll) {
         var title = Typography.fieldLabel(getTranslation("receipt.standings"));
-        var progress = new LiveBadge(Counts.progress(this, poll.answerCount(), poll.inviteCount()));
+        var progress = new LiveBadge(Counts.progress(this, poll.answerCount(), poll.inviteCount(), presenter.anonymous()));
         var header = new Div(title, progress);
         header.addClassNames("row-between", "divider-bottom", "push-3xl");
         return header;

@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
+import io.binarycodes.whichday.poll.domain.Caller;
 import io.binarycodes.whichday.poll.service.PollService;
 
 /**
@@ -59,8 +60,8 @@ public final class Sample {
                 monday.plusDays(8), monday.plusDays(9));
 
         var id = service.create("Q3 team offsite", ADA, TEAM);
-        service.replaceCandidateDays(id, ADA, days);
-        service.send(id, ADA);
+        service.replaceCandidateDays(id, Caller.of(ADA), days);
+        service.send(id, Caller.of(ADA));
         service.castVote(id, ADA, Set.of(days.get(2), days.get(3)));
         service.castVote(id, MIRO, Set.of(days.get(0), days.get(2)));
         service.castVote(id, SARA, Set.of(days.get(0), days.get(2), days.get(3)));
@@ -74,9 +75,9 @@ public final class Sample {
     public static UUID unanswered(PollService service, Clock clock) {
         var monday = mondayAfterNext(LocalDate.now(clock)).plusWeeks(3);
         var id = service.create("Design review week", MIRO, TEAM);
-        service.replaceCandidateDays(id, MIRO,
+        service.replaceCandidateDays(id, Caller.of(MIRO),
                 List.of(monday, monday.plusDays(1), monday.plusDays(2), monday.plusDays(4)));
-        service.send(id, MIRO);
+        service.send(id, Caller.of(MIRO));
         return id;
     }
 
@@ -84,10 +85,10 @@ public final class Sample {
     public static UUID settled(PollService service, Clock clock) {
         var day = mondayAfterNext(LocalDate.now(clock)).plusWeeks(1);
         var id = service.create("Sprint 14 retro", ADA, TEAM);
-        service.replaceCandidateDays(id, ADA, List.of(day));
-        service.send(id, ADA);
+        service.replaceCandidateDays(id, Caller.of(ADA), List.of(day));
+        service.send(id, Caller.of(ADA));
         TEAM.forEach(person -> service.castVote(id, person, Set.of(day)));
-        service.lock(id, ADA, day);
+        service.lock(id, Caller.of(ADA), day);
         return id;
     }
 

@@ -8,12 +8,13 @@ import java.util.Set;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
+import io.binarycodes.whichday.people.ui.AccountLabels;
 import io.binarycodes.whichday.people.ui.AccountMenu;
 import io.binarycodes.whichday.poll.domain.DayTally;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -62,6 +63,9 @@ public class BallotView extends PollScreen {
         body(headline, lede);
 
         var ballot = new DayBallot(presenter.today());
+        if (presenter.anonymous()) {
+            ballot.withVoterNames();
+        }
         ballot.addClassNames("ballot-field", "push-xl");
         ballot.setNoteText(this::noteFor);
         ballot.setTallies(poll.tallies());
@@ -85,7 +89,9 @@ public class BallotView extends PollScreen {
     private Div invitation(Poll poll) {
         var text = Typography.meta(getTranslation("ballot.invitedBy",
                 poll.organizer().firstName(), poll.title()));
-        var account = new AccountMenu(presenter.viewer(), presenter::signOut);
+        var account = new AccountMenu(presenter.viewer(),
+                AccountLabels.of(this, presenter.viewer(), presenter.anonymous()),
+                presenter::signOut);
         var row = new Div(homeButton(), text, account);
         row.addClassName("invitation");
         return row;
@@ -116,11 +122,11 @@ public class BallotView extends PollScreen {
 
     private void submit(Poll poll) {
         if (chosen.isEmpty()) {
-            Notification.show(getTranslation("ballot.needOne"));
+            Toast.show(getTranslation("ballot.needOne"));
             return;
         }
         presenter.vote(id(), Set.copyOf(chosen));
-        Notification.show(getTranslation("ballot.submitted"));
+        Toast.show(getTranslation("ballot.submitted"));
         // The organizer came from the standings and wants them back; everybody else
         // wants the receipt for the answer they just gave.
         goTo(presenter.isOrganizer(poll) ? ResultsView.class : ReceiptView.class);

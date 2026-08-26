@@ -10,7 +10,6 @@ import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -21,7 +20,9 @@ import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.base.ui.Actions;
 import io.binarycodes.whichday.base.ui.HintBar;
+import io.binarycodes.whichday.base.ui.Home;
 import io.binarycodes.whichday.base.ui.Screen;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.domain.EmailAddress;
@@ -62,9 +63,18 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
      * Built on navigation rather than in the constructor: Vaadin reuses a view instance
      * when the route it is asked for is the one already showing, so a constructor-only
      * build leaves whatever it drew the first time.
+     *
+     * <p>Anonymous mode has no directory to search and nobody to invite into one, so
+     * the screen is not part of that mode and the URL leads home instead. Nothing
+     * navigates here — the field that did is not drawn — and this is for whoever typed
+     * the path anyway.
      */
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        if (presenter.anonymous()) {
+            event.forwardTo(Home.viewFor(presenter));
+            return;
+        }
         render();
     }
 
@@ -129,7 +139,7 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
         }
         query.setValue(leftovers.toString());
         if (accepted > 0) {
-            Notification.show(accepted == 1
+            Toast.show(accepted == 1
                     ? getTranslation("invitees.pasted.one")
                     : getTranslation("invitees.pasted.many", accepted));
         }

@@ -6,11 +6,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
@@ -19,10 +19,12 @@ import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.HintBar;
 import io.binarycodes.whichday.base.ui.LiveBadge;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.AvatarStack;
+import io.binarycodes.whichday.people.ui.NameChips;
 import io.binarycodes.whichday.people.ui.WaitingChip;
 import io.binarycodes.whichday.poll.domain.Ballot;
 import io.binarycodes.whichday.poll.domain.DayTally;
@@ -43,6 +45,12 @@ import io.binarycodes.whichday.poll.ui.share.VotingLink;
 public class ResultsView extends PollScreen {
 
     private static final int VISIBLE_WAITING = 4;
+
+    /**
+     * How many answers the header names before the rest become a count. Fewer than the
+     * ballot's six: this row sits beside the headline figure and has less to give.
+     */
+    private static final int ANSWERED_NAMES = 4;
 
     public ResultsView(PollPresenter presenter) {
         super(presenter);
@@ -72,7 +80,7 @@ public class ResultsView extends PollScreen {
                 .withLeading(homeButton())
                 .withTrailing(Typography.meta(getTranslation("results.sentAgo", sentAgo(poll)))));
 
-        var count = Typography.stat(Counts.progress(this, 0, poll.inviteCount()));
+        var count = Typography.stat(Counts.progress(this, 0, poll.inviteCount(), presenter.anonymous()));
         count.addClassName("stat-empty");
         var caption = Typography.meta(getTranslation("results.haveVoted"));
         var block = new Div(count, new Div(caption));
@@ -83,13 +91,20 @@ public class ResultsView extends PollScreen {
         days.addClassName("push-xl");
         body(days);
 
-        body(waitingSection(poll));
+        if (!presenter.anonymous()) {
+            body(waitingSection(poll));
+        }
         // A poll nobody has answered includes the organizer, and this is where they
         // most need the way in.
         body(ownAnswer(poll));
 
-        var reminder = new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder"));
-        footer(reminder, shareLink(poll));
+        // Both of those promise a message. Anonymous mode has nobody's address and no
+        // way to reach anybody, so the only thing it can offer is the link again.
+        if (presenter.anonymous()) {
+            footer(shareLink(poll));
+            return;
+        }
+        footer(new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder")), shareLink(poll));
     }
 
     private void buildStandings(Poll poll) {
@@ -100,11 +115,15 @@ public class ResultsView extends PollScreen {
                                 DateText.closing(this, poll.closesOn())))
                         : new LiveBadge(getTranslation("results.live"))));
 
-        var count = Typography.stat(Counts.progress(this, poll.answerCount(), poll.inviteCount()));
+        var count = Typography.stat(Counts.progress(this, poll.answerCount(), poll.inviteCount(), presenter.anonymous()));
         var caption = Typography.meta(getTranslation("results.haveVoted"));
         var text = new Div(count, new Div(caption));
         text.addClassName("stack-s");
-        var faces = new AvatarStack().show(poll.answered(), poll.awaiting());
+        // Names rather than faces where an initial identifies nobody, and there is no
+        // "awaiting" half to draw either: membership is having answered (REQUIREMENTS §1c).
+        var faces = presenter.anonymous()
+                ? NameChips.of(this, poll.answered(), ANSWERED_NAMES)
+                : new AvatarStack().show(poll.answered(), poll.awaiting());
         var header = new Div(text, faces);
         header.addClassNames("row-between", "row-end", "push-2xl");
         body(header);
@@ -120,16 +139,14 @@ public class ResultsView extends PollScreen {
         if (poll.isOpen()) {
             body(ownAnswer(poll));
             var others = poll.awaitingOthers(presenter.viewer());
-            if (others.size() == 1) {
+            if (others.size() == 1 && !presenter.anonymous()) {
                 body(nudge(others.getFirst()));
             }
             // Settling is the organizer's, so nobody else is shown the button. The
             // service refuses it either way; this is so an invitee is not offered a
             // decision that is not theirs.
             if (presenter.isOrganizer(poll)) {
-                poll.leader().ifPresent(leader ->
-                        footer(Actions.commit(getTranslation("results.lock", DateText.compact(this, leader.day())),
-                                ignored -> lock(leader))));
+                settleSection(poll).ifPresent(this::footer);
             }
         }
     }
@@ -137,8 +154,15 @@ public class ResultsView extends PollScreen {
     /**
      * The leading bar is the only one dark enough to carry text, so it says who is
      * in rather than repeating the number above it.
+     *
+     * <p>It says nothing in anonymous mode. "Everyone" and "everyone but Ada" are both
+     * claims about who was asked, and nobody was asked — the people on the poll are the
+     * people who answered it, so "everyone" would mean "everyone who already said yes".
      */
     private Optional<String> captionFor(Poll poll, DayTally tally) {
+        if (presenter.anonymous()) {
+            return Optional.empty();
+        }
         if (tally.voteCount() == poll.inviteCount()) {
             return Optional.of(getTranslation("results.everyone"));
         }
@@ -148,6 +172,10 @@ public class ResultsView extends PollScreen {
                 : Optional.empty();
     }
 
+    /**
+     * Only ever called in login mode, where the invitee list says who was asked. Nobody
+     * is waited on in anonymous mode because nobody could say who is missing.
+     */
     private Div waitingSection(Poll poll) {
         var chips = new Div();
         chips.addClassNames("chip-row", "push-m");
@@ -219,9 +247,13 @@ public class ResultsView extends PollScreen {
                 : getTranslation("results.yourAnswer.many", ballot.chosenDays().size());
     }
 
+    /**
+     * Login mode only, and its caller says so: a nudge is a message to an address, and
+     * anonymous mode knows nobody's.
+     */
     private HintBar nudge(Person holdout) {
         var send = Actions.inline(getTranslation("results.nudge.action"),
-                ignored -> Notification.show(getTranslation("results.nudged", holdout.firstName())));
+                ignored -> Toast.show(getTranslation("results.nudged", holdout.firstName())));
         var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
                 .outlined().withAction(send);
         bar.addClassName("push-m");
@@ -264,9 +296,32 @@ public class ResultsView extends PollScreen {
         render();
     }
 
-    private void lock(DayTally leader) {
-        presenter.lock(id(), leader.day());
-        goTo(LockedView.class);
+    /**
+     * The way to a decision, not the decision. Locking is final, so it happens on
+     * {@link SettleView} where the screen can say so and be cancelled — never under the
+     * organizer's thumb on a screen they came to read.
+     *
+     * <p>One day in front names it on the button. A shared top is a decision the group
+     * did not make, so this says so and hands the choice on rather than picking the
+     * earliest of the tied days and calling it the winner.
+     */
+    private Optional<Component> settleSection(Poll poll) {
+        var single = poll.leader();
+        if (single.isPresent()) {
+            return Optional.of(Actions.commit(
+                    getTranslation("results.lock", DateText.compact(this, single.get().day())),
+                    ignored -> goTo(SettleView.class)));
+        }
+        var tied = poll.tiedAtTheTop();
+        if (tied.isEmpty()) {
+            return Optional.empty();
+        }
+        var section = new Div(
+                new HintBar(VaadinIcon.SCALE, getTranslation("results.tied", tied.size())),
+                Actions.commit(getTranslation("results.tied.action"),
+                        ignored -> goTo(SettleView.class)));
+        section.addClassName("stack-s");
+        return Optional.of(section);
     }
 
     @Override

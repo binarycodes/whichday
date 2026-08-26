@@ -33,6 +33,15 @@ public class TestDatabase {
         }
     }
 
+    /**
+     * How many rows a table holds. For the assertions that are about a table nothing
+     * above the service package can see — the {@code account} repository is
+     * package-private, and rightly so.
+     */
+    public int rowsIn(String table) {
+        return jdbc.queryForObject("SELECT count(*) FROM " + table, Integer.class);
+    }
+
     private List<String> tableNames() {
         return jdbc.queryForList("""
                 SELECT table_name FROM information_schema.tables

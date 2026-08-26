@@ -77,9 +77,26 @@ public record Poll(UUID id,
         return ballots.stream().filter(Ballot::isDeclined).toList();
     }
 
-    /** The day in front, once anybody has voted for one at all. */
+    /**
+     * The day in front, once anybody has voted for one at all — and only when it is
+     * alone up there. A shared top is not a result, so this is empty and
+     * {@link #tiedAtTheTop()} is what has something to say.
+     */
     public Optional<DayTally> leader() {
         return tallies.stream().filter(DayTally::isLeading).findFirst();
+    }
+
+    /**
+     * The days sharing the highest count, when more than one does. Empty when a single
+     * day leads and empty when nobody has voted, so a caller that finds something here
+     * has found a decision the group did not make and somebody has to.
+     */
+    public List<DayTally> tiedAtTheTop() {
+        if (leader().isPresent() || isUnanswered()) {
+            return List.of();
+        }
+        var top = tallies.stream().mapToInt(DayTally::voteCount).max().orElse(0);
+        return top == 0 ? List.of() : tallies.stream().filter(tally -> tally.voteCount() == top).toList();
     }
 
     /**

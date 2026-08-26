@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ import io.binarycodes.whichday.Sample;
 import io.binarycodes.whichday.TestClock;
 import io.binarycodes.whichday.TestDatabase;
 import io.binarycodes.whichday.WhichdayTest;
+import io.binarycodes.whichday.base.config.AccessMode;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.people.ui.presenter.ViewerSession;
@@ -60,7 +62,7 @@ class PollPresenterTest {
         Sample.signedInBefore(directory);
         offsite = Sample.offsite(polls, clock);
         signedIn = Sample.ADA;
-        presenter = new PollPresenter(polls, invitees, viewerSession(), clock);
+        presenter = new PollPresenter(polls, invitees, viewerSession(), clock, AccessMode.LOGIN);
     }
 
     /** Stands in for the signed-in user, which the application reads from the provider. */
@@ -74,6 +76,21 @@ class PollPresenterTest {
             @Override
             public void signOut() {
                 signedIn = null;
+            }
+
+            @Override
+            public boolean isIdentified() {
+                return signedIn != null;
+            }
+
+            @Override
+            public Optional<String> adminCode() {
+                return Optional.empty();
+            }
+
+            @Override
+            public void identify(String name, String adminCode) {
+                throw new UnsupportedOperationException();
             }
         };
     }

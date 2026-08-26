@@ -12,6 +12,7 @@ import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.base.ui.Actions;
+import io.binarycodes.whichday.base.ui.Home;
 import io.binarycodes.whichday.base.ui.Screen;
 import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
@@ -87,7 +88,7 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
     }
 
     protected void goHome() {
-        getUI().ifPresent(ui -> ui.navigate(PollsView.class));
+        getUI().ifPresent(ui -> ui.navigate(Home.viewFor(presenter)));
     }
 
     /**
@@ -97,7 +98,7 @@ abstract class PollScreen extends Screen implements BeforeEnterObserver, HasDyna
      * on the not-found screen.
      */
     protected Button homeButton() {
-        var home = Actions.icon(VaadinIcon.HOME, getTranslation("nav.home"), ignored -> goHome());
+        var home = Actions.icon(VaadinIcon.HOME, Home.labelFor(this, presenter), ignored -> goHome());
         home.addClassName(Actions.HOME_CLASS);
         return home;
     }

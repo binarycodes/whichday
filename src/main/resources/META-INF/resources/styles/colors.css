@@ -27,7 +27,7 @@ html {
   --color-accent-veil: color-mix(in oklab, var(--aura-accent-color) 10%, transparent);
   --color-accent-hairline: color-mix(in oklab, var(--aura-accent-color) 35%, transparent);
 
-  /* The button the design paints black — "Send to the team", "Lock in Friday 18".
+  /* The button the design paints black — "Send 3 invites", "Lock in Friday 18".
      Solid ink in light; dark mode has no darker paint, so it borrows the ink
      outline and reads as the inverse of the surface instead. */
   --color-commit: light-dark(rgb(11, 11, 11), rgb(240, 241, 244));

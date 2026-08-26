@@ -45,10 +45,12 @@ import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.service.AccountDirectory;
 import io.binarycodes.whichday.people.ui.AccountMenu;
+import io.binarycodes.whichday.people.ui.PersonAvatar;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.domain.PollSummary;
 import io.binarycodes.whichday.poll.service.PollService;
 import io.binarycodes.whichday.poll.ui.component.DayBallot;
+import io.binarycodes.whichday.poll.ui.component.DayChoice;
 import io.binarycodes.whichday.poll.ui.component.DayPoster;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
@@ -398,7 +400,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(offered).noneMatch(day -> day.isBefore(presenter().today()));
 
         calendarField().setValue(Set.of(saturday));
-        click(translation("days.send"));
+        click(translation("days.next"));
 
         assertThat(presenter().poll(id).orElseThrow().candidateDays()).containsExactly(saturday);
     }
@@ -421,6 +423,90 @@ class PollJourneyTest extends SpringBrowserlessTest {
         return month.atDay(1).getDayOfWeek().getValue() <= 5 ? 1 : 3;
     }
 
+    /**
+     * The organizer has to be able to settle a tie, and to settle it on any of the tied
+     * days. The screen used to offer one button for whichever tied day happened to be
+     * earliest, which made the others unreachable and called that one the most popular.
+     */
+    @Test
+    @DisplayName("offers every tied day to lock, rather than picking the earliest")
+    void aTieIsTheOrganizersToBreak() {
+        var id = draftPoll("Roadmap workshop");
+        var monday = Sample.mondayAfterNext(presenter().today());
+        var tuesday = monday.plusDays(1);
+        presenter().chooseDays(id, Set.of(monday, tuesday));
+        presenter().send(id);
+        StubIdentity.signIn(Sample.MIRO);
+        presenter().vote(id, Set.of(monday, tuesday));
+        StubIdentity.signIn(Sample.ADA);
+
+        navigateToPoll(ResultsView.class, id);
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains(translation("results.tied", 2));
+        assertThat(screen).doesNotContain(translation("results.lock", DateText.compact(currentView(), monday)));
+
+        click(translation("results.tied.action"));
+        assertThat(currentView()).isInstanceOf(SettleView.class);
+
+        // Nothing is chosen for the organizer, so confirming without picking asks again.
+        click(translation("settle.confirm"));
+        assertThat(presenter().poll(id).orElseThrow().lockedDay()).isNull();
+
+        dayChoice().setValue(tuesday);
+        click(translation("settle.confirm"));
+
+        assertThat(presenter().poll(id).orElseThrow().lockedDay()).isEqualTo(tuesday);
+        assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    /**
+     * Faces, not names. An account's initials are stable and were settled before the
+     * poll existed, so they identify somebody here — which is what anonymous mode
+     * cannot say, and why {@code AnonymousPollJourneyTest.theBallotNamesItsVoters}
+     * expects the opposite.
+     */
+    @Test
+    @DisplayName("shows a face for whoever voted for a day, not their name")
+    void theBallotShowsFaces() {
+        var id = draftPoll("Roadmap workshop");
+        var monday = Sample.mondayAfterNext(presenter().today());
+        var tuesday = monday.plusDays(1);
+        presenter().chooseDays(id, Set.of(monday, tuesday));
+        presenter().send(id);
+
+        // Faces are for a day that is not in front — the leader gets words instead — so
+        // Tuesday needs a voter and fewer of them than Monday.
+        StubIdentity.signIn(Sample.MIRO);
+        presenter().vote(id, Set.of(monday, tuesday));
+        StubIdentity.signIn(Sample.ADA);
+        presenter().vote(id, Set.of(monday));
+
+        navigateToPoll(BallotView.class, id);
+
+        // The field, not the screen: the header carries the viewer's own avatar either way.
+        assertThat(componentsOf(ballotField()).filter(PersonAvatar.class::isInstance)).isNotEmpty();
+        assertThat(textOf(ballotField())).doesNotContain(Sample.MIRO.firstName());
+    }
+
+    /**
+     * The share screen hands out a link and a way to mail it, and nothing else. It used
+     * to offer the candidate days as a calendar file too — a TENTATIVE entry per maybe,
+     * downloaded before anybody had answered — and that is what this pins as gone. The
+     * settled day still gets one, on the locked screen.
+     */
+    @Test
+    @DisplayName("offers the link and a message, and no calendar file for days nobody has picked")
+    void theShareScreenOffersNoCalendarFile() {
+        var id = openPoll("Roadmap workshop");
+        navigateToPoll(ShareView.class, id);
+
+        var screen = textOf(currentView());
+
+        assertThat(screen).contains(translation("share.message"));
+        assertThat(screen).doesNotContain("Calendar");
+    }
+
     @Test
     @DisplayName("choosing days on the calendar and sending opens the poll")
     void choosingDaysAndSending() {
@@ -429,7 +515,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         var monday = Sample.mondayAfterNext(presenter().today());
 
         calendarField().setValue(Set.of(monday));
-        click("Send to the team");
+        click(translation("days.next"));
 
         assertThat(currentView()).isInstanceOf(ShareView.class);
         assertThat(presenter().poll(id).orElseThrow().candidateDays()).containsExactly(monday);
@@ -446,7 +532,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         var id = draftPoll("Roadmap workshop");
         navigateToPoll(CandidateDaysView.class, id);
 
-        click("Send to the team");
+        click(translation("days.next"));
 
         assertThat(currentView()).isInstanceOf(CandidateDaysView.class);
         assertThat(presenter().poll(id).orElseThrow().candidateDays()).isEmpty();
@@ -580,16 +666,50 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(presenter().poll(offsite).orElseThrow().candidateDays()).contains(proposed);
     }
 
+    /**
+     * Two taps, on purpose. Locking is final, so the standings only lead to the screen
+     * that says so — nothing is settled by the button the organizer came to read past.
+     */
     @Test
-    @DisplayName("locking from the results screen hands over to the locked date")
+    @DisplayName("locking goes through the settle screen and hands over to the locked date")
     void lockingFromTheResults() {
         navigateToPoll(ResultsView.class, offsite);
         var leader = presenter().poll(offsite).orElseThrow().leader().orElseThrow().day();
 
         clickStartingWith("Lock in");
 
+        assertThat(currentView()).isInstanceOf(SettleView.class);
+        assertThat(presenter().poll(offsite).orElseThrow().lockedDay()).isNull();
+        assertThat(textOf(currentView())).contains(translation("settle.warning"));
+
+        click(translation("settle.confirm"));
+
         assertThat(presenter().poll(offsite).orElseThrow().lockedDay()).isEqualTo(leader);
         assertThat(currentView()).isInstanceOf(LockedView.class);
+    }
+
+    @Test
+    @DisplayName("cancelling the settle screen leaves the poll open")
+    void cancellingLeavesThePollOpen() {
+        navigateToPoll(ResultsView.class, offsite);
+        clickStartingWith("Lock in");
+
+        click(translation("settle.cancel"));
+
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
+        assertThat(presenter().poll(offsite).orElseThrow().lockedDay()).isNull();
+        assertThat(presenter().poll(offsite).orElseThrow().isOpen()).isTrue();
+    }
+
+    /** The screen settles polls; a link to it for somebody else's is not a way in. */
+    @Test
+    @DisplayName("turns an invitee away from the settle screen")
+    void onlyTheOrganizerMaySettle() {
+        StubIdentity.signIn(Sample.MIRO);
+
+        navigateToPoll(SettleView.class, offsite);
+
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
     }
 
     @Test
@@ -875,6 +995,15 @@ class PollJourneyTest extends SpringBrowserlessTest {
         return proposalCalendar();
     }
 
+    private DayChoice dayChoice() {
+        return componentsOf(currentView())
+                .filter(DayChoice.class::isInstance)
+                .map(DayChoice.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No day choice on "
+                        + currentView().getClass().getSimpleName()));
+    }
+
     private DayBallot ballotField() {
         return componentsOf(currentView())
                 .filter(DayBallot.class::isInstance)
@@ -927,8 +1056,8 @@ class PollJourneyTest extends SpringBrowserlessTest {
         ComponentUtil.fireEvent(home, new ClickEvent<>(home));
     }
 
-    private String translation(String key) {
-        return UI.getCurrent().getTranslation(key);
+    private String translation(String key, Object... arguments) {
+        return UI.getCurrent().getTranslation(key, arguments);
     }
 
     private Button buttonLabelled(String label) {

@@ -24,19 +24,23 @@ class CalendarInviteTest {
     @Test
     @DisplayName("ends an all-day event on the following date, because iCalendar's end is exclusive")
     void allDayEventsAreExclusiveAtTheEnd() {
-        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY), false);
+        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY));
 
         assertThat(ics).contains("DTSTART;VALUE=DATE:20260907")
                 .contains("DTEND;VALUE=DATE:20260908")
                 .contains("STATUS:CONFIRMED");
     }
 
+    /**
+     * Only a settled day is ever offered, so there is no TENTATIVE case left to cover.
+     * The multi-day shape stays exercised because the writer still loops.
+     */
     @Test
-    @DisplayName("marks days that are only on the table as tentative, one event each")
-    void candidateDaysAreTentative() {
-        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY, FRIDAY), true);
+    @DisplayName("wraps one event per day in a single calendar")
+    void eachDayIsItsOwnEvent() {
+        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY, FRIDAY));
 
-        assertThat(ics).contains("STATUS:TENTATIVE");
+        assertThat(ics).doesNotContain("STATUS:TENTATIVE");
         assertThat(ics.split("BEGIN:VEVENT", -1)).hasSize(3);
         assertThat(ics).startsWith("BEGIN:VCALENDAR").endsWith("END:VCALENDAR\r\n");
     }
@@ -44,7 +48,7 @@ class CalendarInviteTest {
     @Test
     @DisplayName("gives every event its own identifier, so two do not collapse into one")
     void eventsAreDistinct() {
-        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY, FRIDAY), true);
+        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY, FRIDAY));
 
         assertThat(ics).contains("UID:" + OFFSITE + "-0@whichday")
                 .contains("UID:" + OFFSITE + "-1@whichday");
@@ -53,7 +57,7 @@ class CalendarInviteTest {
     @Test
     @DisplayName("escapes the characters iCalendar reads as structure")
     void escapesTheTitle() {
-        var ics = CalendarInvite.calendar(poll("Lunch, drinks; maybe \\ both"), List.of(MONDAY), false);
+        var ics = CalendarInvite.calendar(poll("Lunch, drinks; maybe \\ both"), List.of(MONDAY));
 
         assertThat(ics).contains("SUMMARY:Lunch\\, drinks\\; maybe \\\\ both");
     }
@@ -61,7 +65,7 @@ class CalendarInviteTest {
     @Test
     @DisplayName("folds every line the way the format requires")
     void usesCarriageReturns() {
-        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY), false);
+        var ics = CalendarInvite.calendar(poll("Q3 team offsite"), List.of(MONDAY));
 
         assertThat(ics.lines()).allSatisfy(line -> assertThat(line).doesNotContain("\r"));
         assertThat(ics).doesNotContain("\n\n");

@@ -85,3 +85,17 @@
 .team-picker .person-row {
   --vaadin-avatar-size: 2rem;
 }
+
+/* Anonymous mode's admin code, which sits where the voting link sits and is read
+   the same way — off a screen, out loud, into somebody's notes. Tabular figures and
+   the wide tracking are what make six digits legible at a glance; the monospace
+   stack is the fallback for a face without them. */
+.admin-code {
+  font-family: var(--vaadin-font-family-monospace, ui-monospace, monospace);
+  font-feature-settings: "tnum";
+  font-size: 1.75rem;
+  font-weight: var(--aura-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0.18em;
+  color: var(--color-ink);
+}

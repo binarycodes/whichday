@@ -9,7 +9,6 @@ import java.util.Set;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
@@ -18,6 +17,7 @@ import io.binarycodes.whichday.base.ui.Chip;
 import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.HintBar;
+import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.poll.domain.Poll;
@@ -80,7 +80,7 @@ public class CandidateDaysView extends PollScreen {
         summary.addClassNames("row-between", "divider-top");
         chips.addClassNames("chip-row", "push-m");
         footer(summary, chips, alternativesToggle(poll),
-                Actions.commit(getTranslation("days.send"), ignored -> send()));
+                Actions.commit(getTranslation("days.next"), ignored -> goOn()));
         renderChosen();
     }
 
@@ -117,9 +117,13 @@ public class CandidateDaysView extends PollScreen {
         render();
     }
 
-    private void send() {
+    /**
+     * Saves the days and opens the share screen, which is all it does — nothing is sent
+     * anywhere from here in either mode, and the label says so.
+     */
+    private void goOn() {
         if (chosen.isEmpty()) {
-            Notification.show(getTranslation("days.needOne"));
+            Toast.show(getTranslation("days.needOne"));
             return;
         }
         presenter.chooseDays(id(), Set.copyOf(chosen));

@@ -13,7 +13,27 @@ poll shared by everybody who was asked. Mobile first.
 
 ---
 
-## 1. Signing in is the only way in
+## 1. Two ways in, chosen at deploy time
+
+`WHICHDAY_ACCESS_MODE` picks one, once. It is `anonymous` unless a deployment says
+otherwise, because that is the mode that needs nothing configured: the image runs, the
+link works, and a deployment that wants accounts opts into them.
+
+The variable names a Spring profile outright, so `application-login.properties` and
+`application-anonymous.properties` are where each mode's configuration lives and
+nothing maps one to the other. Each of those files sets `whichday.access.mode`, and
+that property — not `@Profile` — is what the code branches on, so a test composing
+`@ActiveProfiles` cannot end up with both modes' beans or neither. An unknown value is
+a startup failure naming both.
+
+**The OIDC block had to move out of `application.properties`, and that is
+load-bearing.** Boot resolves an issuer by fetching its discovery document as the
+context starts, so an anonymous deployment that inherited `issuer-uri` would hang on a
+provider it has no reason to reach. Blanking the key is not the same thing — that fails
+as "issuer cannot be empty". The key has to be genuinely absent, which is the same
+lesson `src/test/resources/application-test.properties` already records.
+
+### 1a. Login mode: signing in is the only way in
 
 OIDC, and nothing else. There is no login view — `oauth2LoginPage` points straight at
 the registration, so an unauthenticated request redirects to the provider rather than
@@ -45,6 +65,73 @@ An account whose provider withholds an email falls back to the OIDC subject, whi
 stable. Such a person can create polls; they cannot be invited to anybody else's,
 because a subject is not something an organizer can type into an invite field.
 
+### 1b. Anonymous mode: a name, and the link
+
+There is no provider, so there is nobody to send anybody to. `AnonymousSecurityConfig`
+turns Vaadin's navigation access control **off** rather than changing every route to
+`@AnonymousAllowed`: Vaadin reads `@PermitAll` as *authenticated*, and nobody is, so
+leaving the checker on would refuse every screen. Turning it off leaves the annotations
+meaning what they mean in login mode, where they are still consulted. With the checker
+off, Vaadin's request rules can no longer classify a URL by which view it reaches, so
+the `permitAll` is stated in an explicit `authorizeHttpRequests` and the configurer is
+told not to add one — otherwise every navigation logs that it could not tell whether
+the URL was public.
+
+**A name is the whole of identity.** `IdentityGuard` stands in front of every route,
+the shared voting link included, and forwards to `/who` — remembering where the browser
+was going, because a guard that dropped the destination would turn every shared link
+into a trip to the create screen. The screen asks two things: a name, and optionally the
+six digits that say you called the poll you are heading for.
+
+**The address is minted, never typed.** `<uuid>-<yyyyMMdd'T'HHmmss>@whichday.anonymous`,
+once per session, from the injected `Clock`. An address anybody could type is an address
+anybody could type twice, and every poll, ballot and invitee row the session writes is
+keyed on it — so a second one would make the same person a stranger to their own
+answers. The timestamp is for reading a database row or a log line; the UUID is what
+tells two people apart.
+
+**The name goes into the `account` table**, which is not a claim that anybody
+authenticated. It is the one place a name lives — a poll stores nothing but addresses
+(§10) — so skipping the write means every screen reads the minted address back out
+wherever a name belongs, including on other people's ballots. What the table holds in
+this mode is a session's chosen name, and nothing reads it beyond rendering: the invitee
+search is its only other reader and that screen is not part of this mode. The rows are
+written when somebody says who they are rather than when they do anything, so they
+accumulate with visitors and nothing removes them —
+[`issues/0019-anonymous-names-accumulate-forever.md`](issues/0019-anonymous-names-accumulate-forever.md).
+
+**Identity does not outlive the session.** Close the tab and you are a new person. That
+is the cost of having no accounts, and the admin code is what buys the organizer a way
+back; everyone else simply votes again under a new name, which is Doodle's behaviour
+too.
+
+### 1c. What anonymous mode does not have
+
+Not omissions — things it cannot honestly offer.
+
+- **No polls list.** Nothing outlives the session, so there is nothing to list. `/` is
+  where a poll starts, and `PollsView` hands straight over rather than being
+  unregistered, so every existing way home keeps working and `/` means something in
+  both modes.
+- **No invitees.** There is no directory to search and no address to invite anybody at.
+  The create screen is a title and a button; `/new/invitees` leads home.
+- **No reminders, no nudges, no "tell the team".** Every one of those promises a
+  message, and there is nobody to send one to.
+- **No "waiting on", and no "everyone but Ada".** Both are claims about who was asked,
+  and nobody was asked. An anonymous poll starts with nobody on it — the organizer
+  included — and membership is having answered; see §2's anonymous rules.
+- **No denominator.** "3 of 5" needs an invited list. The screens read "3" instead.
+- **No faces.** An avatar is initials, and initials identify somebody only when the
+  names behind them were settled in advance. A visitor types their own name minutes
+  before answering, so one letter is as likely to be a stranger's as a colleague's. The
+  three screens that show other people name them instead — `NameChips` on the ballot
+  rows, the standings header and the locked date, six deep on the first and last and
+  four on the header, with the tail as a count. Login mode keeps the avatars, where an
+  account's initials were settled long before the poll and do identify somebody.
+
+  The one avatar anonymous mode keeps is `AccountMenu`, top right — that one is *your*
+  initials, and you know who you are. Tapping it says the name back in full.
+
 ---
 
 ## 2. Who may see a poll, and who may change it
@@ -64,6 +151,38 @@ to be the person who called it — and nothing changes at all once voting is ove
 
 Enforced in `PollService`, never on the screens. The screens do hide what is not
 yours, and that is a courtesy; a hidden button is not a check.
+
+### The same three permissions in anonymous mode
+
+The table above is login mode's. Anonymous mode has no invitations to check, so the
+link stands in for one, and `PollService` branches in exactly three places — all of
+them there, all of them marked, and nothing else in the application knows there are two
+modes of access.
+
+| | |
+| --- | --- |
+| `poll(id, viewer)` | anybody holding the id: the link is the credential. A draft stays the organizer's alone — it has been shown to nobody, so nobody has a link |
+| `castVote`, `decline` | anybody holding the id, **and answering is what puts them on the poll** |
+| the eight organizer-gated writes | the address on the poll, or the poll's own six-digit admin code |
+
+**Joining on the answer is not a formality.** The tallies, the avatar stacks and
+`Poll.awaiting` all read the invitee list, so a ballot from somebody off it would be
+counted nowhere. It also means the invitee list *is* the list of people who answered,
+which is why `awaiting` is always empty and the screens say nothing about who is
+missing.
+
+**The code is compared with the poll being changed, never looked up.** So six digits are
+worth nothing without the link they go with, two polls sharing a code means nothing, and
+no unique index is needed. Login-mode polls have no code at all, and the null check is
+what stops an absent one matching an absent one. `Caller` carries it from the presenter
+into the service, so the check stays in `PollService` and the service stays free of
+session state. What is not in front of it is a limit on guesses:
+[`issues/0018-an-admin-code-can-be-guessed.md`](issues/0018-an-admin-code-can-be-guessed.md).
+
+**The refusal has two answers here, not three.** Login mode withholds a poll's existence
+from a stranger, because the refusal itself must not reveal it. Anonymous mode does not:
+anybody who reached the call is holding the link, and the link already showed them the
+poll. Denying its existence to somebody looking at it would only read as a bug.
 
 **The match is on the address.** You sign in with the address you were invited at and
 nothing else works: not another address of yours, not an alias, not a colleague's
@@ -131,8 +250,11 @@ already was:
 
 ## 3. Who a poll goes to
 
-There is no team and no directory. The only way anybody gets onto a poll is the
-organizer typing their email address.
+In anonymous mode, whoever has the link — and that is the whole of it. There is no
+invitee list to be on until somebody answers, and §1c says what follows from that.
+
+The rest of this section is login mode's. There is no team and no directory. The only
+way anybody gets onto a poll is the organizer typing their email address.
 
 `AccountDirectory` has no method that hands a screen everybody. `matching` is the only
 way in and it answers nothing at all below three characters, so nobody is listed until
@@ -315,6 +437,47 @@ of the share screen showed all three faults at once:
 - **The share screen showed the current clock.** A poll not yet sent has no closing
   date and the fallback was `now()`, which is why the note read "Thursday 3:37 PM". A
   minute value in a product with no minutes was the tell.
+
+### A tie is not a result
+
+Days are ordered by count and, where two share one, by date — a list needs a stable
+order. The rank used to be the position in that list, so the earlier of two tied days
+got rank 1, and rank 1 meant *winner* everywhere it was read: the dark bar on the
+standings, "most popular" on every ballot, and the single "Lock in Tue 25" button the
+organizer was given.
+
+All three were the application inventing a result the group had not reached, and the
+last was worse than a wording problem — the other tied days had no affordance at all,
+so an organizer who wanted Wednesday could not choose it.
+
+Now the rank is a **competition rank** (1, 1, 1, 4), so tied days are painted alike;
+their bars were already the same length, and two identical bars in different shades read
+as an order that is not there. And `DayTally.leading` is handed in by the service rather
+than derived from the rank: it is false for every day when the top count is shared,
+because then no day leads. `Poll.leader()` is empty for a tie and `Poll.tiedAtTheTop()`
+is what has something to say.
+
+The organizer settles it, on a screen of its own. Nobody voting at all is not a tie:
+`tiedAtTheTop` is empty, and there is nothing to settle yet.
+
+**Locking gets its own screen, because it cannot be undone.** `/poll/:id/settle` is the
+only way a day is locked. Nothing is final on the standings — a screen the organizer
+came to *read* should not settle the poll on one tap — so the button there leads here
+and this screen says what is about to happen: no more answers, no different day,
+nothing to undo. Cancel goes back and changes nothing.
+
+It is also where a tie is resolved, which is why the choice and the confirmation are one
+screen rather than two. The standings can say three days are level; only a person can
+say which one the team goes with, and `DayChoice` is that question — the voting screen's
+rows, single-select, nothing chosen until somebody chooses. Confirming without a choice
+asks again rather than guessing.
+
+It is the organizer's and only while the poll is open, the same rule the button that
+leads here follows. Anybody else who follows the URL lands on the standings.
+
+A consequence worth naming: a tied poll has no headline day, so the list screen shows it
+as "3 days on the table" rather than putting one of the tied dates in the numeral. That
+is the same honesty one screen further out.
 
 ### Closing has to mean something
 
@@ -610,6 +773,14 @@ the browser hands to whatever the reader actually uses, and "Add to calendar" is
 generated iCalendar file — all-day events, since the whole product is whole days. Both
 are anchors wearing the button's clothes. "Copy" uses the clipboard API and says so when
 it works.
+
+**But only the settled day gets a calendar file.** The share screen offered one too, as
+TENTATIVE events for every day on the table. That is a calendar entry per maybe, put
+there before anybody has answered and left for the reader to delete once the poll picks
+one of them — so the days on the table are days on the table, and only "Add to calendar"
+on the locked screen writes anything a reader wants to keep. Message is login mode's
+alone for a different reason: its copy tells the reader which address to sign in with,
+and anonymous mode has neither.
 
 ### Added
 
