@@ -139,7 +139,7 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
         }
         query.setValue(leftovers.toString());
         if (accepted > 0) {
-            Toast.show(accepted == 1
+            Toast.success(accepted == 1
                     ? getTranslation("invitees.pasted.one")
                     : getTranslation("invitees.pasted.many", accepted));
         }

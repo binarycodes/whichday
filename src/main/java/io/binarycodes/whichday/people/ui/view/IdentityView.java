@@ -136,13 +136,13 @@ public class IdentityView extends Screen implements BeforeEnterObserver, HasDyna
 
     private void identify() {
         if (name.getValue().isBlank()) {
-            Toast.show(getTranslation("identity.name.required"));
+            Toast.error(getTranslation("identity.name.required"));
             return;
         }
         // Six digits or none. Somebody who ticked the box and typed four has mistyped their
         // code, and letting that through would refuse them the poll without saying why.
         if (coming.getValue() && !code.isComplete()) {
-            Toast.show(getTranslation("identity.code.required"));
+            Toast.error(getTranslation("identity.code.required"));
             return;
         }
         session.identify(name.getValue(), code.value());

@@ -198,7 +198,7 @@ public class NoDayWorksView extends PollScreen {
                         ? List.copyOf(proposed)
                         : List.of(),
                 note.getValue());
-        Toast.show(getTranslation("none.sent"));
+        Toast.success(getTranslation("none.sent"));
         goTo(ReceiptView.class);
     }
 

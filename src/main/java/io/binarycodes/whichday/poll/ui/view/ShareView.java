@@ -218,7 +218,7 @@ public class ShareView extends PollScreen {
 
     private void send() {
         presenter.send(id());
-        Toast.show(getTranslation(presenter.anonymous() ? "share.opened" : "share.sentAll"));
+        Toast.success(getTranslation(presenter.anonymous() ? "share.opened" : "share.sentAll"));
         goTo(ResultsView.class);
     }
 

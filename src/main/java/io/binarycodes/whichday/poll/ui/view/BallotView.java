@@ -122,11 +122,11 @@ public class BallotView extends PollScreen {
 
     private void submit(Poll poll) {
         if (chosen.isEmpty()) {
-            Toast.show(getTranslation("ballot.needOne"));
+            Toast.error(getTranslation("ballot.needOne"));
             return;
         }
         presenter.vote(id(), Set.copyOf(chosen));
-        Toast.show(getTranslation("ballot.submitted"));
+        Toast.success(getTranslation("ballot.submitted"));
         // The organizer came from the standings and wants them back; everybody else
         // wants the receipt for the answer they just gave.
         goTo(presenter.isOrganizer(poll) ? ResultsView.class : ReceiptView.class);

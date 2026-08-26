@@ -75,8 +75,8 @@ public final class VotingLink {
             return;
         }
         Clipboard.onClick(button).writeText(absolute(poll.id()),
-                copied -> Toast.show(button.getTranslation("share.copied")),
-                failure -> Toast.show(button.getTranslation("share.copyFailed")));
+                copied -> Toast.success(button.getTranslation("share.copied")),
+                failure -> Toast.error(button.getTranslation("share.copyFailed")));
     }
 
     private static String path(UUID id) {

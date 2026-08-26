@@ -137,7 +137,7 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
             return;
         }
         if (!presenter.anonymous() && presenter.draft().isEmpty()) {
-            Toast.show(getTranslation("invitees.needOne"));
+            Toast.error(getTranslation("invitees.needOne"));
             return;
         }
         var id = presenter.createFromDraft();
@@ -148,7 +148,7 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
         if (!presenter.draft().title().isBlank()) {
             return false;
         }
-        Toast.show(getTranslation("create.eventName.required"));
+        Toast.error(getTranslation("create.eventName.required"));
         return true;
     }
 

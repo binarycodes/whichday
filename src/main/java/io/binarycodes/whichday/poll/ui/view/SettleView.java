@@ -95,7 +95,7 @@ public class SettleView extends PollScreen {
 
     private void settle() {
         if (settled == null) {
-            Toast.show(getTranslation("settle.needOne"));
+            Toast.error(getTranslation("settle.needOne"));
             return;
         }
         presenter.lock(id(), settled);

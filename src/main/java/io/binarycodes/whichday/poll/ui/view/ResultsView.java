@@ -253,7 +253,7 @@ public class ResultsView extends PollScreen {
      */
     private HintBar nudge(Person holdout) {
         var send = Actions.inline(getTranslation("results.nudge.action"),
-                ignored -> Toast.show(getTranslation("results.nudged", holdout.firstName())));
+                ignored -> Toast.success(getTranslation("results.nudged", holdout.firstName())));
         var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
                 .outlined().withAction(send);
         bar.addClassName("push-m");

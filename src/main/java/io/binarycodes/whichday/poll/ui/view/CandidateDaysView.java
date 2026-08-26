@@ -123,7 +123,7 @@ public class CandidateDaysView extends PollScreen {
      */
     private void goOn() {
         if (chosen.isEmpty()) {
-            Toast.show(getTranslation("days.needOne"));
+            Toast.error(getTranslation("days.needOne"));
             return;
         }
         presenter.chooseDays(id(), Set.copyOf(chosen));

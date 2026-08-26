@@ -65,9 +65,31 @@ vaadin-notification-card.toast {
 vaadin-notification-card.toast::part(overlay) {
   padding: var(--vaadin-padding-m) var(--vaadin-padding-l);
   border-radius: var(--vaadin-radius-l);
-  background: var(--color-surface-sunken);
+  /* Deferred rather than set outright: the theme fills this in for a card carrying an
+     error or success variant, and leaves it unset for the plain ones — so a refusal is
+     red and a confirmation green without this file naming either colour. Setting the
+     background here directly is what used to paint every toast the same. */
+  background: var(--vaadin-notification-background, var(--color-surface-sunken));
   box-shadow: var(--aura-shadow-s);
   color: var(--color-ink);
   font-size: 0.875rem;
   line-height: 1.3;
+}
+
+/* A refusal in the theme's red and a confirmation in its green. Aura swaps
+   --aura-accent-color to either one on a card carrying the variant, so these three
+   declarations paint red or green without naming a colour or knowing which arrived.
+
+   The --aura-* tokens are read here rather than aliased into colors.css as --color-*
+   ones, and that is the exception §6 has to allow: a custom property is substituted
+   where it is declared, so an alias on html would freeze the accent to the app's blue
+   and every toast would carry a blue hairline. Verified in the browser, not assumed.
+
+   The theme's own surface for an accent card is a 2% tint, which on white is white — so
+   the mix here is stronger, and the text takes the accent's readable ink. */
+vaadin-notification-card.toast[theme~="error"]::part(overlay),
+vaadin-notification-card.toast[theme~="success"]::part(overlay) {
+  background: color-mix(in oklab, var(--aura-accent-color) 12%, var(--color-surface));
+  color: var(--aura-accent-text-color);
+  box-shadow: inset 0 0 0 1px var(--aura-accent-border-color), var(--aura-shadow-s);
 }
