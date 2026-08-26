@@ -90,6 +90,15 @@
    the same way — off a screen, out loud, into somebody's notes. Tabular figures and
    the wide tracking are what make six digits legible at a glance; the monospace
    stack is the fallback for a face without them. */
+/* Sits where the link card's Share button sits, but an icon rather than a word: the
+   digits are the point of this card and a labelled button beside them would compete
+   with them. Given the room to be a touch target all the same. */
+.action-copy {
+  --vaadin-button-height: 2.375rem;
+  min-width: 2.375rem;
+  align-self: center;
+}
+
 .admin-code {
   font-family: var(--vaadin-font-family-monospace, ui-monospace, monospace);
   font-feature-settings: "tnum";

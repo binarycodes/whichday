@@ -21,13 +21,15 @@ import io.binarycodes.whichday.people.ui.view.IdentityView;
  * <p>It stands in front of every route, the shared voting link included: following one
  * asks for a name first and lands on the ballot after. The location is kept so that the
  * link survives the detour, which is the whole reason this is a guard and not a step in
- * the create flow.
+ * the create flow — and whether that location is a poll is kept with it, because it
+ * decides what the screen has any business asking for ({@link #wantsOnePoll}).
  */
 @Component
 @ConditionalOnProperty(name = "whichday.access.mode", havingValue = "anonymous")
 public class IdentityGuard implements VaadinServiceInitListener {
 
     private static final String WANTED = IdentityGuard.class.getName() + ".wanted";
+    private static final String WANTED_POLL = IdentityGuard.class.getName() + ".wantedPoll";
 
     /**
      * Asked for one navigation at a time, not held. The session it hands back is scoped
@@ -50,8 +52,28 @@ public class IdentityGuard implements VaadinServiceInitListener {
         if (sessions.getObject().isIdentified() || event.getNavigationTarget() == IdentityView.class) {
             return;
         }
-        VaadinSession.getCurrent().setAttribute(WANTED, event.getLocation().getPathWithQueryParameters());
+        var session = VaadinSession.getCurrent();
+        session.setAttribute(WANTED, event.getLocation().getPathWithQueryParameters());
+        // Kept as well as the path, because the who-are-you screen asks for a different
+        // thing depending on it — see wantsOnePoll.
+        session.setAttribute(WANTED_POLL, event.getRouteParameters().get("id").isPresent());
         event.forwardTo(IdentityView.class);
+    }
+
+    /**
+     * Whether the destination being held is one particular poll's screen. The route
+     * parameter is the whole of the test: a screen that names a poll id is a screen about
+     * a poll, and every other destination here — the create flow, the way home — is not.
+     *
+     * <p>The who-are-you screen asks for an admin code only when this is true, and that is
+     * not a courtesy. A code is checked against the poll it came with and never looked up
+     * across the table ({@code docs/REQUIREMENTS.md} §2), so six digits typed by somebody
+     * who is not on their way to a poll have nothing to be checked against — the field
+     * would take an answer, keep it, and do nothing with it, leaving somebody who wrote
+     * down only their code convinced the application had lost their poll.
+     */
+    public static boolean wantsOnePoll() {
+        return Boolean.TRUE.equals(VaadinSession.getCurrent().getAttribute(WANTED_POLL));
     }
 
     /**
@@ -63,6 +85,7 @@ public class IdentityGuard implements VaadinServiceInitListener {
         var session = VaadinSession.getCurrent();
         var wanted = (String) session.getAttribute(WANTED);
         session.setAttribute(WANTED, null);
+        session.setAttribute(WANTED_POLL, null);
         return Optional.ofNullable(wanted).filter(path -> !path.isBlank());
     }
 }

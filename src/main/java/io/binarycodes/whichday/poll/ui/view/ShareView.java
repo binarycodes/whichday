@@ -2,6 +2,8 @@ package io.binarycodes.whichday.poll.ui.view;
 
 import jakarta.annotation.security.PermitAll;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.clipboard.Clipboard;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -140,21 +142,48 @@ public class ShareView extends PollScreen {
      * The six digits, and the warning that goes with them. There is no second copy
      * anywhere — no account to attach the poll to and no list to find it in — so a
      * code nobody wrote down is a poll nobody can change again.
+     *
+     * <p>The warning names the link as well as the code, because the code alone opens
+     * nothing. It is checked against the poll being changed and never looked up across
+     * the table ({@code docs/REQUIREMENTS.md} §2), which is exactly what makes six digits
+     * safe to hand out — so the way back in is the link first and the code second. Said
+     * here because this is the one screen that hands the code over, and somebody who
+     * wrote down only the digits has kept the half that cannot be used on its own.
      */
     private Div adminCodeCard() {
+        var code = presenter.adminCode(id()).orElse("");
         var label = Typography.meta(getTranslation("share.code"));
-        var digits = new Span(presenter.adminCode(id()).orElse(""));
+        var digits = new Span(code);
         digits.addClassName("admin-code");
         var text = new Div(label, digits);
         text.addClassName("link-text");
 
-        var card = new Div(text);
+        var card = new Div(text, copyCodeButton(code));
         card.addClassNames("link-card", "push-m");
 
         var warning = new HintBar(VaadinIcon.KEY, getTranslation("share.code.keep"));
         var section = new Div(card, warning);
         section.addClassNames("stack-s", "push-2xl");
         return section;
+    }
+
+    /**
+     * Six digits read off a screen are six digits somebody can mistype, so the card
+     * offers them whole. Written down is still the advice — a clipboard survives one
+     * copy and this is the only place the code is shown — which is why the warning
+     * beneath says what it says and this button does not replace it.
+     *
+     * <p>Bound to the click rather than run from a click listener, for the reason
+     * {@link VotingLink#shareFrom} sets out at length: the clipboard needs the gesture
+     * and a server round trip has already spent it.
+     */
+    private Button copyCodeButton(String code) {
+        var copy = Actions.icon(VaadinIcon.COPY, getTranslation("share.code.copy"));
+        copy.addClassName("action-copy");
+        Clipboard.onClick(copy).writeText(code,
+                copied -> Toast.success(getTranslation("share.code.copied")),
+                failure -> Toast.error(getTranslation("share.code.copyFailed")));
+        return copy;
     }
 
     private Div linkCard(Poll poll) {

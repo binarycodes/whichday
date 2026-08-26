@@ -205,8 +205,13 @@ public class PollService {
         requireEditable(requireOrganizer(id, organizer)).lock(day);
     }
 
+    /** The poll, to somebody with nothing to show but who they are. */
+    public Optional<Poll> poll(UUID id, Person viewer) {
+        return poll(id, Caller.of(viewer));
+    }
+
     /**
-     * The poll, if it is this viewer's to see at all. An address nobody invited gets
+     * The poll, if it is this caller's to see at all. An address nobody invited gets
      * {@code Optional.empty()} — the same answer an id nobody issued gets, so a screen
      * cannot tell the two apart and neither can whoever is holding the link.
      *
@@ -215,15 +220,23 @@ public class PollService {
      * {@code stateOf} decides it, here, rather than being restated in JPQL.
      *
      * <p>Anonymous mode has no invitee list to be on, so the id is the whole of the
-     * question — holding the link is what being invited means there. A draft stays the
-     * organizer's alone either way: it has been shown to nobody, so nobody has a link.
+     * question — holding the link is what being invited means there.
+     *
+     * <p>A draft is the one read the admin code widens, and it has to. Everywhere else the
+     * link already decided who may look, so the code adds nothing to a read; a draft is
+     * the exception, because a draft has been shown to nobody and the address that made
+     * it belongs to a session that may be long gone. Without this, six digits written down
+     * from the share screen buy nothing until the poll is opened for answers — which is
+     * the one thing the person reading that screen has not done yet. The link is still
+     * required: this is checked against the poll the caller already holds.
      */
-    public Optional<Poll> poll(UUID id, Person viewer) {
-        var email = addressOf(viewer);
+    public Optional<Poll> poll(UUID id, Caller asking) {
+        var email = addressOf(asking.person());
         var found = access.isAnonymous() ? polls.findById(id) : polls.findVisibleById(id, email);
         return found
                 .filter(stored -> stateOf(stored) != PollState.DRAFT
-                        || stored.organizerEmail().equals(email))
+                        || stored.organizerEmail().equals(email)
+                        || carriesAdminCode(stored, asking))
                 .map(this::snapshot);
     }
 

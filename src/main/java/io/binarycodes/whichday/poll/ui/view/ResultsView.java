@@ -68,11 +68,38 @@ public class ResultsView extends PollScreen {
 
     @Override
     protected void build(Poll poll) {
+        // Before the branch, so the note lands above whatever the footer ends with — the
+        // same order the share screen draws, where the hint sits over the action.
+        closingNote(poll).ifPresent(this::footer);
         if (poll.isUnanswered()) {
             buildUnanswered(poll);
         } else {
             buildStandings(poll);
         }
+    }
+
+    /**
+     * When voting closes, and the way to move it — for the organizer, on the screen they
+     * actually come back to.
+     *
+     * <p>The promise is made on the share screen ("You can extend it later") and the
+     * control has always lived there too, which left it unreachable: an organizer coming
+     * back later follows the poll's own link and lands here, and nothing on this screen
+     * went to the share screen. So the sentence was true of the application and false of
+     * everybody's experience of it.
+     *
+     * <p>The same sentence rather than a second copy of it, because it is the same promise
+     * and two copies would drift. The action navigates rather than revealing a calendar
+     * here: the picker belongs to one screen, and its label says where it goes.
+     */
+    private Optional<HintBar> closingNote(Poll poll) {
+        if (!presenter.isOrganizer(poll) || !poll.isEditable() || poll.closesOn() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new HintBar(VaadinIcon.CLOCK,
+                getTranslation("share.closes", DateText.closing(this, poll.closesOn())))
+                .withAction(Actions.inline(getTranslation("results.closing.change"),
+                        ignored -> goTo(ShareView.class))));
     }
 
     private void buildUnanswered(Poll poll) {

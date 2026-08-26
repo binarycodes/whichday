@@ -64,6 +64,27 @@ class AnonymousPollServiceTest {
     }
 
     /**
+     * The one read a code widens. A draft has been shown to nobody, so the link cannot
+     * have decided who may look — and the address that made it belongs to a session that
+     * closing the tab ends. Without this, a code written down from the share screen is
+     * worth nothing until the poll is opened, which is the one thing the person reading
+     * that screen has not done yet.
+     */
+    @Test
+    @DisplayName("opens a draft to the code, and to nothing else")
+    void theCodeOpensADraft() {
+        var draft = service.create("Not sent yet", Sample.ADA, List.of(Sample.ADA));
+        service.replaceCandidateDays(draft, Caller.of(Sample.ADA), List.of(day));
+        var code = service.adminCodeOf(draft).orElseThrow();
+
+        assertThat(service.poll(draft, Sample.MIRO)).isEmpty();
+        assertThat(service.poll(draft, Caller.of(Sample.MIRO, Optional.of("000000")))).isEmpty();
+        assertThat(service.poll(draft, Caller.of(Sample.MIRO, Optional.of(code)))).isPresent();
+        // Still the organizer's own, by address, with no code at all.
+        assertThat(service.poll(draft, Sample.ADA)).isPresent();
+    }
+
+    /**
      * The whole bargain of the mode. In login mode this same call answers empty, and
      * {@code PollServiceTest.aStrangerSeesNothing} is the other half of the pair.
      */

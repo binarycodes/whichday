@@ -68,7 +68,16 @@ public final class Actions {
     /** An icon on its own: back, and the two month arrows. */
     public static Button icon(VaadinIcon glyph, String ariaLabel,
                               ComponentEventListener<ClickEvent<Button>> onClick) {
-        var button = tertiary(new Button(new Icon(glyph), onClick));
+        return listening(icon(glyph, ariaLabel), onClick);
+    }
+
+    /**
+     * The same icon button with no listener of ours, for the reason
+     * {@link #primary(String)} gives: copying needs the gesture, and a round trip has
+     * already spent it.
+     */
+    public static Button icon(VaadinIcon glyph, String ariaLabel) {
+        var button = tertiary(new Button(new Icon(glyph)));
         button.setAriaLabel(ariaLabel);
         return styled(button, "action-icon");
     }

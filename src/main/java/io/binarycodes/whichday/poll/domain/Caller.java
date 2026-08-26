@@ -7,9 +7,10 @@ import io.binarycodes.whichday.people.domain.Person;
 /**
  * Somebody asking to change a poll, and whatever they have to show for it.
  *
- * <p>Only the writing side of {@code PollService} takes one. Reading still takes a
- * {@link Person}, because a code never widens what anybody may <em>see</em> — the link
- * already decided that — only what they may change.
+ * <p>The writing side of {@code PollService} takes one, and so does the one read with
+ * something left to decide. A code widens what may be <em>seen</em> in exactly one case: a
+ * draft, which has been shown to nobody, so the link cannot have decided it. Everywhere
+ * else the link already did, and the code only widens what may be changed.
  *
  * <p>The code travels with the call rather than being read from the session inside the
  * service: who may do what is decided in the service (see {@code docs/REQUIREMENTS.md}

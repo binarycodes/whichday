@@ -161,7 +161,7 @@ modes of access.
 
 | | |
 | --- | --- |
-| `poll(id, viewer)` | anybody holding the id: the link is the credential. A draft stays the organizer's alone — it has been shown to nobody, so nobody has a link |
+| `poll(id, caller)` | anybody holding the id: the link is the credential. A draft is the organizer's — their address, or the poll's own admin code |
 | `castVote`, `decline` | anybody holding the id, **and answering is what puts them on the poll** |
 | the eight organizer-gated writes | the address on the poll, or the poll's own six-digit admin code |
 
@@ -170,6 +170,15 @@ modes of access.
 counted nowhere. It also means the invitee list *is* the list of people who answered,
 which is why `awaiting` is always empty and the screens say nothing about who is
 missing.
+
+**A draft is the one read the code widens.** Everywhere else the link has already decided
+who may look, so a code adds nothing to a read. A draft is the exception because it has
+been shown to nobody: the link decides nothing, and the minted address that made it
+belongs to a session that closing the tab ends. Without this the code handed over on the
+share screen buys nothing until the poll is opened for answers — which is precisely what
+the person reading that screen has not done yet, so the promise printed under the digits
+would be false at the moment it is read. The link is still required, and the code is still
+checked against the poll the caller already holds.
 
 **The code is compared with the poll being changed, never looked up.** So six digits are
 worth nothing without the link they go with, two polls sharing a code means nothing, and
@@ -424,6 +433,14 @@ the table wins.
 The share screen's "You can extend it later" therefore means *while it is still open*.
 That screen is only reachable on a poll that can still change, so the promise is never
 shown to somebody it is no longer true for.
+
+**And the promise has to be reachable, which it was not.** The calendar lives on the share
+screen, but an organizer coming back to a poll follows its own link and lands on the
+standings — where nothing led to the share screen. The sentence was true of the
+application and false of everybody's experience of it. The standings now carry the same
+sentence for the organizer of a poll that can still change, with an action that goes to the
+screen the picker is on: one calendar, in one place, reachable from where people actually
+arrive.
 
 ### What this replaced, and why it was wrong
 

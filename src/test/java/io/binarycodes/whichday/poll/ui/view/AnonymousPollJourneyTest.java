@@ -82,8 +82,24 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
         assertThat(currentView()).isInstanceOf(IdentityView.class);
         assertThat(textOf(currentView())).contains(translation("identity.headline"),
                 translation("identity.name"));
-        // Drawn, but not shown: almost nobody arriving here has a code to type.
+        // Nothing about a code: there is no poll on the other side of this screen for one
+        // to be checked against, so asking would take an answer and do nothing with it.
+        assertThat(textOf(currentView())).doesNotContain(translation("identity.code"),
+                translation("identity.code.toggle"));
+        assertThat(componentsOf(currentView()).filter(Checkbox.class::isInstance)).isEmpty();
+    }
+
+    /** The same screen, reached on the way to a poll: now the code has something to answer. */
+    @Test
+    @DisplayName("asks for a code only when a poll is what it is standing in front of")
+    void theCodeIsAskedForOnTheWayToAPoll() {
+        var poll = pollCalledBy(visitor("Ada", ""), "Q3 offsite");
+
+        navigateTo(ResultsView.class, poll);
+
+        assertThat(currentView()).isInstanceOf(IdentityView.class);
         assertThat(codeCheckbox().getLabel()).isEqualTo(translation("identity.code.toggle"));
+        // Drawn but not shown, because almost nobody following a link has a code either.
         assertThat(codeGroup().isVisible()).isFalse();
     }
 
@@ -125,7 +141,9 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
     @Test
     @DisplayName("takes the code a digit at a time, and refuses a half-typed one")
     void aHalfTypedCodeIsRefused() {
-        UI.getCurrent().navigate(PollsView.class);
+        var poll = pollCalledBy(visitor("Ada", ""), "Q3 offsite");
+
+        navigateTo(ResultsView.class, poll);
         type(0, "Miro");
         tickTheCodeBox();
 
@@ -139,7 +157,7 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
         codeBoxes().get(2).setValue("3920");
         click("Continue");
 
-        assertThat(currentView()).isInstanceOf(NewPollView.class);
+        assertThat(currentView()).isInstanceOf(ResultsView.class);
     }
 
     /**
@@ -192,9 +210,18 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
         navigateTo(ShareView.class, poll);
         var screen = textOf(currentView());
 
-        assertThat(screen).contains("Admin code", "Write it down");
+        // The whole of the warning, because the half that matters is the link: a code is
+        // checked against the poll it came with and finds nothing on its own.
+        assertThat(screen).contains("Admin code", translation("share.code.keep"));
         assertThat(screen).doesNotContain("Invited", "Message");
         assertThat(presenter().adminCode(poll)).get().asString().matches("\\d{6}");
+        // The copy button carries no text, so its label is the only thing to assert on —
+        // and the clipboard write itself belongs to the click, in the browser.
+        assertThat(componentsOf(currentView()))
+                .anySatisfy(candidate -> assertThat(candidate)
+                        .isInstanceOf(Button.class)
+                        .extracting(button -> ((Button) button).getAriaLabel().orElse(""))
+                        .isEqualTo(translation("share.code.copy")));
 
         navigateTo(ResultsView.class, poll);
         assertThat(textOf(currentView())).doesNotContain("Admin code");
@@ -298,6 +325,31 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
 
         navigateTo(ResultsView.class, poll);
         assertThat(currentView()).isInstanceOf(NotFoundView.class);
+    }
+
+    /**
+     * "You can extend it later" is promised on the share screen, and the calendar that
+     * keeps the promise lives there — but an organizer coming back follows the poll's own
+     * link and lands on the standings. So the way to the date has to start here.
+     */
+    @Test
+    @DisplayName("offers the organizer the closing date from the screen they come back to")
+    void theClosingDateIsReachableLater() {
+        var organizer = visitor("Ada", "");
+        var poll = pollCalledBy(organizer, "Q3 offsite");
+        var code = organizer.adminCode(poll).orElseThrow();
+
+        identifyAs("Miro", "");
+        navigateTo(ResultsView.class, poll);
+        assertThat(textOf(currentView())).doesNotContain(translation("results.closing.change"));
+
+        identifyAs("Miro", code);
+        navigateTo(ResultsView.class, poll);
+        assertThat(textOf(currentView())).contains(translation("results.closing.change"));
+
+        click("Change the date");
+
+        assertThat(currentView()).isInstanceOf(ShareView.class);
     }
 
     /**

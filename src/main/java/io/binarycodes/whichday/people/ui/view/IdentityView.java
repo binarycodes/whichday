@@ -31,7 +31,9 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
  *
  * <p>The code is behind a checkbox and asked for a box at a time — see
  * {@link AdminCodeField}. It answers a question almost nobody arriving here is being asked,
- * so it stays out of the way until somebody says it is theirs to answer.
+ * so it stays out of the way until somebody says it is theirs to answer — and it is not
+ * asked at all unless a poll is what this screen is standing in front of, since a code has
+ * nothing to be checked against without one.
  *
  * <p>Login mode has a provider for this and reaches the screen through no path of its
  * own, so it is turned away at the door rather than left to render a form that would
@@ -77,7 +79,11 @@ public class IdentityView extends Screen implements BeforeEnterObserver, HasDyna
         lede.addClassName("push-l");
         body(headline, lede);
 
-        var fields = new Div(nameField(), codeField());
+        // The code is only asked for on the way to a poll. Anywhere else it has nothing to
+        // be checked against, so the screen does not offer it — see IdentityGuard.
+        var fields = IdentityGuard.wantsOnePoll()
+                ? new Div(nameField(), codeField())
+                : new Div(nameField());
         fields.addClassNames("field-column", "push-2xl");
         body(fields);
 

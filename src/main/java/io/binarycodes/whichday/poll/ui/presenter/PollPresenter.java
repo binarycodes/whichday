@@ -115,7 +115,7 @@ public class PollPresenter {
      * invited to is absent rather than forbidden.
      */
     public Optional<Poll> poll(UUID id) {
-        return polls.poll(id, viewer());
+        return polls.poll(id, caller());
     }
 
     /** The poll being put together. Survives the trip to the invitee screen and back. */
