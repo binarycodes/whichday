@@ -41,8 +41,9 @@ import jakarta.persistence.Transient;
  * <p>No Lombok, deliberately. Hibernate wants a non-final class and a no-arg
  * constructor, and it reads fields directly — it does not want accessors. Generated
  * ones would put a {@code setOpenedAt} next to {@link #closeOn}, which stamps once,
- * and a {@code setCandidateDays} next to {@link #replaceCandidateDays}, which prunes
- * the ballots as it goes. Those two are rules, not boilerplate.
+ * and a {@code setCandidateDays} next to {@link #replaceCandidateDays}, which prunes the
+ * ballots as it goes and turns an accepted proposal into its proposer's vote. Those two
+ * are rules, not boilerplate.
  */
 @Entity
 @Table(name = "poll")
@@ -187,10 +188,21 @@ class StoredPoll implements Persistable<UUID> {
      * Replacing the candidate days drops any vote for a day that is no longer on
      * the table — a tally for a withdrawn day would otherwise keep being counted.
      */
+    /**
+     * The days on the table, and what that does to the answers already in.
+     *
+     * <p>Both rules live here rather than at the two call sites, because both call sites
+     * are "the organizer changed the days": accepting a proposal and editing the calendar
+     * arrive in the same place, and a day that appears either way should mean the same
+     * thing to the ballots.
+     */
     void replaceCandidateDays(Iterable<LocalDate> days) {
         candidateDays.clear();
         days.forEach(candidateDays::add);
-        ballots.values().forEach(ballot -> ballot.chosenDays().retainAll(candidateDays));
+        ballots.values().forEach(ballot -> {
+            ballot.keepOnly(candidateDays);
+            ballot.voteForAcceptedProposals(candidateDays);
+        });
     }
 
     LocalDate closesOn() {

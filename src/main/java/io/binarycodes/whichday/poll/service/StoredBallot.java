@@ -78,6 +78,33 @@ class StoredBallot {
         proposedDays.addAll(proposed);
     }
 
+    /**
+     * A vote for a day that is no longer offered is not a vote. Called whenever the days
+     * change, which is the only moment a ballot can be left holding one.
+     */
+    void keepOnly(Set<LocalDate> candidateDays) {
+        chosenDays.retainAll(candidateDays);
+    }
+
+    /**
+     * A day this voter put forward, now on the table, becomes their vote for it.
+     *
+     * <p>They already said they could do it — that is what proposing a day is — so leaving
+     * the ballot empty would count somebody who offered the organizer a way out as having
+     * said no to everything, including to the day the organizer took from them. It happens
+     * on acceptance and not before: until the day is on the table there is nothing to have
+     * voted for.
+     *
+     * <p>The proposal is spent in the exchange. It has had its answer, and a suggestion
+     * still listed next to the day it became would offer the organizer the chance to accept
+     * it twice.
+     */
+    void voteForAcceptedProposals(Set<LocalDate> candidateDays) {
+        var accepted = proposedDays.stream().filter(candidateDays::contains).toList();
+        chosenDays.addAll(accepted);
+        proposedDays.removeAll(accepted);
+    }
+
     Set<LocalDate> chosenDays() {
         return chosenDays;
     }

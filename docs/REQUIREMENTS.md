@@ -579,6 +579,18 @@ waiting list, and without it the poll has no way for somebody to answer it truth
 A counter-proposal is recorded against the ballot rather than added to the candidate
 days: it becomes a column only if the organizer accepts it.
 
+**Accepting a proposal is also the proposer's vote for it.** Putting a day forward is
+saying you can do it, so the organizer taking that day answers something already said.
+Without this the one person who offered a way out is counted as having refused everything —
+the accepted day included — and the day arrives on the standings with nobody behind it.
+It happens on acceptance and not before: until the day is on the table there is nothing to
+have voted for. The proposal is spent in the exchange, so it stops being listed under
+*Proposed instead*, which also stops the organizer being offered the same day twice.
+
+Both doors do it. Accepting a proposal and editing the calendar are both the organizer
+changing the days, and they arrive at the same method (`StoredPoll.replaceCandidateDays`),
+so a day that was asked for means the same thing whichever way it appears.
+
 **There is no note.** The screen used to collect one under the label "Note to the team",
 store it on the ballot, and show it to nobody — not to the team, not to the organizer, not
 on the receipt. The label was the whole of the promise. Removed rather than displayed
@@ -596,10 +608,12 @@ organizer is looking at them. With it off, the counter-proposal screen keeps its
 confirmation and loses only the calendar, and the footer stops caveating a proposal that
 cannot be made.
 
-**Replacing the candidate days drops votes for days no longer on the table.** A tally
-for a withdrawn day would otherwise keep being counted. It is the one operation where a
-partial update would be observable, which is why it is transactional and why the row
-lock makes it mutually exclusive with a vote arriving on the same poll.
+**Replacing the candidate days drops votes for days no longer on the table, and picks up
+the proposals that have joined it.** A tally for a withdrawn day would otherwise keep being
+counted, and a day somebody asked for would otherwise arrive with its asker recorded as
+having refused it (§7). It is the one operation where a partial update would be observable,
+which is why it is transactional and why the row lock makes it mutually exclusive with a
+vote arriving on the same poll.
 
 ---
 

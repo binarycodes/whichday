@@ -668,7 +668,13 @@ class PollJourneyTest extends SpringBrowserlessTest {
 
         click("Add it");
 
-        assertThat(presenter().poll(offsite).orElseThrow().candidateDays()).contains(proposed);
+        var poll = presenter().poll(offsite).orElseThrow();
+        assertThat(poll.candidateDays()).contains(proposed);
+        // Jonas asked for that day, so taking it is his vote for it — and the row that
+        // offered it goes, because the proposal has had its answer.
+        assertThat(poll.ballotOf(Sample.JONAS)).get()
+                .satisfies(ballot -> assertThat(ballot.chosenDays()).containsExactly(proposed));
+        assertThat(textOf(currentView())).doesNotContain("Proposed instead");
     }
 
     /**

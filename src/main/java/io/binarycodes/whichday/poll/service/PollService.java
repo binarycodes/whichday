@@ -188,6 +188,11 @@ public class PollService {
                 .record(addressOf(voter), Set.of(), proposedDays);
     }
 
+    /**
+     * Taking a day somebody put forward. It joins the candidate days and, because they
+     * already said they could do it, it becomes their vote for it — see
+     * {@code StoredBallot.voteForAcceptedProposals}.
+     */
     @Transactional
     public void acceptProposal(UUID id, Caller organizer, LocalDate day) {
         var stored = requireEditable(requireOrganizer(id, organizer));

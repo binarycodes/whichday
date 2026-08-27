@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -219,6 +220,82 @@ class PollServiceTest {
         service.acceptProposal(offsite, Caller.of(Sample.ADA), proposed);
 
         assertThat(poll(offsite).orElseThrow().candidateDays()).contains(proposed);
+    }
+
+    /**
+     * Proposing a day is saying you can do it, so the organizer taking it is an answer to
+     * something already said rather than a new question. A ballot left empty here would
+     * count the one person who offered a way out as having refused everything, the accepted
+     * day included.
+     */
+    @Test
+    @DisplayName("counts the proposer's vote for a day once the organizer takes it")
+    void acceptingAProposalVotesForIt() {
+        var proposed = LocalDate.of(2026, 9, 28);
+        service.decline(offsite, Sample.JONAS, List.of(proposed));
+
+        // Before: they have answered, and they have said no to everything on the table.
+        var declined = poll(offsite).orElseThrow();
+        assertThat(declined.ballotOf(Sample.JONAS)).get().satisfies(ballot -> {
+            assertThat(ballot.isDeclined()).isTrue();
+            assertThat(ballot.proposedDays()).containsExactly(proposed);
+        });
+
+        service.acceptProposal(offsite, Caller.of(Sample.ADA), proposed);
+
+        var poll = poll(offsite).orElseThrow();
+        assertThat(poll.ballotOf(Sample.JONAS)).get().satisfies(ballot -> {
+            assertThat(ballot.chosenDays()).containsExactly(proposed);
+            assertThat(ballot.isDeclined()).isFalse();
+            // Spent: it has had its answer, and the day it became is on the table.
+            assertThat(ballot.proposedDays()).isEmpty();
+        });
+        assertThat(poll.tallies()).filteredOn(tally -> tally.day().equals(proposed))
+                .singleElement()
+                .satisfies(tally -> assertThat(tally.voters()).containsExactly(Sample.JONAS));
+        // Nobody's count changed: declining was already an answer.
+        assertThat(poll.answerCount()).isEqualTo(7);
+        assertThat(poll.declined()).isEmpty();
+    }
+
+    /**
+     * The same rule from the other door. Accepting a proposal and editing the calendar are
+     * both the organizer changing the days, and a day that arrives either way should mean
+     * the same thing to a ballot that asked for it.
+     */
+    @Test
+    @DisplayName("counts it the same when the day is added from the calendar instead")
+    void addingAProposedDayFromTheCalendarVotesForIt() {
+        var proposed = LocalDate.of(2026, 9, 28);
+        service.decline(offsite, Sample.JONAS, List.of(proposed));
+        var onTheTable = new ArrayList<>(poll(offsite).orElseThrow().candidateDays());
+        onTheTable.add(proposed);
+
+        service.replaceCandidateDays(offsite, Caller.of(Sample.ADA), onTheTable);
+
+        assertThat(poll(offsite).orElseThrow().ballotOf(Sample.JONAS)).get()
+                .satisfies(ballot -> assertThat(ballot.chosenDays()).containsExactly(proposed));
+    }
+
+    @Test
+    @DisplayName("leaves a day nobody asked for unvoted")
+    void addingAnUnproposedDayVotesForNobody() {
+        var proposed = LocalDate.of(2026, 9, 28);
+        var somethingElse = LocalDate.of(2026, 9, 29);
+        service.decline(offsite, Sample.JONAS, List.of(proposed));
+        var onTheTable = new ArrayList<>(poll(offsite).orElseThrow().candidateDays());
+        onTheTable.add(somethingElse);
+
+        service.replaceCandidateDays(offsite, Caller.of(Sample.ADA), onTheTable);
+
+        var poll = poll(offsite).orElseThrow();
+        assertThat(poll.ballotOf(Sample.JONAS)).get().satisfies(ballot -> {
+            assertThat(ballot.chosenDays()).isEmpty();
+            assertThat(ballot.proposedDays()).containsExactly(proposed);
+        });
+        assertThat(poll.tallies()).filteredOn(tally -> tally.day().equals(somethingElse))
+                .singleElement()
+                .satisfies(tally -> assertThat(tally.voters()).isEmpty());
     }
 
     @Test
