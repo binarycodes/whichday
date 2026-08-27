@@ -2,6 +2,14 @@
    yet. Each row is one toggle carrying a numeral, a date, who else said yes and
    a check — three pieces of content, so a native button rather than a Vaadin one. */
 
+/* The settle screen wraps these rows in a CustomField, which is inline-grid and so
+   takes the width of its widest row rather than the screen's. The rows are the whole
+   control and belong at the column's full width. The voting screen's field escapes
+   this only by being a direct flex child of .screen-body, which stretches it. */
+.day-choice {
+  width: 100%;
+}
+
 .day-row {
   display: flex;
   align-items: center;
