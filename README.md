@@ -5,6 +5,10 @@ only, multi-select voting, and the day with the most votes wins.
 
 A mobile-first Vaadin application on the Aura theme.
 
+![A name, an event, three days on the table, and the link that goes out](docs/create-a-poll.gif)
+
+*Calling a poll in anonymous mode, start to finish.*
+
 ## Two ways in
 
 A deployment picks one, once, with `WHICHDAY_ACCESS_MODE`. It cannot be both, and it
@@ -22,9 +26,10 @@ cannot be switched at runtime.
 
 **Anonymous mode is Doodle's bargain, and it is worth reading twice.** Anybody who has
 the link can open the poll and answer it — that is the point of not having accounts.
-The organizer gets a six-digit code on the share screen, and it is the only way back to
-changing a poll once the browser tab is gone: identity lives in the session and nothing
-else. Nobody is emailed, nobody is reminded, and nothing knows who has not answered,
+The organizer gets a six-digit code on the share screen, and the link and the code
+together are the way back to changing a poll once the browser tab is gone: the code is
+checked against the poll the link opens, never looked up on its own. Identity lives in the
+session and nothing else. Nobody is emailed, nobody is reminded, and nothing knows who has not answered,
 because nothing knows who was asked.
 
 Choose `login` when the polls are a company's and it already has a provider. Choose
@@ -180,7 +185,7 @@ Two of these are `login` mode's alone. In `anonymous` mode `/` is where a poll s
 | Route              | What it is                                            |
 | ------------------ | ----------------------------------------------------- |
 | `/`                | Your polls, your drafts, and the settled ones — `login` mode |
-| `/who`             | Your name, and an admin code if you have one — `anonymous` mode |
+| `/who`             | Your name — plus an admin code when a poll's link sent you here — `anonymous` mode |
 | `/new`             | Name a poll and say who decides it                    |
 | `/new/invitees`    | Find people by email address — `login` mode           |
 | `/poll/:id/days`   | Put candidate days on the table                       |
