@@ -77,15 +77,41 @@ one next time. The tests never touch it — they run against an in-memory databa
 | `styles`  | Copy edited stylesheets to `target/classes` and bust the cache   |
 | `deps`    | Pre-download dependencies and build plugins, so a later task needs no network |
 | `resetdb` | Delete the local database                                        |
+| `readmegif` | Re-record the README's GIF (takes a deployment's URL)          |
 
 `run` needs `env up` first; the tests need neither. `./run.sh` pins JDK 21, and
 every build carries the commit SHA — the enforcer plugin rejects one that does not. CI
 runs `mvn verify` on every push and publishes the image from `main`.
 
 `run.sh` is shared between projects and names none of them: what it needs to know
-about Whichday is in `run.conf`, and `resetdb` — the one task it does not ship — is in
-`run.tasks.sh`. Improve the runner upstream and copy it back rather than editing it
-here.
+about Whichday is in `run.conf`, and the two tasks it does not ship — `resetdb` and
+`readmegif` — are in `run.tasks.sh`. Improve the runner upstream and copy it back rather
+than editing it here.
+
+### The README's GIF
+
+The README opens with `docs/create-a-poll.gif`, a pass through calling a poll. **A change
+to any screen in that flow makes it stale**, and the README is supposed to describe the
+application as it is now — so re-record it in the same change:
+
+```
+./run.sh readmegif https://whichday.example.org/
+```
+
+It drives a headless Chromium over the DevTools protocol, forces light mode so every
+reader sees one look, screenshots each step and assembles the frames with ImageMagick.
+Three things have to be on the machine, none of them installed by this repository: a
+Chromium (Playwright's cached one is found automatically, or set `CHROMIUM`), ImageMagick,
+and Python's `websockets` package. The script names whichever is missing.
+
+Two things to know before running it. It wants a **real deployment** rather than
+localhost, because the share screen puts the voting link on screen and the README's
+readers cannot follow `localhost:8080/vote/…`. And it **calls a real poll** on whatever it
+points at, which the retention sweep clears in ninety days.
+
+The steps read the UI's own English labels — "Continue", "Choose the days" — so a change
+to `translations.properties` can stop the recording rather than the application. It fails
+naming the label it could not find.
 
 ## Decisions and known problems
 
