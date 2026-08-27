@@ -202,8 +202,8 @@ public class PollPresenter {
         polls.castVote(id, viewer(), days);
     }
 
-    public void declineAll(UUID id, List<LocalDate> proposedDays, String note) {
-        polls.decline(id, viewer(), proposedDays, note);
+    public void declineAll(UUID id, List<LocalDate> proposedDays) {
+        polls.decline(id, viewer(), proposedDays);
     }
 
     public void acceptProposal(UUID id, LocalDate day) {

@@ -101,6 +101,13 @@ public class AdminCodeField extends Div {
         spreading = true;
         try {
             var digits = code.replaceAll("\\D", "");
+            if (digits.isEmpty()) {
+                // Nothing to spread, and the box is holding whatever arrived. Emptying it
+                // is what keeps a box to one character: the pattern turns typed rubbish
+                // away at the field, and this turns away rubbish that got past it.
+                boxes.get(from).clear();
+                return;
+            }
             var box = digits.length() >= length ? 0 : from;
             for (var position = 0; position < digits.length() && box < length; position++, box++) {
                 boxes.get(box).setValue(String.valueOf(digits.charAt(position)));

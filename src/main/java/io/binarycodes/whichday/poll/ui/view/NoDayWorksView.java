@@ -12,7 +12,6 @@ import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
@@ -47,7 +46,6 @@ public class NoDayWorksView extends PollScreen {
     private final Set<LocalDate> proposed = new LinkedHashSet<>();
     private final Div posters = new Div();
     private final Div picker = new Div();
-    private final TextArea note = new TextArea();
 
     private NativeButton toggle;
 
@@ -83,9 +81,8 @@ public class NoDayWorksView extends PollScreen {
         if (poll.alternativesAllowed()) {
             body(proposalSection(poll));
         }
-        body(noteField());
 
-        // With alternatives off there is no proposal to caveat, so the note says what
+        // With alternatives off there is no proposal to caveat, so the footnote says what
         // is actually true of this poll instead.
         var footnote = poll.alternativesAllowed()
                 ? new HintBar(VaadinIcon.WARNING, getTranslation("none.warning", poll.organizer().firstName()))
@@ -105,7 +102,7 @@ public class NoDayWorksView extends PollScreen {
 
     /**
      * The days chosen so far, and the calendar that chooses them — inline, and folded
-     * away until asked for. A full month is too tall to sit above the note field
+     * away until asked for. A full month is too tall to leave open on this screen
      * permanently, and an overlay on a phone would cover the very posters it is
      * filling in.
      */
@@ -180,24 +177,13 @@ public class NoDayWorksView extends PollScreen {
         }
     }
 
-    private Div noteField() {
-        note.setPlaceholder(getTranslation("none.note.placeholder"));
-        note.setValueChangeMode(ValueChangeMode.LAZY);
-        note.setWidthFull();
-        note.addClassName("field-emphasis");
-        var group = new Div(Typography.fieldLabel(getTranslation("none.note")), note);
-        group.addClassNames("stack-xs", "push-xl");
-        return group;
-    }
-
     private void send() {
         // Nothing can have been proposed when the poll does not take alternatives,
         // but reading the flag here keeps that true of the write as well as the view.
         presenter.declineAll(id(),
                 presenter.poll(id()).map(Poll::alternativesAllowed).orElse(false)
                         ? List.copyOf(proposed)
-                        : List.of(),
-                note.getValue());
+                        : List.of());
         Toast.success(getTranslation("none.sent"));
         goTo(ReceiptView.class);
     }

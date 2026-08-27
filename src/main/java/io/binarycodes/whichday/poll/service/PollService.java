@@ -174,7 +174,7 @@ public class PollService {
     void record(UUID id, Person voter, Set<LocalDate> chosenDays) {
         var stored = require(id);
         var onTheTable = chosenDays.stream().filter(stored.candidateDays()::contains).sorted().toList();
-        stored.record(addressOf(voter), new LinkedHashSet<>(onTheTable), List.of(), null);
+        stored.record(addressOf(voter), new LinkedHashSet<>(onTheTable), List.of());
     }
 
     /**
@@ -183,9 +183,9 @@ public class PollService {
      * if the organizer accepts it.
      */
     @Transactional
-    public void decline(UUID id, Person voter, List<LocalDate> proposedDays, String note) {
+    public void decline(UUID id, Person voter, List<LocalDate> proposedDays) {
         requireOpen(requireInvited(id, voter))
-                .record(addressOf(voter), Set.of(), proposedDays, note);
+                .record(addressOf(voter), Set.of(), proposedDays);
     }
 
     @Transactional
@@ -519,8 +519,7 @@ public class PollService {
                 .filter(Objects::nonNull)
                 .map(ballot -> new Ballot(named.get(ballot.voterEmail()),
                         Set.copyOf(ballot.chosenDays()),
-                        List.copyOf(ballot.proposedDays()),
-                        ballot.note()))
+                        List.copyOf(ballot.proposedDays())))
                 .toList();
     }
 

@@ -179,7 +179,7 @@ class PollPresenterTest {
         var proposed = LocalDate.of(2026, 9, 28);
         signedIn = Sample.JONAS;
 
-        presenter.declineAll(offsite, List.of(proposed), "Away that week");
+        presenter.declineAll(offsite, List.of(proposed));
 
         assertThat(presenter.ballotOf(offsite)).get().satisfies(ballot -> {
             assertThat(ballot.isDeclined()).isTrue();

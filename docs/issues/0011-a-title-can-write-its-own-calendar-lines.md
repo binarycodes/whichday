@@ -36,8 +36,7 @@ Escape the line ending as RFC 5545 asks, in `escape`, alongside the three that a
 already there — `\r\n` and a bare `\n` both become a literal `\n`, and a stray `\r`
 goes. `CalendarInviteTest` is where the case belongs.
 
-Worth doing at the same time, for the same reason and in the same method: the format
-folds lines longer than 75 octets, and a title has no length limit at all
-([`0013-a-title-or-a-note-can-be-any-size.md`](0013-a-title-or-a-note-can-be-any-size.md)).
-An unfolded long line is a strict parser's refusal rather than an injection, but it
-is the same file and the same fix.
+Worth doing at the same time, for the same reason and in the same method: the format folds
+lines longer than 75 octets. A title is capped at fifty characters now, at the field and in
+the column, so a `SUMMARY:` line can no longer run long on a title alone — but folding is
+the format's rule rather than a consequence of length, and the method is where it belongs.

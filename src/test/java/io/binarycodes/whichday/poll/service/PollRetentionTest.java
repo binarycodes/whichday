@@ -167,7 +167,7 @@ class PollRetentionTest {
     @DisplayName("takes the answers, the invitations, the days and the proposals with it")
     void deletesEverythingAboutThePoll() {
         var id = Sample.offsite(service, clock);
-        service.decline(id, Sample.JONAS, List.of(today().plusMonths(2)), "None of these work");
+        service.decline(id, Sample.JONAS, List.of(today().plusMonths(2)));
         assertThat(database.rowsIn("ballot_proposal")).isEqualTo(1);
 
         clock.advanceDays(40);

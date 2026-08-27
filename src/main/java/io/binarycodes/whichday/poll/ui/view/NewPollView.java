@@ -38,6 +38,18 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @Route("new")
 public class NewPollView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
+    /**
+     * A title, capped where every screen that draws one can carry it: the list rows, the
+     * share card, the calendar file's SUMMARY. Fifty characters is a name for a thing that
+     * is happening, and past that it stops being one.
+     *
+     * <p>{@code poll.title} is {@code varchar(50)} to match ({@code V4}). The number lives
+     * twice because an entity never leaves its own package, and the pair is the point: a
+     * field limit alone is one a crafted value walks past, and a column limit alone is a
+     * save that fails for no stated reason.
+     */
+    private static final int TITLE_LIMIT = 50;
+
     private final PollPresenter presenter;
 
     public NewPollView(PollPresenter presenter) {
@@ -87,6 +99,7 @@ public class NewPollView extends Screen implements BeforeEnterObserver, HasDynam
     private Div nameField() {
         var field = new TextField();
         field.setPlaceholder(getTranslation("create.eventName.placeholder"));
+        field.setMaxLength(TITLE_LIMIT);
         field.setValueChangeMode(ValueChangeMode.LAZY);
         field.setValue(presenter.draft().title());
         field.addValueChangeListener(event -> presenter.draft().rename(event.getValue()));

@@ -197,7 +197,7 @@ class PollServiceTest {
     @Test
     @DisplayName("counts somebody who can make none of the days as having answered")
     void decliningIsAnAnswer() {
-        service.decline(offsite, Sample.JONAS, List.of(LocalDate.of(2026, 9, 28)), "Away that week");
+        service.decline(offsite, Sample.JONAS, List.of(LocalDate.of(2026, 9, 28)));
         var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.answerCount()).isEqualTo(7);
@@ -205,7 +205,6 @@ class PollServiceTest {
         assertThat(poll.declined()).singleElement().satisfies(ballot -> {
             assertThat(ballot.voter()).isEqualTo(Sample.JONAS);
             assertThat(ballot.isDeclined()).isTrue();
-            assertThat(ballot.note()).isEqualTo("Away that week");
         });
     }
 
@@ -213,7 +212,7 @@ class PollServiceTest {
     @DisplayName("a proposal becomes a column only once it is accepted")
     void acceptingAProposal() {
         var proposed = LocalDate.of(2026, 9, 28);
-        service.decline(offsite, Sample.JONAS, List.of(proposed), null);
+        service.decline(offsite, Sample.JONAS, List.of(proposed));
 
         assertThat(poll(offsite).orElseThrow().candidateDays()).doesNotContain(proposed);
 
@@ -237,7 +236,7 @@ class PollServiceTest {
     void decliningSurvivesAlternativesBeingOff() {
         service.allowAlternatives(offsite, Caller.of(Sample.ADA), false);
 
-        service.decline(offsite, Sample.JONAS, List.of(), "Away that week");
+        service.decline(offsite, Sample.JONAS, List.of());
         var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.answerCount()).isEqualTo(7);
@@ -395,7 +394,7 @@ class PollServiceTest {
         assertThatThrownBy(() -> service.castVote(id, Sample.JONAS, Set.of(day)))
                 .isInstanceOf(PollClosedException.class)
                 .hasMessageContaining(id.toString());
-        assertThatThrownBy(() -> service.decline(id, Sample.JONAS, List.of(), null))
+        assertThatThrownBy(() -> service.decline(id, Sample.JONAS, List.of()))
                 .isInstanceOf(PollClosedException.class);
     }
 
@@ -528,7 +527,7 @@ class PollServiceTest {
 
         assertThatThrownBy(() -> service.castVote(offsite, Sample.TANVI, Set.of(day)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.decline(offsite, Sample.TANVI, List.of(day), "nope"))
+        assertThatThrownBy(() -> service.decline(offsite, Sample.TANVI, List.of(day)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(poll(offsite).orElseThrow().answerCount()).isEqualTo(6);
     }

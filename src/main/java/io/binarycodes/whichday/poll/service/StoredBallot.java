@@ -36,10 +36,6 @@ class StoredBallot {
     @Column(name = "voter_email", length = 320, nullable = false)
     private String voterEmail;
 
-    /** Unbounded, because the screen that collects it sets no maximum either. */
-    @Column(name = "note")
-    private String note;
-
     @ElementCollection
     @CollectionTable(name = "ballot_day", joinColumns = {
             @JoinColumn(name = "poll_id", referencedColumnName = "poll_id"),
@@ -75,12 +71,11 @@ class StoredBallot {
      * Hibernate to delete and insert a row with the same key in one flush, and the
      * ordering of the two is not something to rely on.
      */
-    void answer(Set<LocalDate> chosen, List<LocalDate> proposed, String comment) {
+    void answer(Set<LocalDate> chosen, List<LocalDate> proposed) {
         chosenDays.clear();
         chosenDays.addAll(chosen);
         proposedDays.clear();
         proposedDays.addAll(proposed);
-        this.note = comment;
     }
 
     Set<LocalDate> chosenDays() {
@@ -89,9 +84,5 @@ class StoredBallot {
 
     List<LocalDate> proposedDays() {
         return proposedDays;
-    }
-
-    String note() {
-        return note;
     }
 }

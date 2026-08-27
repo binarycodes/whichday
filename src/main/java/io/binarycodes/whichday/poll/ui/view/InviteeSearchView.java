@@ -50,6 +50,14 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
     private static final int SEARCH_DEBOUNCE_MILLIS = 250;
 
     private final PollPresenter presenter;
+    /**
+     * Not one address but a handful, because this field takes a pasted list as well as a
+     * typed name ({@code EmailAddress.split}). Five hundred characters is roughly a dozen
+     * addresses — more than anybody pastes at once, and bounded, which is the point: every
+     * keystroke past three characters is a search.
+     */
+    private static final int QUERY_LIMIT = 500;
+
     private final TextField query = new TextField();
     private final Div results = new Div();
     private final Div added = new Div();
@@ -91,6 +99,7 @@ public class InviteeSearchView extends Screen implements BeforeEnterObserver, Ha
         body(headline);
 
         query.setPlaceholder(getTranslation("invitees.placeholder"));
+        query.setMaxLength(QUERY_LIMIT);
         query.setValueChangeMode(ValueChangeMode.LAZY);
         query.setValueChangeTimeout(SEARCH_DEBOUNCE_MILLIS);
         query.setClearButtonVisible(true);

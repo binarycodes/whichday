@@ -48,12 +48,19 @@ import jakarta.persistence.Transient;
 @Table(name = "poll")
 class StoredPoll implements Persistable<UUID> {
 
+    /** Kept here because the column declares it; the screen's own constant matches. */
+    static final int TITLE_LENGTH = 50;
+
     @Id
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    /** Unbounded, because the field that collects it sets no maximum either. */
-    @Column(name = "title", nullable = false)
+    /**
+     * Fifty, the same maximum the field that collects it now sets. The pair is the point:
+     * a limit in the schema that no field shows is a save that fails for no stated reason,
+     * and a limit on the field alone is one a crafted value walks past.
+     */
+    @Column(name = "title", length = TITLE_LENGTH, nullable = false)
     private String title;
 
     @Column(name = "organizer_email", length = 320, nullable = false)
@@ -222,8 +229,8 @@ class StoredPoll implements Persistable<UUID> {
         return ballots;
     }
 
-    void record(String voterEmail, Set<LocalDate> chosenDays, List<LocalDate> proposedDays, String note) {
+    void record(String voterEmail, Set<LocalDate> chosenDays, List<LocalDate> proposedDays) {
         ballots.computeIfAbsent(voterEmail, email -> new StoredBallot(this, email))
-                .answer(chosenDays, proposedDays, note);
+                .answer(chosenDays, proposedDays);
     }
 }

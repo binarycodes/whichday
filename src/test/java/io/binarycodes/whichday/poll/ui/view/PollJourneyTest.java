@@ -32,6 +32,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.NativeButton;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.RouteParameters;
 
@@ -71,6 +72,10 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @WhichdayTest
 @DisplayName("Walking the poll")
 class PollJourneyTest extends SpringBrowserlessTest {
+
+    /** The maximums the product decided, pinned here so removing one fails a test. */
+    private static final int TITLE_MAXIMUM = 50;
+    private static final int QUERY_MAXIMUM = 500;
 
     @Autowired
     private ApplicationContext context;
@@ -654,7 +659,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     void decliningReachesTheOrganizer() {
         var proposed = presenter().today().plusWeeks(6).with(DayOfWeek.TUESDAY);
         StubIdentity.signIn(Sample.JONAS);
-        presenter().declineAll(offsite, List.of(proposed), "Away that week");
+        presenter().declineAll(offsite, List.of(proposed));
         StubIdentity.signIn(Sample.ADA);
 
         navigateToPoll(ResultsView.class, offsite);
@@ -830,7 +835,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     @DisplayName("offers accepting a proposed day to the organizer alone")
     void onlyTheOrganizerIsOfferedTheProposal() {
         var day = presenter().poll(offsite).orElseThrow().candidateDays().getFirst().plusDays(21);
-        presenter().declineAll(offsite, List.of(day), "Away that week");
+        presenter().declineAll(offsite, List.of(day));
 
         navigateToPoll(ResultsView.class, offsite);
         assertThat(textOf(currentView())).contains("Proposed instead").contains("Add it");
@@ -872,7 +877,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         var id = openPoll("Roadmap workshop");
         var day = presenter().poll(id).orElseThrow().candidateDays().getFirst().plusDays(21);
         StubIdentity.signIn(Sample.MIRO);
-        presenter().declineAll(id, List.of(day), "Away that week");
+        presenter().declineAll(id, List.of(day));
         StubIdentity.signIn(Sample.ADA);
 
         navigateToPoll(ResultsView.class, id);
@@ -1030,6 +1035,37 @@ class PollJourneyTest extends SpringBrowserlessTest {
                 .map(DayBallot.class::cast)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    /**
+     * Every field somebody can type into stops taking characters somewhere. A limit in the
+     * schema that nothing shows is a save that fails for no stated reason, so the field is
+     * where it has to be said — and these numbers are the product's, which is why they are
+     * written here rather than read back off the views.
+     */
+    @Test
+    @DisplayName("caps every field somebody can type in")
+    void everyTypedFieldHasAMaximum() {
+        UI.getCurrent().navigate(NewPollView.class);
+        assertThat(onlyTextField().getMaxLength()).isEqualTo(TITLE_MAXIMUM);
+
+        openSearchFor("Roadmap workshop");
+        assertThat(onlyTextField().getMaxLength()).isEqualTo(QUERY_MAXIMUM);
+
+        // Two fields, and they are all of them: the counter-proposal screen types nothing
+        // any more, and the code boxes hold one character each by construction.
+        navigateToPoll(NoDayWorksView.class, offsite);
+        assertThat(componentsOf(currentView()).filter(TextArea.class::isInstance)).isEmpty();
+        assertThat(componentsOf(currentView()).filter(TextField.class::isInstance)).isEmpty();
+    }
+
+    private TextField onlyTextField() {
+        return componentsOf(currentView())
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No text field on "
+                        + currentView().getClass().getSimpleName()));
     }
 
     private TextField queryField() {

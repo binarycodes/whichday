@@ -59,6 +59,9 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @DisplayName("Walking the poll with nobody signed in")
 class AnonymousPollJourneyTest extends SpringBrowserlessTest {
 
+    /** The maximum the product decided for a typed name, pinned so removing it fails. */
+    private static final int NAME_MAXIMUM = 20;
+
     @Autowired
     private ApplicationContext context;
 
@@ -531,6 +534,24 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
                 .orElseThrow(() -> new AssertionError("No button labelled " + label + " on "
                         + currentView().getClass().getSimpleName()));
         ComponentUtil.fireEvent(button, new ClickEvent<>(button));
+    }
+
+    /**
+     * The name is the one field this mode adds, and twenty characters is what it takes: a
+     * first name and a last one, read on a ballot line and beside an avatar.
+     */
+    @Test
+    @DisplayName("caps the name at what a name needs")
+    void theNameHasAMaximum() {
+        UI.getCurrent().navigate(PollsView.class);
+
+        var name = componentsOf(currentView())
+                .filter(TextField.class::isInstance)
+                .map(TextField.class::cast)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(name.getMaxLength()).isEqualTo(NAME_MAXIMUM);
     }
 
     /** The checkbox that says the visitor called a poll and wants to change it. */

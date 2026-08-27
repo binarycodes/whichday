@@ -43,8 +43,12 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 @Route("who")
 public class IdentityView extends Screen implements BeforeEnterObserver, HasDynamicTitle {
 
-    /** Long enough to be a name, short enough that the column it lands in holds it. */
-    private static final int NAME_LIMIT = 60;
+    /**
+     * A name, not a description. Twenty characters take a first name and a last one, and
+     * that is the whole of what this field is for — it is read on a ballot line, in a chip
+     * and beside an avatar, none of which have room for a sentence.
+     */
+    private static final int NAME_LIMIT = 20;
     private static final int CODE_LENGTH = 6;
 
     private final PollPresenter presenter;

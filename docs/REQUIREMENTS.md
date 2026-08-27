@@ -579,13 +579,21 @@ waiting list, and without it the poll has no way for somebody to answer it truth
 A counter-proposal is recorded against the ballot rather than added to the candidate
 days: it becomes a column only if the organizer accepts it.
 
+**There is no note.** The screen used to collect one under the label "Note to the team",
+store it on the ballot, and show it to nobody — not to the team, not to the organizer, not
+on the receipt. The label was the whole of the promise. Removed rather than displayed
+somewhere, because a day put forward already says what a note would say and is something
+the organizer can act on: `Ballot` carries no note, `decline` takes none, and `ballot.note`
+is gone from the schema (`V4`). Any text that had been typed went with the column; there
+had never been a way to read it back.
+
 **The organizer decides whether other days may be put forward.** Not in the design,
 which shows the counter-proposal screen as always available. It is a real question for
 a poll whose days are fixed by something outside it — a booked room, a visitor's only
 free week — where inviting alternatives just collects answers nobody can act on. The
 switch sits on the candidate-days screen, because it is a rule about those days and the
-organizer is looking at them. With it off, that screen keeps its confirmation and its
-note field and loses only the calendar, and the footer stops caveating a proposal that
+organizer is looking at them. With it off, the counter-proposal screen keeps its
+confirmation and loses only the calendar, and the footer stops caveating a proposal that
 cannot be made.
 
 **Replacing the candidate days drops votes for days no longer on the table.** A tally
@@ -696,6 +704,24 @@ instead of hiding from it.
 - Flyway warns at startup that H2 2.4.240 is newer than the version it was verified
   against. Both versions are Boot's managed ones, so the pairing is Boot's rather than
   ours.
+
+### What a column may hold
+
+Every text column says what the field that fills it says, and `V4` is where the two were
+squared:
+
+- **`poll.title`, `varchar(50)`** — the create screen's field stops at fifty characters and
+  the column does too. Either half alone is a mistake: a schema limit no field shows is a
+  save that fails for no stated reason, and a field limit with an unbounded column behind it
+  is one a crafted value walks straight past.
+- **`account.name`, `varchar(255)`, deliberately not twenty.** The name a visitor types is
+  capped at twenty by the field that takes it, but login mode takes no field at all — the
+  name arrives in an id token, and a provider sending a longer full name would turn a valid
+  sign-in into a failed insert.
+- **`ballot.note` — gone.** §7 says why.
+
+The addresses were bounded from the start (`varchar(320)`, the longest an address may be),
+and the days, the counts and the codes are not text.
 
 ### What is kept, and for how long
 
@@ -910,7 +936,7 @@ choosing who decides, and proposing a day instead — and an overlay was the wro
 to both: on a phone a dialog gets the same few hundred pixels as the screen under it,
 and it covers the very thing it is filling in. Choosing who decides became its own
 screen; proposing a day became an inline calendar folded away behind the design's own
-dashed "+", because a month is too tall to sit above the note field permanently but far
+dashed "+", because a month is too tall to leave open on that screen permanently but far
 too small a decision to spend a screen on. It is the same `MonthCalendar` the organizer
 puts days on the table with, so a voter proposing an alternative and an organizer
 offering one are the same gesture. Nothing in `src/main` constructs a `Dialog`.
