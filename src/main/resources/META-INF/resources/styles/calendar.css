@@ -32,6 +32,16 @@
   display: none;
 }
 
+/* CustomField is inline-grid, so a calendar left to itself takes the width of its widest
+   content — which is the hero month name. The seven columns are then scaled to that, and
+   square cells turn the extra width into extra height, so the whole grid changes size
+   from month to month: September is a wider word than August. The grid belongs at the
+   width of whatever holds it. The candidate-days screen escapes this only by adding its
+   calendar straight to .screen-body, which stretches it. */
+.calendar-field {
+  width: 100%;
+}
+
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
