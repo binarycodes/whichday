@@ -15,7 +15,7 @@ html {
 .app-shell {
   display: flex;
   justify-content: center;
-  min-height: 100vh;
+  min-height: 100%;
   width: 100%;
 }
 
@@ -25,12 +25,19 @@ html {
 }
 
 /* A screen fills the viewport so that a footer pinned with margin-top:auto sits
-   at the bottom of the phone rather than under the last paragraph. */
+   at the bottom of the phone rather than under the last paragraph.
+
+   Measured as a percentage of the page rather than in vh: on iOS Safari 100vh is the
+   viewport with the toolbars hidden, so a screen sized that way overhangs the visible
+   area by the height of the toolbar and pushes the footer's button below the fold.
+   index.html already resolves html's height per platform — 100% in a browser, 100lvh
+   for a home-screen app — and 100% inherits that answer instead of contradicting it. */
 .screen {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: var(--vaadin-padding-m) var(--screen-inset) 0;
+  min-height: 100%;
+  padding: calc(var(--vaadin-padding-m) + env(safe-area-inset-top, 0px))
+    var(--screen-inset) 0;
   background: var(--color-surface);
   color: var(--color-ink);
 }
@@ -40,12 +47,16 @@ html {
   flex-direction: column;
 }
 
+/* viewport-fit=cover in index.html lets the page paint under the home indicator, so the
+   footer's own bottom padding is added to whatever that bar occupies — otherwise the
+   primary action sits underneath it on a phone without a hardware home button. */
 .screen-footer {
   display: flex;
   flex-direction: column;
   gap: var(--vaadin-gap-s);
   margin-top: auto;
-  padding: var(--vaadin-padding-xl) 0;
+  padding: var(--vaadin-padding-xl) 0
+    calc(var(--vaadin-padding-xl) + env(safe-area-inset-bottom, 0px));
 }
 
 /* What the application says back. Pinned to the top over the header band rather than
