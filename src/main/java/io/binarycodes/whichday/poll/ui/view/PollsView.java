@@ -16,6 +16,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteParameters;
 
 import io.binarycodes.whichday.base.ui.Actions;
+import io.binarycodes.whichday.base.ui.ColorSchemeChoice;
 import io.binarycodes.whichday.base.ui.AppHeader;
 import io.binarycodes.whichday.base.ui.Home;
 import io.binarycodes.whichday.base.ui.Chip;
@@ -40,8 +41,11 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
 
     private final PollPresenter presenter;
 
-    public PollsView(PollPresenter presenter) {
+    private final ColorSchemeChoice scheme;
+
+    public PollsView(PollPresenter presenter, ColorSchemeChoice scheme) {
         this.presenter = presenter;
+        this.scheme = scheme;
     }
 
     /**
@@ -70,7 +74,7 @@ public class PollsView extends Screen implements BeforeEnterObserver, HasDynamic
 
         body(new AppHeader(getTranslation("app.name"), presenter.viewer(),
                 AccountLabels.of(this, presenter.viewer(), presenter.anonymous()),
-                presenter::signOut, this::render));
+                scheme, presenter::signOut, this::render));
 
         var headline = Typography.displayMedium(headlineText());
         headline.addClassName("push-3xl");

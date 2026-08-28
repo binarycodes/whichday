@@ -12,6 +12,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
 
 import io.binarycodes.whichday.base.ui.Actions;
+import io.binarycodes.whichday.base.ui.ColorSchemeChoice;
 import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.Typography;
 import io.binarycodes.whichday.people.ui.AccountLabels;
@@ -33,8 +34,11 @@ public class BallotView extends PollScreen {
     private final Set<LocalDate> chosen = new LinkedHashSet<>();
     private final Div progress = new Div();
 
-    public BallotView(PollPresenter presenter) {
+    private final ColorSchemeChoice scheme;
+
+    public BallotView(PollPresenter presenter, ColorSchemeChoice scheme) {
         super(presenter);
+        this.scheme = scheme;
     }
 
     /** Voting is over, so there is nothing to answer — the standings are the story now. */
@@ -91,7 +95,7 @@ public class BallotView extends PollScreen {
                 poll.organizer().firstName(), poll.title()));
         var account = new AccountMenu(presenter.viewer(),
                 AccountLabels.of(this, presenter.viewer(), presenter.anonymous()),
-                presenter::signOut);
+                scheme, presenter::signOut);
         var row = new Div(homeButton(), text, account);
         row.addClassName("invitation");
         return row;

@@ -2,9 +2,7 @@ package io.binarycodes.whichday.base.ui;
 
 import jakarta.annotation.security.PermitAll;
 
-import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.page.ColorScheme;
 import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.router.RouterLayout;
 
@@ -19,16 +17,5 @@ public class MainLayout extends Div implements RouterLayout {
 
     public MainLayout() {
         addClassName("app-shell");
-    }
-
-    /**
-     * Light and dark are Aura's colour scheme, and the application makes no choice of
-     * its own — there is nowhere to remember one yet, and a design drawn in light that
-     * ignores a reader's dark preference is worse than one that follows it.
-     */
-    @Override
-    protected void onAttach(AttachEvent event) {
-        super.onAttach(event);
-        event.getUI().getPage().setColorScheme(ColorScheme.Value.SYSTEM);
     }
 }
