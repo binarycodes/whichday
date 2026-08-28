@@ -28,8 +28,9 @@ import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
 import io.binarycodes.whichday.poll.ui.share.VotingLink;
 
 /**
- * One link, and the list of people who are owed it. Sending the invites is what
- * opens the poll, so this is the last screen before the counts start moving.
+ * One link, and the list of people who are owed it. Opening the poll for answers is
+ * what this screen is for, so it is the last one before the counts start moving — and
+ * the one the organizer comes back to when the closing date has to change.
  *
  * <p>Anonymous mode has no list — the link is the invitation, and who follows it is
  * not known until they answer — so what stands in its place is the admin code. It is
@@ -78,7 +79,7 @@ public class ShareView extends PollScreen {
         body(linkCard(poll));
         body(presenter.anonymous() ? adminCodeCard() : inviteList(poll));
 
-        footer(closingSection(poll), Actions.primary(sendLabel(poll), ignored -> send()));
+        footer(closingSection(poll), footerAction(poll));
     }
 
     /**
@@ -123,13 +124,23 @@ public class ShareView extends PollScreen {
         return section;
     }
 
-    private String sendLabel(Poll poll) {
-        if (presenter.anonymous()) {
-            return getTranslation("share.open");
+    /**
+     * Not the same act in both states. A draft is opened for answers by this button. A
+     * poll already out has had each edit written as it was made — the closing date the
+     * moment it was picked — so there is nothing left to commit and the button is only
+     * the way back to the standings. It says so: a button that navigates does not claim
+     * to send.
+     *
+     * <p>Opening reads the same in both modes, because it is the same act. It used to
+     * count the invitees in login mode and offer to send to them, which named something
+     * that does not happen: there is no transport, and what the button does is make the
+     * poll answerable ({@code docs/issues/0003}).
+     */
+    private Button footerAction(Poll poll) {
+        if (poll.state() != PollState.DRAFT) {
+            return Actions.primary(getTranslation("share.done"), ignored -> goTo(ResultsView.class));
         }
-        return poll.inviteCount() == 1
-                ? getTranslation("share.send.one")
-                : getTranslation("share.send.many", poll.inviteCount());
+        return Actions.primary(getTranslation("share.open"), ignored -> openForAnswers());
     }
 
     /**
@@ -221,9 +232,9 @@ public class ShareView extends PollScreen {
         return new Div(header, rows);
     }
 
-    private void send() {
+    private void openForAnswers() {
         presenter.send(id());
-        Toast.success(getTranslation(presenter.anonymous() ? "share.opened" : "share.sentAll"));
+        Toast.success(getTranslation("share.opened"));
         goTo(ResultsView.class);
     }
 

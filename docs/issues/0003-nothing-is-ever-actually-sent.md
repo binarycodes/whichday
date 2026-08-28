@@ -6,9 +6,11 @@
 
 There is no mail transport, so nothing the application would send is sent:
 
-- **Invites.** "Send 7 invites" opens the poll for voting. It does not email anybody
-  the link, so somebody invited by address who has never signed in has no way to
-  learn the poll exists.
+- **Invites.** Nothing is emailed to the people invited by address, so somebody who has
+  never signed in has no way to learn the poll exists. The button that opens the poll
+  no longer claims otherwise — it says "Open for answers" in both modes rather than
+  counting the invitees and offering to send to them — but the gap it used to paper
+  over is still here.
 - **Bounces.** The design's C3 frame names a bounced invite as a state to show.
   Nothing can bounce.
 

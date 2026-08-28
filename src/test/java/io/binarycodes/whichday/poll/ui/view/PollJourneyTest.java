@@ -538,7 +538,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(currentView()).isInstanceOf(ShareView.class);
         assertThat(presenter().poll(id).orElseThrow().candidateDays()).containsExactly(monday);
 
-        click("Send " + presenter().poll(id).orElseThrow().inviteCount() + " invites");
+        click(translation("share.open"));
 
         assertThat(presenter().poll(id).orElseThrow().state()).isEqualTo(PollState.OPEN);
         assertThat(currentView()).isInstanceOf(ResultsView.class);
@@ -863,6 +863,34 @@ class PollJourneyTest extends SpringBrowserlessTest {
         navigateToPoll(ResultsView.class, offsite);
 
         assertThat(textOf(currentView())).contains("Proposed instead").doesNotContain("Add it");
+    }
+
+    /**
+     * The share screen is reached twice: once to open the poll, and again whenever the
+     * organizer changes the closing date on one already out. The second time there is
+     * nothing to open and nothing to commit — the date was written when it was picked —
+     * so the button that opened the poll must not still offer to open it.
+     *
+     * <p>And it never offers to send: no invite leaves the application, so counting the
+     * invitees in the label named an act that does not happen (docs/issues/0003).
+     */
+    @Test
+    @DisplayName("offers to open a draft, and only a way back once the poll is out")
+    void theShareButtonSaysWhatItDoes() {
+        var draft = draftPoll("Roadmap workshop");
+        presenter().chooseDays(draft, Set.of(Sample.mondayAfterNext(presenter().today())));
+
+        navigateToPoll(ShareView.class, draft);
+        assertThat(textOf(currentView()))
+                .contains(translation("share.open"))
+                .doesNotContain(translation("share.done"), "invite");
+
+        presenter().send(draft);
+        navigateToPoll(ShareView.class, draft);
+
+        assertThat(textOf(currentView()))
+                .contains(translation("share.done"))
+                .doesNotContain(translation("share.open"));
     }
 
     @Test
