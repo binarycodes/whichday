@@ -52,7 +52,7 @@ public final class Sample {
 
     /**
      * The Q3 offsite: five candidate days, six answers, standings of 6 / 4 / 3 / 2 / 1,
-     * and Jonas holding out so a nudge has a name.
+     * and Jonas holding out so the waiting list has a name.
      */
     public static UUID offsite(PollService service, Clock clock) {
         var monday = mondayAfterNext(LocalDate.now(clock));

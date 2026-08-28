@@ -7,9 +7,9 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 
 /**
- * An icon, a sentence, and sometimes one action: the closing-time note, the
- * reminder, the nudge prompt. Two weights — a tinted panel, or an outlined card
- * where the design gives the row a border instead.
+ * An icon, a sentence, and sometimes one action: the closing-time note, the viewer's
+ * own answer, a counter-proposal to accept. Two weights — a tinted panel, or an
+ * outlined card where the design gives the row a border instead.
  */
 public class HintBar extends Div {
 

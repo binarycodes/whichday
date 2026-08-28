@@ -72,17 +72,16 @@ class PollServiceTest {
     }
 
     @Test
-    @DisplayName("leaves exactly one person owed an answer, so the nudge has a name")
+    @DisplayName("leaves exactly one person owed an answer, so the waiting list has a name")
     void soleHoldout() {
         var poll = poll(offsite).orElseThrow();
 
         assertThat(poll.awaiting()).containsExactly(Sample.JONAS);
-        assertThat(poll.awaitingOthers(Sample.ADA)).containsExactly(Sample.JONAS);
     }
 
     @Test
-    @DisplayName("never counts the person looking as somebody to chase")
-    void aHoldoutIsNeverYourself() {
+    @DisplayName("counts the person looking among those still owed an answer")
+    void theViewerCanBeAHoldout() {
         var day = Sample.mondayAfterNext(LocalDate.now(clock));
         var id = openPoll(List.of(Sample.ADA, Sample.JONAS), day);
         service.castVote(id, Sample.JONAS, Set.of(day));
@@ -90,7 +89,6 @@ class PollServiceTest {
         var poll = poll(id).orElseThrow();
 
         assertThat(poll.awaiting()).containsExactly(Sample.ADA);
-        assertThat(poll.awaitingOthers(Sample.ADA)).isEmpty();
     }
 
     /**

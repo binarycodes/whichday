@@ -99,15 +99,6 @@ public record Poll(UUID id,
         return top == 0 ? List.of() : tallies.stream().filter(tally -> tally.voteCount() == top).toList();
     }
 
-    /**
-     * Who still owes an answer apart from the person asking. The organizer is invited
-     * like everybody else, so without this the results screen offers them a nudge to
-     * themselves.
-     */
-    public List<Person> awaitingOthers(Person viewer) {
-        return awaiting().stream().filter(person -> !person.equals(viewer)).toList();
-    }
-
     public Optional<Ballot> ballotOf(Person voter) {
         return ballots.stream().filter(ballot -> ballot.voter().equals(voter)).findFirst();
     }

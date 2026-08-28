@@ -69,7 +69,7 @@ file.
 - Counts that can be one carry both forms (`count.days.one` / `count.days.many`) and the code picks on the number — `MessageFormat` alone cannot. The choice is made once in a helper, not at every call site.
 - **Where a mode changes the wording, the branch lives in one helper, not in the screens.** `Counts.progress(…, anonymous)` and `AccountLabels.of(…, anonymous)` are the shape: the component is handed what it should say and does not learn which mode it is in.
 - Page titles come from `HasDynamicTitle`. Never `switch` on a translated string; switch on an enum.
-- **A value that takes arguments doubles its apostrophes; one that takes none leaves them single.** Vaadin runs a value through `MessageFormat` only when the call passes arguments, and MessageFormat treats `'` as a quoting character — so `results.nudge` needs `hasn''t` and `identity.title` must not. Neither mistake fails a build, so `TranslationsTest` guards both.
+- **A value that takes arguments doubles its apostrophes; one that takes none leaves them single.** Vaadin runs a value through `MessageFormat` only when the call passes arguments, and MessageFormat treats `'` as a quoting character — so `none.warning` needs `doesn''t` and `identity.title` must not. Neither mistake fails a build, so `TranslationsTest` guards both.
 
 ## 8. Responsive layout
 

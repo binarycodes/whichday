@@ -3,7 +3,6 @@ package io.binarycodes.whichday.poll.ui.view;
 import jakarta.annotation.security.PermitAll;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 
 import com.vaadin.flow.component.Component;
@@ -19,10 +18,8 @@ import io.binarycodes.whichday.base.ui.Counts;
 import io.binarycodes.whichday.base.ui.DateText;
 import io.binarycodes.whichday.base.ui.HintBar;
 import io.binarycodes.whichday.base.ui.LiveBadge;
-import io.binarycodes.whichday.base.ui.Toast;
 import io.binarycodes.whichday.base.ui.TopBar;
 import io.binarycodes.whichday.base.ui.Typography;
-import io.binarycodes.whichday.people.domain.Person;
 import io.binarycodes.whichday.people.ui.AvatarStack;
 import io.binarycodes.whichday.people.ui.NameChips;
 import io.binarycodes.whichday.people.ui.WaitingChip;
@@ -125,13 +122,7 @@ public class ResultsView extends PollScreen {
         // most need the way in.
         body(ownAnswer(poll));
 
-        // Both of those promise a message. Anonymous mode has nobody's address and no
-        // way to reach anybody, so the only thing it can offer is the link again.
-        if (presenter.anonymous()) {
-            footer(shareLink(poll));
-            return;
-        }
-        footer(new HintBar(VaadinIcon.CLOCK, getTranslation("results.reminder")), shareLink(poll));
+        footer(shareLink(poll));
     }
 
     private void buildStandings(Poll poll) {
@@ -160,15 +151,10 @@ public class ResultsView extends PollScreen {
         body(tallies);
 
         proposalSection(poll).ifPresent(this::body);
-        // Once voting is over there is nothing to answer, nobody to chase and nothing
-        // left to settle: a closed poll is final, and the standings are the answer it
-        // ended on.
+        // Once voting is over there is nothing to answer and nothing left to settle:
+        // a closed poll is final, and the standings are the answer it ended on.
         if (poll.isOpen()) {
             body(ownAnswer(poll));
-            var others = poll.awaitingOthers(presenter.viewer());
-            if (others.size() == 1 && !presenter.anonymous()) {
-                body(nudge(others.getFirst()));
-            }
             // Settling is the organizer's, so nobody else is shown the button. The
             // service refuses it either way; this is so an invitee is not offered a
             // decision that is not theirs.
@@ -272,19 +258,6 @@ public class ResultsView extends PollScreen {
         return ballot.chosenDays().size() == 1
                 ? getTranslation("results.yourAnswer.one")
                 : getTranslation("results.yourAnswer.many", ballot.chosenDays().size());
-    }
-
-    /**
-     * Login mode only, and its caller says so: a nudge is a message to an address, and
-     * anonymous mode knows nobody's.
-     */
-    private HintBar nudge(Person holdout) {
-        var send = Actions.inline(getTranslation("results.nudge.action"),
-                ignored -> Toast.success(getTranslation("results.nudged", holdout.firstName())));
-        var bar = new HintBar(VaadinIcon.BELL, getTranslation("results.nudge", holdout.firstName()))
-                .outlined().withAction(send);
-        bar.addClassName("push-m");
-        return bar;
     }
 
     /** "Sent 4 min ago" — coarse on purpose; a live seconds counter would be noise. */

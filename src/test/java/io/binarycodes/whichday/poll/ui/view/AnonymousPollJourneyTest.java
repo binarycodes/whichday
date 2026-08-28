@@ -392,7 +392,8 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
     /**
      * Every one of these promises a message, and there is nobody to send one to: no
      * addresses, no invitee list, no account. Offering them would be the screen writing
-     * a cheque the deployment cannot cash.
+     * a cheque the deployment cannot cash. Login mode has the addresses and still no
+     * transport, so it goes without them too — {@code PollJourneyTest} guards that half.
      */
     @Test
     @DisplayName("offers no reminder, no nudge and nobody to tell")

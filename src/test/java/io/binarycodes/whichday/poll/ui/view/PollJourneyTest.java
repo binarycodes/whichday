@@ -262,20 +262,33 @@ class PollJourneyTest extends SpringBrowserlessTest {
         assertThat(presenter().ballotOf(id)).isPresent();
     }
 
+    /**
+     * Every one of these promises a message, and there is no transport behind any of them.
+     * Login mode knows everybody's address and still cannot send to it, so the rule that
+     * kept them out of anonymous mode keeps them out of this one — see docs/issues/0003.
+     */
     @Test
-    @DisplayName("never offers the organizer a nudge to themselves")
-    void theOrganizerIsNeverNudged() {
+    @DisplayName("offers no reminder, no nudge and nobody to tell")
+    void nothingPromisesAMessage() {
         var id = openPoll("Roadmap workshop");
         var day = presenter().poll(id).orElseThrow().candidateDays().getFirst();
-        StubIdentity.signIn(Sample.MIRO);
-        presenter().vote(id, Set.of(day));
-        StubIdentity.signIn(Sample.ADA);
 
+        // Nobody has answered, which is where the reminder used to be promised.
         navigateToPoll(ResultsView.class, id);
-        var screen = textOf(currentView());
+        assertThat(textOf(currentView())).doesNotContain("reminder", "nudge", "Nudge");
 
-        assertThat(presenter().poll(id).orElseThrow().awaiting()).containsExactly(Sample.ADA);
-        assertThat(screen).doesNotContain("Send a nudge?").contains("You haven't picked your days yet.");
+        // The organizer has answered and Miro has not: one holdout who is somebody else
+        // is the exact state that used to offer a nudge naming them.
+        presenter().vote(id, Set.of(day));
+        navigateToPoll(ResultsView.class, id);
+        assertThat(presenter().poll(id).orElseThrow().awaiting()).containsExactly(Sample.MIRO);
+        assertThat(textOf(currentView())).doesNotContain("reminder", "nudge", "Nudge");
+
+        presenter().lock(id, day);
+        navigateToPoll(LockedView.class, id);
+        var locked = textOf(currentView());
+        assertThat(locked).contains("Add to calendar");
+        assertThat(locked).doesNotContain("Tell the team");
     }
 
     @Test

@@ -115,8 +115,6 @@ Not omissions — things it cannot honestly offer.
   both modes.
 - **No invitees.** There is no directory to search and no address to invite anybody at.
   The create screen is a title and a button; `/new/invitees` leads home.
-- **No reminders, no nudges, no "tell the team".** Every one of those promises a
-  message, and there is nobody to send one to.
 - **No "waiting on", and no "everyone but Ada".** Both are claims about who was asked,
   and nobody was asked. An anonymous poll starts with nobody on it — the organizer
   included — and membership is having answered; see §2's anonymous rules.
@@ -502,8 +500,8 @@ A label that said closed while answers still landed would be worse than no label
 `requireOpen` refuses a vote or a decline unless the poll is `OPEN`, so a stale tab
 cannot post one after the date has passed — and a poll that was never sent refuses
 answers too. The ballot and the counter-proposal screen forward away rather than
-offering a control that would fail, and the results screen drops the nudge and the
-your-turn prompt, because neither is anybody's move any more.
+offering a control that would fail, and the results screen drops the your-turn prompt,
+because it is nobody's move any more.
 
 `PollState` carries `CLOSED` for the moment voting is over with no day locked in.
 
@@ -537,7 +535,7 @@ Two things follow, and both are deliberate:
 
 The screens agree without being the rule: `/poll/:id/days` and `/poll/:id/share` send
 even the organizer to the results once voting is over, and the results screen drops the
-lock button, the nudge, the your-turn prompt and the accept-a-proposal action. A
+lock button, the your-turn prompt and the accept-a-proposal action. A
 proposed day is still *shown* on a closed poll — it is part of what the team said — with
 no way to act on it.
 
@@ -563,11 +561,12 @@ called the meeting unable to say which days work for them — while still being 
 and still counted in every denominator. The symptom was the results screen offering the
 organizer a nudge to themselves.
 
-Both halves are fixed: `Poll.awaitingOthers` excludes the person looking, so a nudge
-only ever names somebody else, and the results screen carries a card for the viewer's
-own answer — "You haven't picked your days yet" with a way to the ballot, or "You said
-yes to N days" with a way to change them. Submitting returns the organizer to the
-standings they came from rather than to a voter's receipt.
+The fix is the results screen carrying a card for the viewer's own answer — "You haven't
+picked your days yet" with a way to the ballot, or "You said yes to N days" with a way to
+change them. Submitting returns the organizer to the standings they came from rather than
+to a voter's receipt. The nudge that made the symptom visible is gone altogether (§11),
+and `Poll.awaitingOthers` — which existed only so a nudge never named the viewer — went
+with it.
 
 The organizer's vote is **explicit, not implicit.** Counting every candidate day as a
 yes on their behalf would be the other way to close the gap and it would be wrong: an
@@ -894,6 +893,23 @@ control. It comes back with the thing that would send the notification, and then
 open question is Vaadin's — there is no switch component, and turning a checkbox into
 one means styling into its shadow root.
 
+**Reminders, nudges and "tell the team".** The application does not send messages, in
+either mode, and now says so by offering none. Two of the three lied outright: the nudge
+reported "Nudged Jonas" from a toast with nothing leaving the application, and the empty
+state said "A reminder goes out tomorrow morning" with nothing scheduled and nothing to
+run it. The third did not — the locked screen's "Tell the team" opened a real `mailto:`
+draft — and it went anyway, because a screen that offers to tell the team is making the
+promise whether or not a draft window is what answers it. Anonymous mode never had any
+of them, having no address to reach anybody at; login mode has the addresses and still
+no transport, so the same rule finishes the job
+([issue 0003](issues/0003-nothing-is-ever-actually-sent.md)). `Poll.awaitingOthers` and
+`MailLink.announcement` existed only to serve these and went with them. Sharing by hand
+is what remains, and it is honest about being by hand: the voting link copies to the
+clipboard, and the invite's "Message" still opens a draft, because that one names the
+address the reader has to sign in with. They come back with a transport, not before —
+and the invite is the one that has to come back first, since an invitee who cannot be
+told about a poll cannot answer it.
+
 **The dimmed weekend** — see section 5.
 
 **The wordmark.** The design says "When2"; this is Whichday. It is `app.name` in
@@ -996,7 +1012,7 @@ so a hard-coded Ada Lindqvist had nowhere to live in the application, and the po
 owned had nobody to own them. `Sample` still builds that shape and still anchors to the
 clock rather than writing September 2026 out: the design's numerals would have put the
 whole fixture in the past within the year. Six ballots over five days give 6 / 4 / 3 /
-2 / 1, with Jonas Wirtanen holding out so "Everyone but Jonas" and the nudge prompt have
+2 / 1, with Jonas Wirtanen holding out so "Everyone but Jonas" and the waiting list have
 something real to say.
 
 **A test that cannot fail is not a test.** Every guard in section 2 was added with a

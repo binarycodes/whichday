@@ -55,7 +55,7 @@ public final class Actions {
         return styled(new Button(label), "action", "action-outline");
     }
 
-    /** A small bordered button sitting inside a hint row — nudge, accept a proposal. */
+    /** A small bordered button sitting inside a hint row — change the date, accept a proposal. */
     public static Button inline(String label, ComponentEventListener<ClickEvent<Button>> onClick) {
         return styled(new Button(label, onClick), "action", "action-outline", "action-inline");
     }

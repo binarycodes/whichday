@@ -1,23 +1,21 @@
-# Nudges, reminders and invites are never actually sent
+# An invite is never actually sent
 
-**Severity:** medium — the UI promises things the application does not do.
+**Severity:** medium — invite-by-address is half a feature without a transport.
 
 ## What happens
 
-There is no mail transport, so nothing the interface offers to send is sent:
+There is no mail transport, so nothing the application would send is sent:
 
-- **Nudge.** The results screen offers to chase whoever has not answered, and
-  reports "Nudged Jonas". Nothing leaves the application.
-- **The reminder.** The empty-state screen says "A reminder goes out tomorrow
-  morning." Nothing is scheduled and nothing runs.
 - **Invites.** "Send 7 invites" opens the poll for voting. It does not email anybody
   the link, so somebody invited by address who has never signed in has no way to
   learn the poll exists.
 - **Bounces.** The design's C3 frame names a bounced invite as a state to show.
   Nothing can bounce.
 
-What *does* work is sharing by hand: "Copy" puts the real link on the clipboard, and
-"Message" opens a `mailto:` the reader's own client sends.
+What *does* work is sharing by hand, and it is honest about being by hand: "Copy" puts
+the real link on the clipboard, and "Message" opens a `mailto:` the reader's own client
+sends — its copy names the address the recipient has to sign in with, which is the one
+thing the organizer cannot improvise.
 
 ## Why it is like this
 
@@ -25,11 +23,21 @@ Sending mail needs a transport, a sender identity and a deliverability story, no
 which existed. The buttons were built because the screens are built from the design,
 and the design has them.
 
+## What was done in the meantime
+
+The nudge, the reminder and the locked screen's "Tell the team" are gone, in both modes
+— see REQUIREMENTS §11. Two of them lied outright and the third made a promise the
+application could not keep on its own, so the honest thing was to stop offering them
+rather than let them stand in for a transport that does not exist.
+
+That leaves the invite, which is the one that matters: an invitee who cannot be told
+about the poll cannot answer it. It cannot be dropped the same way, because inviting by
+address is what login mode *is* — so this ticket stays open until there is something
+behind it.
+
 ## What fixing it looks like
 
-Least dishonest first: **the invite is the one that matters.** An invitee who cannot
-be told about the poll cannot answer it, which makes invite-by-email half a feature.
-Nudges and reminders are polish on top of the same transport.
-
-Until there is one, the honest alternative is to stop offering what does not happen —
-drop the nudge button and the reminder sentence rather than have them lie.
+A transport, a sender identity and a deliverability story. Once the invite sends, the
+reminder becomes possible on the same footing — it also needs a scheduler, which
+retention has since brought (REQUIREMENTS §9) — and the bounce state has something real
+to report.
