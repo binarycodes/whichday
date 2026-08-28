@@ -47,7 +47,18 @@ html {
   flex-direction: column;
 }
 
-/* viewport-fit=cover in index.html lets the page paint under the home indicator, so the
+/* The screen's primary action, kept on screen. margin-top:auto alone puts it at the
+   bottom of the screen box, which is the bottom of the viewport only while the body
+   fits — a poll list or a long month pushes it below the fold, and the one control the
+   screen exists for is the one you have to go looking for. Sticky keeps both
+   behaviours: the margin still drops it to the bottom of a short screen, and the
+   bottom:0 holds it there once the body outgrows one.
+
+   The body now scrolls underneath, so the footer has to be opaque. It takes the
+   screen's own paint rather than a named colour because the locked screen is an accent
+   poster, and a surface-coloured band across it would read as a seam.
+
+   viewport-fit=cover in index.html lets the page paint under the home indicator, so the
    footer's own bottom padding is added to whatever that bar occupies — otherwise the
    primary action sits underneath it on a phone without a hardware home button. */
 .screen-footer {
@@ -55,6 +66,10 @@ html {
   flex-direction: column;
   gap: var(--vaadin-gap-s);
   margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: inherit;
   padding: var(--vaadin-padding-xl) 0
     calc(var(--vaadin-padding-xl) + env(safe-area-inset-bottom, 0px));
 }
