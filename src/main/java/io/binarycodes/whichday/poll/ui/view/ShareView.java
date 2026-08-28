@@ -134,7 +134,7 @@ public class ShareView extends PollScreen {
      * <p>Opening reads the same in both modes, because it is the same act. It used to
      * count the invitees in login mode and offer to send to them, which named something
      * that does not happen: there is no transport, and what the button does is make the
-     * poll answerable ({@code docs/issues/0003}).
+     * poll answerable.
      */
     private Button footerAction(Poll poll) {
         if (poll.state() != PollState.DRAFT) {

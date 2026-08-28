@@ -37,8 +37,7 @@ missing is one affordance, and the question of where it belongs:
 - **After sending** is the harder half, and not because of the plumbing. Every
   denominator everybody has already seen changes: a poll that read "4 of 6" yesterday
   reads "4 of 7" today, and the person added has no idea a poll is waiting on them —
-  nothing is ever actually sent
-  ([`0003-nothing-is-ever-actually-sent.md`](0003-nothing-is-ever-actually-sent.md)),
-  so the organizer has to pass the link on by hand either way.
+  the application sends no mail, so the organizer has to pass the link on by hand
+  either way.
 
 Doing the first half alone is worth more than it costs and leaves the second honest.

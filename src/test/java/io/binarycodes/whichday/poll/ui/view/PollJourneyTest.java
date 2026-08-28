@@ -265,7 +265,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
     /**
      * Every one of these promises a message, and there is no transport behind any of them.
      * Login mode knows everybody's address and still cannot send to it, so the rule that
-     * kept them out of anonymous mode keeps them out of this one — see docs/issues/0003.
+     * kept them out of anonymous mode keeps them out of this one.
      */
     @Test
     @DisplayName("offers no reminder, no nudge and nobody to tell")
@@ -872,7 +872,7 @@ class PollJourneyTest extends SpringBrowserlessTest {
      * so the button that opened the poll must not still offer to open it.
      *
      * <p>And it never offers to send: no invite leaves the application, so counting the
-     * invitees in the label named an act that does not happen (docs/issues/0003).
+     * invitees in the label named an act that does not happen.
      */
     @Test
     @DisplayName("offers to open a draft, and only a way back once the poll is out")

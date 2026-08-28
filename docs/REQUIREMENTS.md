@@ -887,8 +887,7 @@ be voted for.
 **"Tell me when the date is locked."** The receipt's notify toggle is gone rather than
 substituted. It was a pre-ticked checkbox with no listener, read by nothing, so every
 voter was told a promise they had not made and that nothing could keep — there is no
-mail path at all ([issue 0003](issues/0003-nothing-is-ever-actually-sent.md)). Same
-reasoning as the calendar clash: a control that cannot do what it says is worse than no
+mail path at all. Same reasoning as the calendar clash: a control that cannot do what it says is worse than no
 control. It comes back with the thing that would send the notification, and then the
 open question is Vaadin's — there is no switch component, and turning a checkbox into
 one means styling into its shadow root.
@@ -901,8 +900,7 @@ run it. The third did not — the locked screen's "Tell the team" opened a real 
 draft — and it went anyway, because a screen that offers to tell the team is making the
 promise whether or not a draft window is what answers it. Anonymous mode never had any
 of them, having no address to reach anybody at; login mode has the addresses and still
-no transport, so the same rule finishes the job
-([issue 0003](issues/0003-nothing-is-ever-actually-sent.md)). `Poll.awaitingOthers` and
+no transport, so the same rule finishes the job. `Poll.awaitingOthers` and
 `MailLink.announcement` existed only to serve these and went with them. Sharing by hand
 is what remains, and it is honest about being by hand: the voting link copies to the
 clipboard, and the share sheet the system puts up carries the same sentence the invite

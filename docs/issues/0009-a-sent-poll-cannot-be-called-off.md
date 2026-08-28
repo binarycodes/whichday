@@ -36,8 +36,7 @@ the time:
   attention on it, and a row that vanishes reads as a bug. A `CANCELLED` state that
   keeps the poll readable and stops it asking for anything is probably the answer,
   which makes it a migration and a fourth state rather than a delete.
-- **Whether the invitees are told.** They should be, and nothing is ever actually
-  sent ([`0003-nothing-is-ever-actually-sent.md`](0003-nothing-is-ever-actually-sent.md)),
+- **Whether the invitees are told.** They should be, and the application sends no mail,
   so today the organizer has to say so by hand — the same shape as every other thing
   this application would like to tell somebody.
 

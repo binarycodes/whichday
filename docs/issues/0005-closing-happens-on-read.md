@@ -29,7 +29,6 @@ closes, which is the half below.
 ## What fixing it looks like
 
 A scheduled sweep over open polls whose closing date has passed, doing whatever the
-product wants done. It depends on
-[`0003-nothing-is-ever-actually-sent.md`](0003-nothing-is-ever-actually-sent.md) —
-a trigger with nothing to send is not worth building. A sweep can now record what it
-has already done, because there is a database for it to record it in.
+product wants done. It waits on there being something for it to do: the application
+sends no mail, and a trigger with nothing to send is not worth building. A sweep can now
+record what it has already done, because there is a database for it to record it in.
