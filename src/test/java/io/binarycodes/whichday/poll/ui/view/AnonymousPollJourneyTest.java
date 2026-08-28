@@ -216,7 +216,7 @@ class AnonymousPollJourneyTest extends SpringBrowserlessTest {
         // The whole of the warning, because the half that matters is the link: a code is
         // checked against the poll it came with and finds nothing on its own.
         assertThat(screen).contains("Admin code", translation("share.code.keep"));
-        assertThat(screen).doesNotContain("Invited", "Message");
+        assertThat(screen).doesNotContain("Invited");
         assertThat(presenter().adminCode(poll)).get().asString().matches("\\d{6}");
         // The copy button carries no text, so its label is the only thing to assert on —
         // and the clipboard write itself belongs to the click, in the browser.

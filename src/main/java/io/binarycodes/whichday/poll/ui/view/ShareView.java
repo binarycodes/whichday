@@ -4,10 +4,8 @@ import jakarta.annotation.security.PermitAll;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.clipboard.Clipboard;
-import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.Route;
@@ -27,7 +25,6 @@ import io.binarycodes.whichday.poll.domain.Poll;
 import io.binarycodes.whichday.poll.domain.PollState;
 import io.binarycodes.whichday.poll.ui.component.MonthCalendar;
 import io.binarycodes.whichday.poll.ui.presenter.PollPresenter;
-import io.binarycodes.whichday.poll.ui.share.MailLink;
 import io.binarycodes.whichday.poll.ui.share.VotingLink;
 
 /**
@@ -79,9 +76,6 @@ public class ShareView extends PollScreen {
         body(headline);
 
         body(linkCard(poll));
-        if (!presenter.anonymous()) {
-            body(messageAction(poll));
-        }
         body(presenter.anonymous() ? adminCodeCard() : inviteList(poll));
 
         footer(closingSection(poll), Actions.primary(sendLabel(poll), ignored -> send()));
@@ -200,24 +194,6 @@ public class ShareView extends PollScreen {
         var card = new Div(text, share);
         card.addClassNames("link-card", "push-xl");
         return card;
-    }
-
-    /**
-     * Login mode's alone: the copy tells the reader which address to sign in with, and
-     * anonymous mode has no address and no signing in.
-     *
-     * <p>There is no calendar file here. These are days on the table, not a date — an
-     * .ics of five maybes is five entries the reader has to go back and delete, and the
-     * settled day gets its own download on the locked screen where it means something.
-     */
-    private Div messageAction(Poll poll) {
-        var message = new Anchor(MailLink.invitation(this, poll), "");
-        message.add(new Icon(VaadinIcon.PAPERPLANE), new Span(getTranslation("share.message")));
-        message.addClassNames("action", "action-quiet", "action-anchor");
-
-        var row = new Div(message);
-        row.addClassNames("action-row", "push-m");
-        return row;
     }
 
     private Div inviteList(Poll poll) {

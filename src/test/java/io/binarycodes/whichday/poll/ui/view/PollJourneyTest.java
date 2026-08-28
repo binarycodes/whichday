@@ -514,14 +514,14 @@ class PollJourneyTest extends SpringBrowserlessTest {
      * settled day still gets one, on the locked screen.
      */
     @Test
-    @DisplayName("offers the link and a message, and no calendar file for days nobody has picked")
+    @DisplayName("offers the link and no calendar file for days nobody has picked")
     void theShareScreenOffersNoCalendarFile() {
         var id = openPoll("Roadmap workshop");
         navigateToPoll(ShareView.class, id);
 
         var screen = textOf(currentView());
 
-        assertThat(screen).contains(translation("share.message"));
+        assertThat(screen).contains(translation("share.share"));
         assertThat(screen).doesNotContain("Calendar");
     }
 

@@ -64,7 +64,7 @@ file.
 ## 7. Internationalization
 
 - No user-facing string literals in code. Every label, title, hint, placeholder, tooltip, validation message, notification and aria-label is a key in `src/main/resources/vaadin-i18n/translations.properties`.
-- Resolve via `getTranslation(key, args…)` on a `Component`. A non-component helper takes the calling `Component` and resolves through it rather than reaching for a static lookup — `Counts`, `DateText`, `AccountLabels`, `MailLink`.
+- Resolve via `getTranslation(key, args…)` on a `Component`. A non-component helper takes the calling `Component` and resolves through it rather than reaching for a static lookup — `Counts`, `DateText`, `AccountLabels`, `VotingLink`.
 - Reuse and parameterise shared keys; namespace them by screen or concern (`create.*`, `days.*`, `share.*`, `ballot.*`, `results.*`, `polls.*`, `identity.*`, `nav.*`, `count.*`).
 - Counts that can be one carry both forms (`count.days.one` / `count.days.many`) and the code picks on the number — `MessageFormat` alone cannot. The choice is made once in a helper, not at every call site.
 - **Where a mode changes the wording, the branch lives in one helper, not in the screens.** `Counts.progress(…, anonymous)` and `AccountLabels.of(…, anonymous)` are the shape: the component is handed what it should say and does not learn which mode it is in.

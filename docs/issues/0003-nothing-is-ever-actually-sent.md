@@ -12,10 +12,11 @@ There is no mail transport, so nothing the application would send is sent:
 - **Bounces.** The design's C3 frame names a bounced invite as a state to show.
   Nothing can bounce.
 
-What *does* work is sharing by hand, and it is honest about being by hand: "Copy" puts
-the real link on the clipboard, and "Message" opens a `mailto:` the reader's own client
-sends — its copy names the address the recipient has to sign in with, which is the one
-thing the organizer cannot improvise.
+What *does* work is sharing by hand, and it is honest about being by hand: "Share link"
+hands the link to the system share sheet — the reader's own mail app among everything
+else on the device — and copies it to the clipboard where there is no sheet. The sheet's
+text names the address the recipient has to sign in with, which is the one thing the
+organizer cannot improvise.
 
 ## Why it is like this
 

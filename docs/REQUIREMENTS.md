@@ -905,8 +905,8 @@ no transport, so the same rule finishes the job
 ([issue 0003](issues/0003-nothing-is-ever-actually-sent.md)). `Poll.awaitingOthers` and
 `MailLink.announcement` existed only to serve these and went with them. Sharing by hand
 is what remains, and it is honest about being by hand: the voting link copies to the
-clipboard, and the invite's "Message" still opens a draft, because that one names the
-address the reader has to sign in with. They come back with a transport, not before —
+clipboard, and the share sheet the system puts up carries the same sentence the invite
+mail used to. They come back with a transport, not before —
 and the invite is the one that has to come back first, since an invitee who cannot be
 told about a poll cannot answer it.
 
@@ -922,20 +922,23 @@ grounds that an address with a typo in it is worth fixing where it can still be 
 
 ### Substituted
 
-**Message and Add-to-calendar do real work.** The design shows both as buttons and says
-nothing about what happens. There is no mail server here, so "Message" is a `mailto:`
-the browser hands to whatever the reader actually uses, and "Add to calendar" is a
-generated iCalendar file — all-day events, since the whole product is whole days. Both
-are anchors wearing the button's clothes. "Copy" uses the clipboard API and says so when
-it works.
+**Sharing is the system's job, and Add-to-calendar does real work.** The design shows
+both as buttons and says nothing about what happens. "Share link" hands the link to
+`navigator.share`, so the mail app, the messaging app and everything else the reader has
+come from the operating system rather than from a row of buttons this application
+guesses at; where there is no share sheet it copies to the clipboard instead and says
+so. "Add to calendar" is a generated iCalendar file — all-day events, since the whole
+product is whole days — an anchor wearing the button's clothes.
+
+The design's separate "Message" button is gone with it. It was a `mailto:` offering one
+destination out of the many the share sheet already lists, and its copy — which address
+to sign in with — is what `share.sheet.text` now says.
 
 **But only the settled day gets a calendar file.** The share screen offered one too, as
 TENTATIVE events for every day on the table. That is a calendar entry per maybe, put
 there before anybody has answered and left for the reader to delete once the poll picks
 one of them — so the days on the table are days on the table, and only "Add to calendar"
-on the locked screen writes anything a reader wants to keep. Message is login mode's
-alone for a different reason: its copy tells the reader which address to sign in with,
-and anonymous mode has neither.
+on the locked screen writes anything a reader wants to keep.
 
 ### Added
 

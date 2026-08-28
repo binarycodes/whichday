@@ -173,15 +173,6 @@
   --vaadin-button-text-color: var(--color-accent-text);
 }
 
-.action-quiet {
-  --vaadin-button-background: var(--color-surface);
-  --vaadin-button-border-color: var(--color-outline);
-  --vaadin-button-border-width: 1px;
-  --vaadin-button-height: 2.75rem;
-  --vaadin-button-font-size: 0.875rem;
-  --vaadin-button-text-color: var(--color-ink);
-}
-
 .action-inline {
   --vaadin-button-height: 2rem;
   --vaadin-button-font-size: 0.8125rem;
@@ -197,15 +188,6 @@
   --vaadin-button-height: auto;
   --vaadin-button-padding: 0;
   width: auto;
-}
-
-.action-row {
-  display: flex;
-  gap: var(--vaadin-gap-s);
-}
-
-.action-row > * {
-  flex: 1;
 }
 
 /* ---- Chips ---- */
