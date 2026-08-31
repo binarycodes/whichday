@@ -200,7 +200,7 @@ public class ShareView extends PollScreen {
 
         var share = Actions.primary(getTranslation("share.share"));
         share.addClassName("action-share");
-        VotingLink.shareFrom(share, poll);
+        VotingLink.shareFrom(share, poll.id());
 
         var card = new Div(text, share);
         card.addClassNames("link-card", "push-xl");

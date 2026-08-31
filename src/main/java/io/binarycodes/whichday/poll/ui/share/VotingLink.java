@@ -12,7 +12,6 @@ import com.vaadin.flow.server.VaadinRequest;
 import com.vaadin.flow.server.VaadinServletRequest;
 
 import io.binarycodes.whichday.base.ui.Toast;
-import io.binarycodes.whichday.poll.domain.Poll;
 
 /**
  * The one link a poll is shared by, taken from the deployment's own request rather
@@ -57,6 +56,11 @@ public final class VotingLink {
      * button neither copied nor complained. These two bind the action to the click
      * itself, in the browser, where the activation still exists.
      *
+     * <p>The sheet carries the url and nothing else. A title and a message read well in
+     * the preview and badly everywhere the link is actually pasted, where the recipient
+     * gets a sentence the organizer did not write — and the one written here assumed a
+     * sign-in that anonymous mode does not have.
+     *
      * <p>Which of the two a button gets is decided once, as the screen is built, from
      * the support signal the client seeds at bootstrap — {@code peek} rather than
      * {@code get} because that is a reading and not a subscription: re-running this
@@ -66,15 +70,12 @@ public final class VotingLink {
      * has it, a desktop browser often does not — and the clipboard is the one that
      * works either way.
      */
-    public static void shareFrom(Button button, Poll poll) {
+    public static void shareFrom(Button button, UUID id) {
         if (WebShare.supportSignal().peek() == WebShareSupport.SUPPORTED) {
-            WebShare.onClick(button).share(ShareContent.create()
-                    .title(button.getTranslation("share.sheet.title", poll.title()))
-                    .text(button.getTranslation("share.sheet.text", poll.title()))
-                    .url(absolute(poll.id())));
+            WebShare.onClick(button).share(ShareContent.create().url(absolute(id)));
             return;
         }
-        Clipboard.onClick(button).writeText(absolute(poll.id()),
+        Clipboard.onClick(button).writeText(absolute(id),
                 copied -> Toast.success(button.getTranslation("share.copied")),
                 failure -> Toast.error(button.getTranslation("share.copyFailed")));
     }

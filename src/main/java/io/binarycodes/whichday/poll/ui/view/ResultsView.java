@@ -287,7 +287,7 @@ public class ResultsView extends PollScreen {
      */
     private Button shareLink(Poll poll) {
         var button = Actions.outline(getTranslation("results.shareLink"));
-        VotingLink.shareFrom(button, poll);
+        VotingLink.shareFrom(button, poll.id());
         return button;
     }
 
