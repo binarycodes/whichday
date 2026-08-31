@@ -6,9 +6,10 @@ person can point at the database.
 ## What happens
 
 `AccountDirectory.matching` calls `findAllByOrderByEmailAsc`, which is every row in
-the `account` table, and filters the result in Java. `InviteeSearch.matching` then
-runs `countPollsAnsweredByBoth` once per hit — a correlated subquery over the ballots
-— for up to five hits.
+the `account` table, and filters the result in Java. `InviteeSearch.matching` then calls
+`PollService.pollsSharedBy` once per hit, and each of those runs
+`countPollsAnsweredByBoth` — a correlated subquery over the ballots — so up to five of
+them per search.
 
 The search field is `ValueChangeMode.LAZY` at 250 ms, so that is one full table load
 plus five counts every quarter second for as long as somebody holds a key down. The

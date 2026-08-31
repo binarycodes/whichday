@@ -5,10 +5,11 @@ the two a deployment behind a proxy needs.
 
 ## What happens
 
-`SecurityConfig` says nothing about headers beyond making sure they are written at
-all — the `HeaderWriterFilter` post-processor exists because Spring writes them as
-the response commits and a Vaadin-rendered route never commits that way. So every
-response carries Spring Security's defaults: `X-Frame-Options: DENY`, `nosniff`,
+Neither filter chain says anything about headers. The only thing configured is that
+they get written at all: `SecurityHeadersConfig` holds a `HeaderWriterFilter`
+post-processor, once for both modes, because Spring writes headers as the response
+commits and a Vaadin-rendered route never commits that way. So every response carries
+Spring Security's defaults: `X-Frame-Options: DENY`, `nosniff`,
 the cache headers that keep a page out of a store, and HSTS on a request that
 arrived over TLS.
 
@@ -41,6 +42,8 @@ and overridable for plain-HTTP local runs.
 The CSP is the larger half, because Vaadin bootstraps through inline script and a
 strict policy needs its nonce integration to be worth having. A first policy that
 costs nothing and can go in now: `frame-ancestors 'none'`, `object-src 'none'`,
-`base-uri 'self'`. `SecurityConfigTest` curls real routes over a real container, so
-it is where any of this gets pinned — and it must curl a route, never only a
-stylesheet, for the reason the post-processor exists.
+`base-uri 'self'`. `LoginSecurityConfigTest` and `AnonymousSecurityConfigTest` curl real
+routes over a real container, so they are where any of this gets pinned — both of
+them, since one configuration serves two chains and a test on a single mode would not
+notice the other losing its headers. Neither asserts a header today. What is curled
+has to be a route, never only a stylesheet, for the reason the post-processor exists.

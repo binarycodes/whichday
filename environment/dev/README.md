@@ -123,5 +123,4 @@ Requires either podman, or docker with the Compose plugin (`docker compose` or t
 standalone `docker-compose`). Rootless podman also needs its socket listening —
 `systemctl --user start podman.socket` — which `run.sh` will tell you about rather than
 do for you. The test suite needs none of this: every tier stubs the identity provider
-rather than starting one
-([`../../docs/issues/0006-the-real-sign-in-is-never-exercised.md`](../../docs/issues/0006-the-real-sign-in-is-never-exercised.md)).
+rather than starting one.

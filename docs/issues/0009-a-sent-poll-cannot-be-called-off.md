@@ -1,7 +1,8 @@
 # A poll that has gone out cannot be called off
 
 **Severity:** medium — nothing is lost, but a poll that should not exist stays in
-seven people's lists until somebody locks a day just to be rid of it.
+seven people's lists for the whole of its open life, and the only way to cut that
+short is to lock a day just to be rid of it.
 
 ## What happens
 
@@ -14,6 +15,12 @@ The only exits are to lock a day nobody wants, which files it under Settled and 
 everybody a date was chosen, or to let it run to its closing date — which is at most
 the last day on the table, so a poll sent months ahead asks for an answer the whole
 time. Once it closes it is final and unchangeable, which at least stops it asking.
+
+Retention is a third exit, and the slowest: the sweep deletes a poll a few days after
+it ended — `WHICHDAY_RETENTION_AFTER_POLL_ENDS`, five by default — and unconditionally
+at `WHICHDAY_RETENTION_DAYS`, ninety. So a poll sent by mistake does go away on its
+own. It goes away after spending its whole open life asking, which is the part this
+ticket is about.
 
 Together with [`0007-a-forgotten-invitee-cannot-be-added.md`](0007-a-forgotten-invitee-cannot-be-added.md)
 this makes a sent poll close to immutable: nobody can be added to it, and it cannot

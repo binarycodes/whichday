@@ -11,7 +11,8 @@ header. Nothing checks that the host is one this deployment answers to — Tomca
 not, and no configuration here asks it to.
 
 The link goes three places, all of them the organizer's own: the share screen, the
-clipboard, and the payload handed to the system share sheet. So a request carrying
+clipboard, and the payload handed to the system share sheet — which the results screen
+offers a second time, for an organizer back there because somebody never got it. So a request carrying
 somebody else's host produces an invite pointing at somebody else's server, in whatever
 the organizer is about to send to their team.
 

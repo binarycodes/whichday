@@ -23,14 +23,17 @@ to choose can therefore return a `sub` of `sixten@acme.com` and be Sixten.
 
 ## Why it is like this
 
-The default issuer is Google, which verifies addresses before it puts them in a
-token and issues numeric subjects that cannot collide with one. A default deployment
-is not exposed, and the code was written against that provider.
+The default issuer is the development Keycloak in `environment/dev`, whose realm sets
+`emailVerified: true` on both of its people and turns self-registration off. So a
+laptop is not exposed — by that realm's configuration, though, not by anything here.
 
-But `WHICHDAY_OIDC_ISSUER_URI` is a deployment's to set, and the registration is
-deliberately named `oidc` rather than after any vendor, precisely so that it need not
-be Google. Which provider it is, is not this application's to assume — a self-hosted
-Keycloak or Authentik with open registration is the configuration this fails on.
+That is the whole of the protection. `WHICHDAY_OIDC_ISSUER_URI` is a deployment's to
+set, and the registration is deliberately named `oidc` rather than after any vendor,
+precisely so that it can be anything. A provider that verifies an address before
+putting it in a token — Google does, and issues numeric subjects that cannot collide
+with one — makes this safe. A self-hosted Keycloak or Authentik with registration open
+is the configuration it fails on, and that is the same software the default points at
+with one realm setting changed.
 
 ## What fixing it looks like
 
@@ -45,5 +48,5 @@ Two changes in `personFor`, both small:
   §1 already says such a person cannot be invited.
 
 `AuthenticatedViewerSessionTest` builds an `OidcUser` directly, so both cases are
-reachable there. The real token exchange is still untested for the separate reason in
-[`0006-the-real-sign-in-is-never-exercised.md`](0006-the-real-sign-in-is-never-exercised.md).
+reachable there — which is where they have to be met, since no tier starts a provider
+and the real token exchange is exercised nowhere.
