@@ -23,12 +23,10 @@
         <jacoco.version>0.8.13</jacoco.version>
         <headless>true</headless>
         <!--
-            Surefire and failsafe read argLine, and JaCoCo's prepare-agent overwrites it
-            with the coverage agent. Both plugins therefore ask for it late, as
-            @{argLine}, so the coverage agent survives having the Mockito agent appended.
-            This empty default is what keeps that working when JaCoCo does not run
-            (-Djacoco.skip=true): with no property to resolve, @{argLine} would reach the
-            forked JVM literally and it would refuse to start.
+            JaCoCo's prepare-agent overwrites argLine, so surefire and failsafe resolve it
+            late as @{argLine} and append the Mockito agent to whatever it holds. The empty
+            default is what keeps -Djacoco.skip=true working: with nothing to resolve,
+            @{argLine} reaches the forked JVM literally and it refuses to start.
         -->
         <argLine></argLine>
     </properties>
@@ -54,10 +52,8 @@
 
     <dependencies>
         <!--
-            vaadin-core, not vaadin: the UI is built entirely from the free
-            components, so pulling the commercial ones in only to leave them unused
-            would put a license check on every build and a secret in every pipeline.
-            It also carries the Aura theme, which is what every screen is styled on.
+            vaadin-core, not vaadin: the commercial components are unused, and pulling them
+            in anyway would put a license check on every build and a secret in every pipeline.
         -->
         <dependency>
             <groupId>com.vaadin</groupId>
@@ -81,12 +77,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!--
-            Signing in is OIDC against Google, so this is an OAuth2 *client* rather
-            than a resource server: it needs the redirect, the token exchange and the
-            OIDC user, not bearer-token validation. The module-aligned Boot 4 name —
-            the starter is what pulls the autoconfiguration along with the library.
-        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-oauth2-client</artifactId>
@@ -101,22 +91,15 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <!--
-            Flyway owns the schema (CODING_CONVENTIONS.md §10). The Boot starter rather
-            than org.flywaydb:flyway-core: Boot 4 keeps the autoconfiguration in its own
-            module, so the bare library puts Flyway on the classpath and then nothing
-            runs it — the app starts, applies no migration, and ddl-auto=validate has no
-            entity to object about. The starter also carries H2 support; the
-            flyway-database-* modules cover other engines and there is none for this one.
+            The starter, not org.flywaydb:flyway-core: Boot 4 keeps the autoconfiguration in
+            a separate module, so the bare library lands on the classpath and nothing ever
+            runs it — migrations silently do not apply. It carries H2 support too; other
+            engines want their own flyway-database-* module.
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
-        <!--
-            runtime rather than test, which is the scope H2 usually gets: this is the
-            database the application runs on and nothing compiles against it, so a
-            test scope would ship a jar with no driver in it.
-        -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
@@ -133,9 +116,8 @@
             <scope>test</scope>
         </dependency>
         <!--
-            The views are Spring beans with constructor injection, so browserless
-            tests need the Spring-aware base class; browserless-test-junit6 alone
-            only offers the plain one, which cannot build them.
+            Both artifacts: browserless-test-junit6 carries only the plain base class,
+            which cannot build components that Spring has to inject.
         -->
         <dependency>
             <groupId>com.vaadin</groupId>
@@ -160,38 +142,26 @@
         <defaultGoal>spring-boot:run</defaultGoal>
         <plugins>
             <!--
-                Warnings fail the build. The exclusions are the categories that fire
-                on correct code here, so leaving them on would train everyone to
-                ignore the output:
-                  deprecation - @CssImport(themeFor) is deprecated but is the only
-                                way to reach Highcharts internals in shadow DOM
+                -Werror, so each excluded category is one that fires on correct code here:
                   serial      - Vaadin components are Serializable without serialVersionUID
-                  this-escape - every view calls add()/setWidthFull() from its constructor
+                  this-escape - views call add()/setWidthFull() from their constructors
                   path        - non-existent classpath entries, environmental not code
                   processing  - Lombok is the only processor, so it never claims the
-                                Spring and Vaadin annotations read at runtime
+                                annotations Spring and Vaadin read at runtime
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <compilerArgs>
-                        <arg>-Xlint:all,-deprecation,-serial,-this-escape,-path,-processing</arg>
+                        <arg>-Xlint:all,-serial,-this-escape,-path,-processing</arg>
                         <arg>-Werror</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
             <!--
-                The deployed commit SHA is mandatory: every build must be traceable
-                to a commit. build.commit has no default, so a build that fails to
-                supply -Dbuild.commit=<sha> is rejected here at validate rather than
-                silently shipping an unidentifiable build. run.sh supplies it from
-                `git rev-parse HEAD`; the Docker build from the GIT_SHA arg; CI from
-                github.sha.
-            -->
-            <!--
-                Exposes every resolved dependency's path as a property, which is the only
-                way to name the Mockito jar in an argLine without hard-coding a version.
+                Exposes each resolved dependency's path as a property, which is how the
+                argLines below name the Mockito jar without pinning a version.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -294,12 +264,10 @@
                 </executions>
             </plugin>
             <!--
-                Mockito's inline mock maker attaches itself as an agent at runtime, which
-                the JDK is in the process of withdrawing; passing it as -javaagent is the
-                supported way. Nothing here mocks anything directly — Mockito arrives with
-                spring-boot-starter-test and the Spring test infrastructure initialises it
-                — so this exists to keep the build quiet on a future JDK rather than to
-                enable anything.
+                Nothing here mocks anything directly — Mockito arrives with
+                spring-boot-starter-test — but its inline mock maker self-attaches at
+                runtime, which the JDK is withdrawing. Passing it as -javaagent enables
+                nothing; it keeps a future JDK from warning.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -327,11 +295,8 @@
                 </executions>
             </plugin>
             <!--
-                Renders the failsafe (e2e/Playwright) and surefire (unit) XML
-                results into a browsable HTML scenario list under
-                target/reports/. Not a coverage gate — it's a human-readable
-                catalogue of which scenarios ran and passed. @DisplayName on the
-                IT classes/methods becomes the scenario text.
+                A browsable catalogue of which scenarios ran, built from the surefire and
+                failsafe XML. It gates nothing and fails nothing.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
